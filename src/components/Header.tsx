@@ -6,14 +6,22 @@ import { api } from '@/lib/api';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import { toast } from 'react-toastify';
 import NotificationBell from './NotificationBell';
+import { supabase } from '@/lib/supabaseClient';
+import { disconnectSocket } from '@/lib/socket';
 
 export default function Header(){
     const router = useRouter();
     const dispatch = useDispatch();
     const { data: me } = useGetMeQuery();
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         localStorage.removeItem('token');
+        disconnectSocket();
+        // Google ile giris yapildiysa Supabase'in kendi session'i da temizlenmeli,
+        // yoksa tekrar "Google ile giris yap" hesap secmeden ayni kullaniciyla oturum acar
+        if (supabase) {
+          await supabase.auth.signOut();
+        }
         dispatch(api.util.resetApiState());
         toast.success('Çıkış yapıldı');
         router.push('/login');

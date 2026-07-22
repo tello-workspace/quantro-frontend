@@ -28,6 +28,13 @@ interface OrgsResponse {
   data: Organization[];
 }
 
+export interface PendingInvitation {
+  id: string;
+  role: 'ADMIN' | 'MEMBER';
+  createdAt: string;
+  invitedUser: { id: string; name: string; email: string };
+}
+
 export const organizationsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getMyOrganizations: builder.query<Organization[], void>({
@@ -70,6 +77,18 @@ export const organizationsApi = api.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }],
     }),
+    getPendingInvitations: builder.query<PendingInvitation[], { orgId: string }>({
+      query: ({ orgId }) => `/organizations/${orgId}/invitations`,
+      transformResponse: (response: { success: boolean; data: PendingInvitation[] }) => response.data,
+      providesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }],
+    }),
+    cancelInvitation: builder.mutation<void, { orgId: string; invitationId: string }>({
+      query: ({ orgId, invitationId }) => ({
+        url: `/organizations/${orgId}/invitations?invitationId=${invitationId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }],
+    }),
     acceptInvitation: builder.mutation<void, string>({
       query: (invitationId) => ({
         url: `/invitations/${invitationId}/accept`,
@@ -96,4 +115,6 @@ export const {
   useRemoveMemberMutation,
   useAcceptInvitationMutation,
   useDeclineInvitationMutation,
+  useGetPendingInvitationsQuery,
+  useCancelInvitationMutation,
 } = organizationsApi;

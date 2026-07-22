@@ -7,6 +7,8 @@ import {
   useUpdateOrganizationMutation,
   useDeleteOrganizationMutation,
   useRemoveMemberMutation,
+  useGetPendingInvitationsQuery,
+  useCancelInvitationMutation,
 } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import Link from 'next/link';
@@ -265,10 +267,23 @@ function OrgSettingsPanel({ orgId }: { orgId: string }) {
   const [updateOrganization, { isLoading: isSaving }] = useUpdateOrganizationMutation();
   const [deleteOrganization, { isLoading: isDeleting }] = useDeleteOrganizationMutation();
   const [removeMember, { isLoading: isRemoving }] = useRemoveMemberMutation();
+  const [cancelInvitation, { isLoading: isCancelling }] = useCancelInvitationMutation();
+  const isAdmin = org?.myRole === 'ADMIN';
+  const { data: pendingInvitations } = useGetPendingInvitationsQuery({ orgId }, { skip: !isAdmin });
 
   if (!org) return <p className="mb-6 text-sm text-slate-500">Yükleniyor...</p>;
 
   const isOwner = me?.id === org.ownerId;
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      await cancelInvitation({ orgId, invitationId }).unwrap();
+      toast.success('Davet geri alındı');
+    } catch (err) {
+      const errData = (err as { data?: { error?: { message?: string } | string } })?.data?.error;
+      alert(typeof errData === 'string' ? errData : errData?.message || 'Davet geri alınamadı.');
+    }
+  };
 
   const startEditing = () => {
     setName(org.name);
@@ -361,6 +376,28 @@ function OrgSettingsPanel({ orgId }: { orgId: string }) {
           ))}
         </ul>
       </div>
+
+      {isAdmin && pendingInvitations && pendingInvitations.length > 0 && (
+        <div className="mb-4">
+          <h4 className="text-sm font-medium text-slate-600 mb-2">Bekleyen Davetler</h4>
+          <ul className="space-y-1">
+            {pendingInvitations.map((inv) => (
+              <li key={inv.id} className="flex items-center justify-between text-sm">
+                <span className="text-slate-700">
+                  {inv.invitedUser.name} <span className="text-slate-400">({inv.invitedUser.email})</span>
+                </span>
+                <button
+                  onClick={() => handleCancelInvitation(inv.id)}
+                  disabled={isCancelling}
+                  className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                >
+                  Geri Al
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {isOwner && (
         <button
