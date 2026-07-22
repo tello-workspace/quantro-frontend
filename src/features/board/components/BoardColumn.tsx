@@ -1,6 +1,7 @@
 // src/features/board/components/BoardColumn.tsx
 import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { BoardCard } from './BoardCard';
 import { Task } from '../services/boardService';
 import { PlusIcon } from '@heroicons/react/24/outline';
@@ -9,6 +10,9 @@ interface BoardColumnProps {
   id: string;
   title: string;
   tasks: Task[];
+  // Filtreleme aktifken gerçek (filtresiz) kart sayısı - WIP göstergesi
+  // filtrelenmiş görünüme değil, sütunun gerçek doluluğuna göre hesaplanmalı
+  totalCount?: number;
   wipLimit?: number | null;
   canAddTask: boolean;
   onAddTask: (columnId: string, title: string) => void;
@@ -19,6 +23,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   id,
   title,
   tasks,
+  totalCount,
   wipLimit,
   canAddTask,
   onAddTask,
@@ -36,7 +41,8 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
     setIsAdding(false);
   };
 
-  const isLimitExceeded = wipLimit !== undefined && wipLimit !== null && tasks.length >= wipLimit;
+  const realCount = totalCount ?? tasks.length;
+  const isLimitExceeded = wipLimit !== undefined && wipLimit !== null && realCount >= wipLimit;
 
   return (
     <div 
@@ -51,19 +57,23 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">{title}</h3>
           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-            {tasks.length} {wipLimit ? `/ ${wipLimit}` : ''}
+            {totalCount !== undefined
+              ? `${tasks.length} / ${totalCount}${wipLimit ? ` (limit ${wipLimit})` : ''}`
+              : `${tasks.length}${wipLimit ? ` / ${wipLimit}` : ''}`}
           </span>
         </div>
       </div>
 
       <div className="flex flex-col gap-3 overflow-y-auto flex-1 min-h-[150px] pr-1">
-        {tasks.map((task) => (
-          <BoardCard 
-            key={task.id} 
-            task={task} 
-            onClick={() => onTaskClick(task.id)} 
-          />
-        ))}
+        <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+          {tasks.map((task) => (
+            <BoardCard
+              key={task.id}
+              task={task}
+              onClick={() => onTaskClick(task.id)}
+            />
+          ))}
+        </SortableContext>
       </div>
 
       {canAddTask && (

@@ -3,8 +3,8 @@
 
 import React, { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon } from '@heroicons/react/24/outline';
-import { Task, TaskLabel } from '@/features/board/services/boardService';
+import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { Task, TaskLabel, DependencyCard } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import {
@@ -19,6 +19,7 @@ import {
   useUpdateCommentMutation,
   useDeleteCommentMutation,
 } from '@/features/comments/commentsApi';
+import { useAddDependencyMutation, useRemoveDependencyMutation } from '@/features/dependencies/dependenciesApi';
 import { toast } from 'react-toastify';
 
 const NEW_LABEL_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
@@ -178,6 +179,7 @@ interface TaskModalProps {
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   fetchTaskDetails: (taskId: string) => Promise<Task>;
+  availableCards?: DependencyCard[];
 }
 
 export const TaskModal: React.FC<TaskModalProps> = ({
@@ -189,6 +191,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   onUpdateTask,
   onDeleteTask,
   fetchTaskDetails,
+  availableCards = [],
 }) => {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(false);
@@ -196,6 +199,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(NEW_LABEL_COLORS[0]);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
+  const [showDependencyPicker, setShowDependencyPicker] = useState(false);
 
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId || !isOpen });
   const members = org?.members ?? [];
@@ -208,6 +212,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [createLabel, { isLoading: isCreatingLabel }] = useCreateLabelMutation();
   const [attachLabel] = useAttachLabelMutation();
   const [detachLabel] = useDetachLabelMutation();
+  const [addDependency] = useAddDependencyMutation();
+  const [removeDependency] = useRemoveDependencyMutation();
 
   useEffect(() => {
     if (taskId && isOpen) {
@@ -284,6 +290,30 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setNewLabelName('');
     } catch {
       toast.error('Etiket oluşturulamadı.');
+    }
+  };
+
+  const handleAddDependency = async (blockerId: string) => {
+    if (!task) return;
+    try {
+      await addDependency({ cardId: task.id, blockerId }).unwrap();
+      const refreshed = await fetchTaskDetails(task.id);
+      setTask(refreshed);
+      setShowDependencyPicker(false);
+    } catch (err) {
+      const apiError = err as { data?: { error?: { message?: string } } };
+      toast.error(apiError?.data?.error?.message || 'Bağımlılık eklenemedi.');
+    }
+  };
+
+  const handleRemoveDependency = async (cardId: string, blockerId: string) => {
+    if (!task) return;
+    try {
+      await removeDependency({ cardId, blockerId }).unwrap();
+      const refreshed = await fetchTaskDetails(task.id);
+      setTask(refreshed);
+    } catch {
+      toast.error('Bağımlılık kaldırılamadı.');
     }
   };
 
@@ -537,7 +567,99 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                           )}
                         </div>
                       </div>
-                      
+
+                      <div>
+                        <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
+                          Bağımlılıklar
+                        </label>
+
+                        {(task.blockedBy ?? []).length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs text-zinc-500 mb-1">Bunlar bitmeden başlanamaz:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(task.blockedBy ?? []).map((b) => (
+                                <span
+                                  key={b.id}
+                                  className="flex items-center gap-1 pl-2 pr-1 py-0.5 rounded text-xs font-medium bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300"
+                                >
+                                  {b.title}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveDependency(task.id, b.id)}
+                                    className="hover:bg-black/10 rounded p-0.5"
+                                    aria-label={`${b.title} bağımlılığını kaldır`}
+                                  >
+                                    <XMarkIcon className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {(task.blocking ?? []).length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs text-zinc-500 mb-1">Bu kartı bekleyenler:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(task.blocking ?? []).map((b) => (
+                                <span
+                                  key={b.id}
+                                  className="flex items-center gap-1 pl-2 pr-1 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                                >
+                                  {b.title}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveDependency(b.id, task.id)}
+                                    className="hover:bg-black/10 rounded p-0.5"
+                                    aria-label={`${b.title} bağımlılığını kaldır`}
+                                  >
+                                    <XMarkIcon className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="relative inline-block">
+                          <button
+                            type="button"
+                            onClick={() => setShowDependencyPicker((v) => !v)}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-400"
+                          >
+                            <LinkIcon className="h-3 w-3" />
+                            Bağımlılık ekle
+                          </button>
+
+                          {showDependencyPicker && (
+                            <div className="absolute z-10 mt-2 w-56 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg p-2">
+                              <p className="text-xs text-zinc-400 px-1 pb-1">Hangi kart bitmeden bu başlamasın?</p>
+                              <div className="max-h-40 overflow-y-auto space-y-1">
+                                {availableCards
+                                  .filter(
+                                    (c) =>
+                                      c.id !== task.id &&
+                                      !(task.blockedBy ?? []).some((b) => b.id === c.id),
+                                  )
+                                  .map((c) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => handleAddDependency(c.id)}
+                                      className="flex w-full px-2 py-1 rounded text-xs text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                    >
+                                      {c.title}
+                                    </button>
+                                  ))}
+                                {availableCards.filter((c) => c.id !== task.id).length === 0 && (
+                                  <p className="text-xs text-zinc-400 px-2 py-1">Başka kart yok.</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       <CommentsSection cardId={task.id} />
 
                       <p className="text-xs text-zinc-500 dark:text-zinc-600 font-mono">

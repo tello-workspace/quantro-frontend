@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { ProjectBoard } from '@/features/board/components/ProjectBoard';
 import {
@@ -89,21 +90,37 @@ export default function ProjectDetailPage() {
             {errorMsg && <p className="text-xs text-red-500 mt-1">{errorMsg}</p>}
           </div>
 
-          {orgId && isAdmin && !isEditing && (
-            <div className="flex gap-2">
-              <button
-                onClick={startEditing}
+          {!isEditing && (
+            <div className="flex gap-2 items-center">
+              <Link
+                href={`/projects/${projectId}/insights`}
                 className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
-                Yeniden Adlandır
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
+                İçgörüler
+              </Link>
+              <Link
+                href={`/projects/${projectId}/activity`}
+                className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
-                Sil
-              </button>
+                Aktivite
+              </Link>
+              {orgId && isAdmin && (
+                <>
+                  <button
+                    onClick={startEditing}
+                    className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    Yeniden Adlandır
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Sil
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

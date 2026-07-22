@@ -2,18 +2,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  DndContext, 
-  DragEndEvent, 
-  DragStartEvent, 
-  PointerSensor, 
-  useSensor, 
-  useSensors 
+import {
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors
 } from '@dnd-kit/core';
 import { BoardColumn } from './BoardColumn';
-import { boardService, Task, BoardData, TaskAssignee } from '../services/boardService';
+import { BoardFilters } from './BoardFilters';
+import { boardService, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
+import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { getSocket } from '@/lib/socket';
 
 interface ProjectBoardProps {
@@ -29,6 +32,7 @@ interface CardSocketPayload {
   projectId: string;
   assignees?: TaskAssignee[];
   dueDate?: string | null;
+  position?: number;
 }
 
 interface CardMovedPayload {
@@ -63,9 +67,70 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
   // Kart ekleme sadece ADMIN'e acik; suruklemeyi (kart tasima) herkes yapabilir
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId });
   const canAddTask = org?.myRole === 'ADMIN';
+  const members = org?.members ?? [];
+
+  const { data: labels = [] } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const [search, setSearch] = useState('');
+  const [selectedPriorities, setSelectedPriorities] = useState<Set<Priority>>(new Set());
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<Set<string>>(new Set());
+  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(new Set());
+
+  const togglePriority = (p: Priority) => {
+    setSelectedPriorities((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  };
+  const toggleAssignee = (userId: string) => {
+    setSelectedAssigneeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+  const toggleLabel = (labelId: string) => {
+    setSelectedLabelIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(labelId)) next.delete(labelId);
+      else next.add(labelId);
+      return next;
+    });
+  };
+
+  const hasActiveFilters =
+    search.trim().length > 0 ||
+    selectedPriorities.size > 0 ||
+    selectedAssigneeIds.size > 0 ||
+    selectedLabelIds.size > 0;
+
+  const matchesFilters = (task: Task): boolean => {
+    if (search.trim() && !task.title.toLowerCase().includes(search.trim().toLowerCase())) {
+      return false;
+    }
+    if (selectedPriorities.size > 0 && (!task.priority || !selectedPriorities.has(task.priority))) {
+      return false;
+    }
+    if (
+      selectedAssigneeIds.size > 0 &&
+      !(task.assignees ?? []).some((a) => selectedAssigneeIds.has(a.id))
+    ) {
+      return false;
+    }
+    if (
+      selectedLabelIds.size > 0 &&
+      !(task.labels ?? []).some((l) => selectedLabelIds.has(l.id))
+    ) {
+      return false;
+    }
+    return true;
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -105,6 +170,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
               description: payload.description ?? undefined,
               dueDate: payload.dueDate ?? undefined,
               columnId: payload.columnId,
+              position: payload.position,
               assignees: payload.assignees ?? [],
               labels: [],
             },
@@ -250,41 +316,65 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
 
     const activeTaskId = active.id as string;
     const overId = over.id as string;
+    if (activeTaskId === overId) return;
 
     const sourceColumn = Object.values(boardData.columns).find((col) =>
       col.taskIds.includes(activeTaskId)
     );
-
     if (!sourceColumn) return;
 
-    let targetColumnId = overId;
-    const targetColumn = Object.values(boardData.columns).find((col) =>
-      col.taskIds.includes(overId)
-    );
+    // over bir sütunun kendisi mi (boş alana bırakma) yoksa bir kart mı?
+    const overIsColumn = !!boardData.columns[overId];
+    const destinationColumn = overIsColumn
+      ? boardData.columns[overId]
+      : Object.values(boardData.columns).find((col) => col.taskIds.includes(overId));
+    if (!destinationColumn) return;
 
-    if (targetColumn) {
-      targetColumnId = targetColumn.id;
-    }
-
-    const destinationColumn = boardData.columns[targetColumnId];
-
-    if (!destinationColumn || sourceColumn.id === destinationColumn.id) return;
+    const isColumnChange = sourceColumn.id !== destinationColumn.id;
 
     if (
-      destinationColumn.wipLimit && 
+      isColumnChange &&
+      destinationColumn.wipLimit &&
       destinationColumn.taskIds.length >= destinationColumn.wipLimit
     ) {
       alert(`Bu sütun için WIP limiti (${destinationColumn.wipLimit}) doludur!`);
       return;
     }
 
+    // Kaynak sütundan çıkar; aynı sütun içi taşımada bu liste hedef listenin de tabanıdır
     const sourceTaskIds = sourceColumn.taskIds.filter((id) => id !== activeTaskId);
-    const destTaskIds = [...destinationColumn.taskIds, activeTaskId];
+    const baseDestTaskIds = isColumnChange ? destinationColumn.taskIds : sourceTaskIds;
+
+    const overIndex = overIsColumn ? baseDestTaskIds.length : baseDestTaskIds.indexOf(overId);
+    const insertAt = overIndex === -1 ? baseDestTaskIds.length : overIndex;
+    const destTaskIds = [...baseDestTaskIds];
+    destTaskIds.splice(insertAt, 0, activeTaskId);
+
+    // Komşu kartların position'larından fraksiyonel yeni position hesapla
+    const newIndex = destTaskIds.indexOf(activeTaskId);
+    const prevPos = newIndex > 0 ? boardData.tasks[destTaskIds[newIndex - 1]]?.position : undefined;
+    const nextPos =
+      newIndex < destTaskIds.length - 1 ? boardData.tasks[destTaskIds[newIndex + 1]]?.position : undefined;
+
+    let newPosition: number;
+    if (prevPos !== undefined && nextPos !== undefined) newPosition = (prevPos + nextPos) / 2;
+    else if (prevPos !== undefined) newPosition = prevPos + 1;
+    else if (nextPos !== undefined) newPosition = nextPos / 2;
+    else newPosition = 1;
+
+    const previousBoardData = boardData;
 
     setBoardData((prev) => {
       if (!prev) return prev;
+      const existingTask = prev.tasks[activeTaskId];
       return {
         ...prev,
+        tasks: existingTask
+          ? {
+              ...prev.tasks,
+              [activeTaskId]: { ...existingTask, columnId: destinationColumn.id, position: newPosition },
+            }
+          : prev.tasks,
         columns: {
           ...prev.columns,
           [sourceColumn.id]: { ...sourceColumn, taskIds: sourceTaskIds },
@@ -294,9 +384,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
     });
 
     try {
-      await boardService.moveTask(projectId, activeTaskId, destinationColumn.id);
+      await boardService.moveTask(projectId, activeTaskId, destinationColumn.id, newPosition);
     } catch (error) {
-      console.error("Kart taşınırken veritabanı hatası:", error);
+      console.error("Kart taşınırken veritabanı hatası, değişiklik geri alınıyor:", error);
+      setBoardData(previousBoardData);
     }
   };
 
@@ -392,16 +483,40 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
 
   return (
     <>
-      <DndContext 
-        sensors={sensors} 
-        onDragStart={handleDragStart} 
+      <BoardFilters
+        search={search}
+        onSearchChange={setSearch}
+        members={members}
+        labels={labels}
+        selectedPriorities={selectedPriorities}
+        onTogglePriority={togglePriority}
+        selectedAssigneeIds={selectedAssigneeIds}
+        onToggleAssignee={toggleAssignee}
+        selectedLabelIds={selectedLabelIds}
+        onToggleLabel={toggleLabel}
+        hasActiveFilters={hasActiveFilters}
+        onClear={() => {
+          setSearch('');
+          setSelectedPriorities(new Set());
+          setSelectedAssigneeIds(new Set());
+          setSelectedLabelIds(new Set());
+        }}
+      />
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto p-4 h-[calc(100vh-120px)]">
+        <div className="flex gap-4 overflow-x-auto p-4 h-[calc(100vh-170px)]">
           {Object.values(boardData.columns).map((column) => {
-            const columnTasks = column.taskIds
+            const allColumnTasks = column.taskIds
               .map((taskId) => boardData.tasks[taskId])
               .filter((task): task is Task => task !== undefined);
+            const columnTasks = hasActiveFilters
+              ? allColumnTasks.filter(matchesFilters)
+              : allColumnTasks;
 
             return (
               <BoardColumn
@@ -409,6 +524,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
                 id={column.id}
                 title={column.title}
                 tasks={columnTasks}
+                totalCount={hasActiveFilters ? allColumnTasks.length : undefined}
                 wipLimit={column.wipLimit}
                 canAddTask={!!canAddTask}
                 onAddTask={handleAddTask}
@@ -425,6 +541,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
         taskId={selectedTaskId}
         orgId={orgId}
         projectId={projectId}
+        availableCards={Object.values(boardData.tasks).map((t) => ({ id: t.id, title: t.title }))}
         fetchTaskDetails={(id) => boardService.getTaskDetails(projectId, id)}
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}

@@ -27,14 +27,26 @@ export interface TaskAssignee {
   name: string;
 }
 
+export interface DependencyCard {
+  id: string;
+  title: string;
+}
+
+export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
   dueDate?: string;
   columnId: string;
+  position?: number;
+  priority?: Priority;
+  lastActivityAt?: string;
   assignees?: TaskAssignee[];
   labels?: TaskLabel[];
+  blockedBy?: DependencyCard[]; // bu karti bloklayan kartlar
+  blocking?: DependencyCard[]; // bu kartin blokladigi kartlar
 }
 
 // Backend /cards/:id (GET, PATCH) assignees/labels'i nested CardAssignee[]/
@@ -46,8 +58,13 @@ interface RawCard {
   description?: string | null;
   dueDate?: string | null;
   columnId: string;
+  position?: number;
+  priority?: Priority;
+  lastActivityAt?: string;
   assignees?: { user: { id: string; name: string } }[];
   labels?: { label: { id: string; name: string; color: string } }[];
+  blockedBy?: { blocker: DependencyCard }[];
+  blocking?: { blocked: DependencyCard }[];
 }
 
 function normalizeCard(raw: RawCard): Task {
@@ -57,8 +74,13 @@ function normalizeCard(raw: RawCard): Task {
     description: raw.description ?? undefined,
     dueDate: raw.dueDate ?? undefined,
     columnId: raw.columnId,
+    position: raw.position,
+    priority: raw.priority,
+    lastActivityAt: raw.lastActivityAt,
     assignees: raw.assignees?.map((a) => a.user) ?? [],
     labels: raw.labels?.map((cl) => cl.label) ?? [],
+    blockedBy: raw.blockedBy?.map((d) => d.blocker) ?? [],
+    blocking: raw.blocking?.map((d) => d.blocked) ?? [],
   };
 }
 
@@ -108,18 +130,14 @@ export const boardService = {
     }
   },
 
-  async moveTask(projectId: string, taskId: string, targetColumnId: string) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/cards/${taskId}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ columnId: targetColumnId }),
-      });
-      if (!res.ok) throw new Error('Kart taşınamadı.');
-      return await res.json();
-    } catch {
-      return { success: true };
-    }
+  async moveTask(projectId: string, taskId: string, targetColumnId: string, position: number) {
+    const res = await fetch(`${API_BASE_URL}/cards/${taskId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ columnId: targetColumnId, position }),
+    });
+    if (!res.ok) throw new Error('Kart taşınamadı.');
+    return await res.json();
   },
 
   async getTaskDetails(projectId: string, taskId: string): Promise<Task> {

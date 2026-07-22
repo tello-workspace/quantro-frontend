@@ -14,7 +14,29 @@ function initials(name: string): string {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase();
 }
 
+const PRIORITY_DOT: Record<string, string> = {
+  URGENT: 'bg-red-500',
+  HIGH: 'bg-orange-500',
+  MEDIUM: 'bg-blue-500',
+  LOW: 'bg-zinc-400',
+};
+
+const PRIORITY_LABEL: Record<string, string> = {
+  URGENT: 'Acil',
+  HIGH: 'Yüksek',
+  MEDIUM: 'Orta',
+  LOW: 'Düşük',
+};
+
 const MAX_VISIBLE_ASSIGNEES = 3;
+const STALE_DAYS = 7;
+const VERY_STALE_DAYS = 14;
+
+function staleDays(lastActivityAt?: string): number | null {
+  if (!lastActivityAt) return null;
+  const diffMs = Date.now() - new Date(lastActivityAt).getTime();
+  return diffMs / (24 * 60 * 60 * 1000);
+}
 
 export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
   const {
@@ -32,6 +54,10 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const days = staleDays(task.lastActivityAt);
+  const isVeryStale = days !== null && days >= VERY_STALE_DAYS;
+  const isStale = days !== null && days >= STALE_DAYS;
+
   return (
     <div
       ref={setNodeRef}
@@ -39,7 +65,14 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="bg-white dark:bg-zinc-950 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition group"
+      title={isStale ? `${Math.floor(days!)} gündür hareketsiz` : undefined}
+      className={`p-3 rounded-xl border shadow-sm cursor-pointer transition group ${
+        isVeryStale
+          ? 'bg-white dark:bg-zinc-950 border-red-400 dark:border-red-500 hover:border-red-500'
+          : isStale
+            ? 'bg-zinc-50/70 dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800 opacity-70 hover:border-blue-500 dark:hover:border-blue-500'
+            : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500'
+      }`}
     >
       {task.labels && task.labels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1.5">
@@ -55,7 +88,13 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
         </div>
       )}
 
-      <h4 className="text-sm font-medium text-zinc-800 dark:text-zinc-100 mb-1">
+      <h4 className="flex items-center gap-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-100 mb-1">
+        {task.priority && (
+          <span
+            className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`}
+            title={PRIORITY_LABEL[task.priority]}
+          />
+        )}
         {task.title}
       </h4>
 
