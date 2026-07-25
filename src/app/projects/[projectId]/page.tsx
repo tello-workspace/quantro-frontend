@@ -46,8 +46,8 @@ export default function ProjectDetailPage() {
       await updateProject({ orgId, projectId, name: name.trim() }).unwrap();
       toast.success('Proje yeniden adlandırıldı');
       setIsEditing(false);
-    } catch (err: any) {
-      const errData = err?.data?.error;
+    } catch (err: unknown) {
+      const errData = (err as { data?: { error?: string | { message?: string } } })?.data?.error;
       setErrorMsg(typeof errData === 'string' ? errData : errData?.message || 'Güncellenemedi.');
     }
   };
@@ -59,8 +59,8 @@ export default function ProjectDetailPage() {
       await deleteProject({ orgId, projectId }).unwrap();
       toast.success('Proje silindi');
       router.push('/projects');
-    } catch (err: any) {
-      const errData = err?.data?.error;
+    } catch (err: unknown) {
+      const errData = (err as { data?: { error?: string | { message?: string } } })?.data?.error;
       alert(typeof errData === 'string' ? errData : errData?.message || 'Silinemedi.');
     }
   };

@@ -10,6 +10,11 @@ interface ChatResponse {
   data: { reply: string };
 }
 
+interface InsightsResponse {
+  success: boolean;
+  data: { insights: string };
+}
+
 export const aiApi = api.injectEndpoints({
   endpoints: (builder) => ({
     sendAiMessage: builder.mutation<string, { projectId: string; messages: ChatMessage[] }>({
@@ -20,7 +25,11 @@ export const aiApi = api.injectEndpoints({
       }),
       transformResponse: (response: ChatResponse) => response.data.reply,
     }),
+    getAiInsights: builder.query<string, string>({
+      query: (projectId) => `/ai/insights?projectId=${projectId}`,
+      transformResponse: (response: InsightsResponse) => response.data.insights,
+    }),
   }),
 });
 
-export const { useSendAiMessageMutation } = aiApi;
+export const { useSendAiMessageMutation, useGetAiInsightsQuery } = aiApi;
