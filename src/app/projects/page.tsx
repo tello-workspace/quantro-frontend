@@ -18,8 +18,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { MessagesSquare } from 'lucide-react';
+import { MessagesSquare, Users } from 'lucide-react';
 import { OrgChatPanel } from '@/features/chat/OrgChatPanel';
+import { OrgMembersDialog } from '@/features/organizations/components/OrgMembersDialog';
 import { Badge } from '@/components/ui/badge';
 
 export default function ProjectsPage() {
@@ -125,6 +126,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const [addMember, { isLoading: isInviting }] = useAddMemberMutation();
   const [showSettings, setShowSettings] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +160,10 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowMembers(true)}>
+            <Users className="h-3.5 w-3.5" />
+            Üyeler
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowChat(true)}>
             <MessagesSquare className="h-3.5 w-3.5" />
             Sohbet
@@ -196,6 +202,8 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
       {showSettings && <OrgSettingsPanel orgId={activeOrg.id} />}
 
       <ProjectList orgId={activeOrg.id} />
+
+      <OrgMembersDialog orgId={activeOrg.id} open={showMembers} onOpenChange={setShowMembers} />
 
       <Dialog open={showChat} onOpenChange={setShowChat}>
         <DialogContent className="max-w-lg p-0">
