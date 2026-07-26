@@ -17,6 +17,9 @@ import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { MessagesSquare } from 'lucide-react';
+import { OrgChatPanel } from '@/features/chat/OrgChatPanel';
 import { Badge } from '@/components/ui/badge';
 
 export default function ProjectsPage() {
@@ -121,6 +124,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const [inviteMsg, setInviteMsg] = useState('');
   const [addMember, { isLoading: isInviting }] = useAddMemberMutation();
   const [showSettings, setShowSettings] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,6 +158,10 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowChat(true)}>
+            <MessagesSquare className="h-3.5 w-3.5" />
+            Sohbet
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowInvite((v) => !v)}>
             + Üye Davet Et
           </Button>
@@ -188,6 +196,15 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
       {showSettings && <OrgSettingsPanel orgId={activeOrg.id} />}
 
       <ProjectList orgId={activeOrg.id} />
+
+      <Dialog open={showChat} onOpenChange={setShowChat}>
+        <DialogContent className="max-w-lg p-0">
+          <DialogTitle className="sr-only">Organizasyon Sohbeti</DialogTitle>
+          <div className="h-[70vh]">
+            <OrgChatPanel orgId={activeOrg.id} orgName={activeOrg.name} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
