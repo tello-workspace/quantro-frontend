@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import NotificationBell from './NotificationBell';
 import { supabase } from '@/lib/supabaseClient';
 import { disconnectSocket } from '@/lib/socket';
+import { Button } from '@/components/ui/button';
 
 export default function Header(){
     const router = useRouter();
@@ -27,17 +28,15 @@ export default function Header(){
         router.push('/login');
     };
     return (
-        <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
-            <Link href="/projects" className="text-lg font-bold text-slate-800 hover:text-indigo-600 transition">
+        <header className="flex items-center justify-between px-6 py-3 bg-card border-b border-border">
+            <Link href="/projects" className="text-lg font-semibold text-foreground hover:text-primary transition">
               {me ? `Hoşgeldin, ${me.name}` : 'Tello'}
             </Link>
             <div className="flex items-center gap-3">
               <NotificationBell />
-              <button
-              onClick={handleLogout}
-                  className="text-sm font-medium text-red-600 hover:text-red-700"
-                  >Çıkıs yap
-                  </button>
+              <Button variant="ghost" onClick={handleLogout} className="text-destructive hover:text-destructive">
+                Çıkış yap
+              </Button>
             </div>
         </header>
     );

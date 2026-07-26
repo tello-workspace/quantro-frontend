@@ -1,0 +1,38 @@
+[33mcommit 761e1a696bc11bdad7f25f217aee4bb2e5796521[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/invite-approval[m[33m)[m
+Author: R3posit <keremkbdev@gmail.com>
+Date:   Thu Jul 23 10:41:55 2026 +0300
+
+    ui-is-cooked
+
+ components.json                                |   25 [32m+[m
+ package-lock.json                              | 3196 [32m++++++++++++++++++++++[m[31m--[m
+ package.json                                   |    9 [32m+[m[31m-[m
+ src/app/auth/callback/page.tsx                 |   14 [32m+[m[31m-[m
+ src/app/globals.css                            |  149 [32m+[m[31m-[m
+ src/app/layout.tsx                             |    8 [32m+[m[31m-[m
+ src/app/login/page.tsx                         |    6 [32m+[m[31m-[m
+ src/app/projects/[projectId]/page.tsx          |   35 [32m+[m[31m-[m
+ src/app/projects/new/page.tsx                  |   74 [32m+[m[31m-[m
+ src/app/projects/page.tsx                      |  217 [32m+[m[31m-[m
+ src/app/register/page.tsx                      |    6 [32m+[m[31m-[m
+ src/components/Header.tsx                      |   13 [32m+[m[31m-[m
+ src/components/NotificationBell.tsx            |   65 [32m+[m[31m-[m
+ src/components/ui/TaskModal.tsx                |  548 [32m++[m[31m--[m
+ src/components/ui/avatar.tsx                   |  109 [32m+[m
+ src/components/ui/badge.tsx                    |   52 [32m+[m
+ src/components/ui/button.tsx                   |   58 [32m+[m
+ src/components/ui/card.tsx                     |  103 [32m+[m
+ src/components/ui/dialog.tsx                   |  160 [32m++[m
+ src/components/ui/input.tsx                    |   20 [32m+[m
+ src/components/ui/label.tsx                    |   20 [32m+[m
+ src/components/ui/popover.tsx                  |   90 [32m+[m
+ src/components/ui/select.tsx                   |  201 [32m++[m
+ src/components/ui/tabs.tsx                     |   82 [32m+[m
+ src/components/ui/textarea.tsx                 |   18 [32m+[m
+ src/features/auth/components/LoginForm.tsx     |  140 [32m+[m[31m-[m
+ src/features/auth/components/RegisterForm.tsx  |  171 [32m+[m[31m-[m
+ src/features/board/components/BoardCard.tsx    |   40 [32m+[m[31m-[m
+ src/features/board/components/BoardColumn.tsx  |   53 [32m+[m[31m-[m
+ src/features/board/components/ProjectBoard.tsx |    4 [32m+[m[31m-[m
+ src/lib/utils.ts                               |    6 [32m+[m
+ 31 files changed, 4759 insertions(+), 933 deletions(-)

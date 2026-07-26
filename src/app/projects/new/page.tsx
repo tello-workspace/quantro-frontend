@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCreateProjectMutation } from '@/features/projects/projectsApi';
 import { toast } from 'react-toastify';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -28,7 +32,7 @@ export default function NewProjectPage() {
     try {
       const project = await createProject({ orgId, name, description: description || undefined }).unwrap();
       toast.success('Proje oluşturuldu!');
-      router.push(`/projects/${project.id}`);
+      router.push(`/projects/${project.id}?orgId=${orgId}`);
     } catch (err: any) {
       const errData = err?.data?.error;
       setErrorMsg(typeof errData === 'string' ? errData : errData?.message || 'Proje oluşturulamadı.');
@@ -37,38 +41,44 @@ export default function NewProjectPage() {
 
   return (
     <main className="max-w-md mx-auto p-6">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Yeni Proje</h1>
+      <Card>
+        <CardHeader>
+          <CardTitle>Yeni Proje</CardTitle>
+          <CardDescription>Takımınla birlikte çalışacağın yeni bir proje oluştur.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {errorMsg && (
+            <div className="mb-4 p-3 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
+              {errorMsg}
+            </div>
+          )}
 
-      {errorMsg && (
-        <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
-          {errorMsg}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          placeholder="Proje adı"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring focus:ring-indigo-200 text-slate-900"
-          required
-        />
-        <textarea
-          placeholder="Açıklama (opsiyonel)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring focus:ring-indigo-200 text-slate-900"
-          rows={3}
-        />
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {isLoading ? 'Oluşturuluyor...' : 'Proje Oluştur'}
-        </button>
-      </form>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Proje adı</label>
+              <Input
+                type="text"
+                placeholder="Proje adı"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Açıklama (opsiyonel)</label>
+              <Textarea
+                placeholder="Açıklama"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <Button type="submit" disabled={isLoading} className="w-full">
+              {isLoading ? 'Oluşturuluyor...' : 'Proje Oluştur'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   );
 }

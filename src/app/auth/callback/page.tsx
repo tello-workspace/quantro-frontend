@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-toastify';
+import { Button } from '@/components/ui/button';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -50,19 +51,16 @@ export default function AuthCallbackPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/20 px-4">
       {errorMsg ? (
         <div className="text-center">
-          <p className="text-red-600 mb-4">{errorMsg}</p>
-          <button
-            onClick={() => router.push('/login')}
-            className="text-indigo-600 hover:underline"
-          >
+          <p className="text-destructive mb-4">{errorMsg}</p>
+          <Button variant="link" onClick={() => router.push('/login')}>
             Giriş sayfasına dön
-          </button>
+          </Button>
         </div>
       ) : (
-        <p className="text-gray-500">Giriş yapılıyor...</p>
+        <p className="text-muted-foreground">Giriş yapılıyor...</p>
       )}
     </div>
   );

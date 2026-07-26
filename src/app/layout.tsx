@@ -3,6 +3,10 @@ import StoreProvider from '@/lib/StoreProvider'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import './globals.css'
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: 'Tello',
@@ -11,8 +15,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" suppressHydrationWarning={true}>
-      <body className="bg-slate-50 text-slate-900 antialiased">
+    <html lang="tr" suppressHydrationWarning={true} className={cn("font-sans", geist.variable)}>
+      <body className="antialiased">
         <StoreProvider>{children}</StoreProvider>
         <ToastContainer position="top-right" autoClose={3000} />
       </body>

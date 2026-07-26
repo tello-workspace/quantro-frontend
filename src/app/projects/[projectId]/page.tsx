@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { ProjectBoard } from '@/features/board/components/ProjectBoard';
+import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import {
   useGetProjectByIdQuery,
   useUpdateProjectMutation,
@@ -11,6 +12,9 @@ import {
 } from '@/features/projects/projectsApi';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { toast } from 'react-toastify';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Bot } from 'lucide-react';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -26,6 +30,7 @@ export default function ProjectDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
 
   const [updateProject, { isLoading: isUpdating }] = useUpdateProjectMutation();
   const [deleteProject, { isLoading: isDeleting }] = useDeleteProjectMutation();
@@ -42,8 +47,8 @@ export default function ProjectDetailPage() {
       await updateProject({ orgId, projectId, name: name.trim() }).unwrap();
       toast.success('Proje yeniden adlandırıldı');
       setIsEditing(false);
-    } catch (err: any) {
-      const errData = err?.data?.error;
+    } catch (err: unknown) {
+      const errData = (err as { data?: { error?: string | { message?: string } } })?.data?.error;
       setErrorMsg(typeof errData === 'string' ? errData : errData?.message || 'Güncellenemedi.');
     }
   };
@@ -55,77 +60,101 @@ export default function ProjectDetailPage() {
       await deleteProject({ orgId, projectId }).unwrap();
       toast.success('Proje silindi');
       router.push('/projects');
-    } catch (err: any) {
-      const errData = err?.data?.error;
+    } catch (err: unknown) {
+      const errData = (err as { data?: { error?: string | { message?: string } } })?.data?.error;
       alert(typeof errData === 'string' ? errData : errData?.message || 'Silinemedi.');
     }
   };
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-      <div className="max-w-7xl mx-auto">
+    <main className="min-h-screen bg-background p-6">
+      <div className="mx-auto max-w-full">
         <div className="mb-6 flex items-center justify-between">
           <div>
             {isEditing ? (
               <form onSubmit={handleRename} className="flex items-center gap-2">
-                <input
+                <Input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1"
+                  className="text-2xl font-bold h-auto py-1 px-2"
                   autoFocus
                 />
-                <button type="submit" disabled={isUpdating} className="text-sm text-blue-600 hover:underline">
-                  Kaydet
-                </button>
-                <button type="button" onClick={() => setIsEditing(false)} className="text-sm text-zinc-500 hover:underline">
-                  İptal
-                </button>
+                <Button type="submit" disabled={isUpdating} size="sm">Kaydet</Button>
+                <Button type="button" variant="ghost" onClick={() => setIsEditing(false)} size="sm">İptal</Button>
               </form>
             ) : (
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+              <h1 className="text-2xl font-bold text-foreground">
                 {project?.name ?? 'Proje Panosu'}
               </h1>
             )}
-            {errorMsg && <p className="text-xs text-red-500 mt-1">{errorMsg}</p>}
+            {errorMsg && <p className="text-xs text-destructive mt-1">{errorMsg}</p>}
           </div>
 
           {!isEditing && (
-            <div className="flex gap-2 items-center">
+            <div className="flex items-center gap-2">
               <Link
                 href={`/projects/${projectId}/insights`}
-                className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
               >
                 İçgörüler
               </Link>
               <Link
                 href={`/projects/${projectId}/activity`}
-                className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
               >
                 Aktivite
               </Link>
               {orgId && isAdmin && (
                 <>
-                  <button
-                    onClick={startEditing}
-                    className="px-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  >
+                  <Button variant="outline" size="sm" onClick={startEditing}>
                     Yeniden Adlandır
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                    className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
-                  >
+                  </Button>
+                  <Button variant="destructive" size="sm" disabled={isDeleting} onClick={handleDelete}>
                     Sil
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
           )}
         </div>
 
-        <ProjectBoard projectId={projectId} orgId={orgId} />
+        {/* Board + AI Chat side-by-side */}
+        <div className="flex gap-0 sm:gap-4">
+          <div className="flex-1 min-w-0 lg:max-w-[calc(100%-24rem)]">
+            <ProjectBoard projectId={projectId} orgId={orgId} />
+          </div>
+
+          {/* AI Chat sidebar (desktop) */}
+          <div className="hidden sm:block shrink-0">
+            <div className="sticky top-6 h-[calc(100vh-8rem)] w-80 lg:w-96">
+              <AIChatPanel projectId={projectId} projectName={project?.name} />
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile floating AI button */}
+        {!mobileChatOpen && (
+          <button
+            onClick={() => setMobileChatOpen(true)}
+            className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg hover:opacity-90 transition-all sm:hidden"
+          >
+            <Bot className="h-5 w-5" />
+            <span className="text-sm font-medium">AI Asistan</span>
+          </button>
+        )}
+
+        {/* Mobile AI chat overlay */}
+        {mobileChatOpen && (
+          <div className="fixed inset-0 z-50 sm:hidden">
+            <AIChatPanel
+              projectId={projectId}
+              projectName={project?.name}
+              isMobile={true}
+              onClose={() => setMobileChatOpen(false)}
+            />
+          </div>
+        )}
       </div>
     </main>
   );

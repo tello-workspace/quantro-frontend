@@ -474,11 +474,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-zinc-500">Board yükleniyor...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Board yükleniyor...</div>;
   }
 
   if (!boardData) {
-    return <div className="p-8 text-center text-red-500">Veriler yüklenemedi.</div>;
+    return <div className="p-8 text-center text-destructive">Veriler yüklenemedi.</div>;
   }
 
   return (

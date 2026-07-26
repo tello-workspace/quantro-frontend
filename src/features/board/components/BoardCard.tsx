@@ -4,6 +4,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../services/boardService';
 import { CalendarDaysIcon, UserIcon } from '@heroicons/react/24/outline';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface BoardCardProps {
   task: Task;
@@ -68,27 +70,27 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
       title={isStale ? `${Math.floor(days!)} gündür hareketsiz` : undefined}
       className={`p-3 rounded-xl border shadow-sm cursor-pointer transition group ${
         isVeryStale
-          ? 'bg-white dark:bg-zinc-950 border-red-400 dark:border-red-500 hover:border-red-500'
+          ? 'bg-card border-destructive hover:border-destructive'
           : isStale
-            ? 'bg-zinc-50/70 dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800 opacity-70 hover:border-blue-500 dark:hover:border-blue-500'
-            : 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500'
+            ? 'bg-card/70 border-border opacity-70 hover:border-primary'
+            : 'bg-card border-border hover:border-primary'
       }`}
     >
       {task.labels && task.labels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1.5">
           {task.labels.map((label) => (
-            <span
+            <Badge
               key={label.id}
-              className="px-1.5 py-0.5 rounded text-[10px] font-medium text-white"
+              className="text-white border-0 text-[10px]"
               style={{ backgroundColor: label.color }}
             >
               {label.name}
-            </span>
+            </Badge>
           ))}
         </div>
       )}
 
-      <h4 className="flex items-center gap-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-100 mb-1">
+      <h4 className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
         {task.priority && (
           <span
             className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`}
@@ -99,12 +101,12 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
       </h4>
 
       {task.description && (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-2">
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
           {task.description}
         </p>
       )}
 
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-900 text-[11px] text-zinc-400 dark:text-zinc-500">
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1">
           {task.dueDate && (
             <>
@@ -117,22 +119,22 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
         {task.assignees && task.assignees.length > 0 ? (
           <div className="flex items-center -space-x-1.5">
             {task.assignees.slice(0, MAX_VISIBLE_ASSIGNEES).map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-semibold text-[10px] border-2 border-white dark:border-zinc-950"
-                title={a.name}
-              >
-                {initials(a.name)}
-              </div>
+              <Avatar key={a.id} size="sm" className="border-2 border-background">
+                <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                  {initials(a.name)}
+                </AvatarFallback>
+              </Avatar>
             ))}
             {task.assignees.length > MAX_VISIBLE_ASSIGNEES && (
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-semibold text-[9px] border-2 border-white dark:border-zinc-950">
-                +{task.assignees.length - MAX_VISIBLE_ASSIGNEES}
-              </div>
+              <Avatar size="sm" className="border-2 border-background">
+                <AvatarFallback className="text-[9px]">
+                  +{task.assignees.length - MAX_VISIBLE_ASSIGNEES}
+                </AvatarFallback>
+              </Avatar>
             )}
           </div>
         ) : (
-          <UserIcon className="h-3.5 w-3.5 text-zinc-400" />
+          <UserIcon className="h-3.5 w-3.5 text-muted-foreground/50" />
         )}
       </div>
     </div>
