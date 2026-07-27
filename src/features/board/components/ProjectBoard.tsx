@@ -230,7 +230,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
 
     const handleCardDeleted = (payload: CardDeletedPayload) => {
       if (payload.projectId !== projectId) return;
-      refetchLabels();
+      if (orgId && projectId) {
+        refetchLabels();
+      }
       setBoardData((prev) => {
         if (!prev || !prev.tasks[payload.cardId]) return prev;
         const newTasks = { ...prev.tasks };
