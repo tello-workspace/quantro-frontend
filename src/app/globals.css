@@ -133,6 +133,13 @@
 @utility animate-spin-slower {
   animation: spin-slower 4s linear infinite;
 }
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 
 @layer base {
   * {
@@ -140,9 +147,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
   html {
     @apply font-sans;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   /* Basliklar govde metninden ayrissin: daha siki harf araligi ve

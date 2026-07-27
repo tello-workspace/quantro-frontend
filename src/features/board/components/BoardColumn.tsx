@@ -77,12 +77,13 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
         )}
       </div>
 
-      <div className="flex min-h-[150px] flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
+      <div className="flex min-h-[150px] flex-1 flex-col gap-2.5 overflow-y-auto pr-1 no-scrollbar">
         <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <BoardCard
               key={task.id}
               task={task}
+              isDoneColumn={title.toLowerCase() === 'done' || title.toLowerCase() === 'tamamlandı'}
               onClick={() => onTaskClick(task.id)}
             />
           ))}

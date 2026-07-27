@@ -42,12 +42,13 @@ export const labelsApi = api.injectEndpoints({
         body: { labelId },
       }),
     }),
-    detachLabel: builder.mutation<void, { cardId: string; labelId: string }>({
+    detachLabel: builder.mutation<void, { cardId: string; labelId: string; projectId?: string }>({
       query: ({ cardId, labelId }) => ({
         url: `/cards/${cardId}/labels`,
         method: 'DELETE',
         body: { labelId },
       }),
+      invalidatesTags: (_result, _error, { projectId }) => projectId ? [{ type: 'Card', id: `labels-${projectId}` }] : [],
     }),
   }),
 });

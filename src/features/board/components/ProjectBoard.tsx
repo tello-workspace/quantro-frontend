@@ -69,7 +69,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
   const canAddTask = org?.myRole === 'ADMIN';
   const members = org?.members ?? [];
 
-  const { data: labels = [] } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
+  const { data: labels = [], refetch: refetchLabels } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -228,6 +228,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
 
     const handleCardDeleted = (payload: CardDeletedPayload) => {
       if (payload.projectId !== projectId) return;
+      refetchLabels();
       setBoardData((prev) => {
         if (!prev || !prev.tasks[payload.cardId]) return prev;
         const newTasks = { ...prev.tasks };
@@ -302,7 +303,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
       socket.off('column:updated', handleColumnUpdated);
       socket.off('column:deleted', handleColumnDeleted);
     };
-  }, [projectId]);
+  }, [projectId, refetchLabels]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -448,6 +449,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
   const handleDeleteTask = async (taskId: string) => {
     try {
       await boardService.deleteTask(projectId, taskId);
+      refetchLabels();
       setBoardData((prev) => {
         if (!prev) return prev;
         
@@ -509,7 +511,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto p-4 h-[calc(100vh-170px)]">
+        <div className="flex gap-4 overflow-x-auto p-4 h-[calc(100vh-170px)] no-scrollbar">
           {Object.values(boardData.columns).map((column) => {
             const allColumnTasks = column.taskIds
               .map((taskId) => boardData.tasks[taskId])

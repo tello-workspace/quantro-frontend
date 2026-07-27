@@ -268,7 +268,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const handleDetachLabel = async (labelId: string) => {
     if (!task) return;
     try {
-      await detachLabel({ cardId: task.id, labelId }).unwrap();
+      await detachLabel({ cardId: task.id, labelId, projectId }).unwrap();
       setTask({ ...task, labels: (task.labels ?? []).filter((l) => l.id !== labelId) });
     } catch {
       toast.error('Etiket kaldırılamadı.');
@@ -558,7 +558,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     type="date"
                     id="dueDate"
                     name="dueDate"
-                    value={task.dueDate || ''}
+                    value={task.dueDate ? task.dueDate.split('T')[0] : ''}
                     onChange={handleChange}
                   />
                 </div>

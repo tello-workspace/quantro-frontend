@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 interface BoardCardProps {
   task: Task;
   onClick: () => void;
+  isDoneColumn?: boolean;
 }
 
 function initials(name: string): string {
@@ -40,7 +41,17 @@ function staleDays(lastActivityAt?: string): number | null {
   return diffMs / (24 * 60 * 60 * 1000);
 }
 
-export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
+function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColumn = false }) => {
   const {
     attributes,
     listeners,
@@ -75,7 +86,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
           .filter(Boolean)
           .join(' · ') || undefined
       }
-      className={`group relative cursor-pointer overflow-hidden rounded-xl border bg-card p-3 pl-4 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-soft-md active:translate-y-0 ${
+      className={`group relative cursor-pointer overflow-hidden rounded-xl border bg-card p-3 pl-4 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-soft-md active:translate-y-0 shrink-0 ${
         isVeryStale
           ? 'border-destructive/60'
           : isStale
@@ -125,12 +136,22 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
 
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1">
-          {task.dueDate && (
-            <>
-              <CalendarDaysIcon className="h-3.5 w-3.5" />
-              <span>{task.dueDate}</span>
-            </>
-          )}
+          {task.dueDate && (() => {
+            const date = new Date(task.dueDate);
+            const isOverdue = !isDoneColumn && date.getTime() < Date.now();
+            return (
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium text-[10px] ${
+                isDoneColumn 
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                  : isOverdue 
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' 
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+              }`}>
+                <CalendarDaysIcon className="h-3.5 w-3.5" />
+                <span>{formatDate(task.dueDate)}</span>
+              </span>
+            );
+          })()}
         </div>
 
         {task.assignees && task.assignees.length > 0 ? (

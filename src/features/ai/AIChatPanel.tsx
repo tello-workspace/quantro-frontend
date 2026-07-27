@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -150,18 +152,19 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
                 )}
                 <div className="relative">
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed prose prose-sm dark:prose-invert ${
                       msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                        ? 'bg-primary text-primary-foreground rounded-tr-sm prose-strong:text-primary-foreground prose-code:text-primary-foreground'
                         : 'bg-muted rounded-tl-sm'
                     }`}
                   >
-                    {msg.content.split('\n').map((line, i) => (
-                      <React.Fragment key={i}>
-                        {line}
-                        {i < msg.content.split('\n').length - 1 && <br />}
-                      </React.Fragment>
-                    ))}
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                   {msg.role === 'assistant' && msg.id !== 'welcome' && (
                     <button
@@ -241,13 +244,10 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
                   AI Analizi
                 </Badge>
               </div>
-              <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed">
-                {insights.split('\n').map((line, i) => (
-                  <React.Fragment key={i}>
-                    {line}
-                    {i < insights.split('\n').length - 1 && <br />}
-                  </React.Fragment>
-                ))}
+              <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed prose prose-sm dark:prose-invert">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {insights}
+                </ReactMarkdown>
               </div>
             </div>
           ) : (
