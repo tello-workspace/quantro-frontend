@@ -67,9 +67,9 @@ export default function ProjectDetailPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background p-4 sm:p-6">
-      <div className="mx-auto max-w-full">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <main className="h-[calc(100vh-56px)] bg-background flex flex-col overflow-hidden p-4 sm:p-6">
+      <div className="flex flex-col flex-1 min-h-0 max-w-full">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div>
             {isEditing ? (
               <form onSubmit={handleRename} className="flex items-center gap-2">
@@ -120,14 +120,14 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Board + AI Chat side-by-side */}
-        <div className="flex gap-4 sm:gap-6">
-          <div className="flex-1 min-w-0">
+        <div className="flex-1 min-h-0 flex gap-4 sm:gap-6">
+          <div className="flex-1 min-w-0 h-full">
             <ProjectBoard projectId={projectId} orgId={orgId} />
           </div>
 
           {/* AI Chat sidebar (desktop) */}
-          <div className="hidden sm:block shrink-0">
-            <div className="sticky top-6 h-[calc(100vh-8rem)] w-80 lg:w-[420px] xl:w-[480px] transition-all duration-300">
+          <div className="hidden sm:block shrink-0 h-full">
+            <div className="h-full w-80 lg:w-[420px] xl:w-[480px] transition-all duration-300">
               <AIChatPanel projectId={projectId} projectName={project?.name} />
             </div>
           </div>

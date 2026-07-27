@@ -488,7 +488,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
   }
 
   return (
-    <>
+    <div className="flex flex-col h-full min-h-0">
       <BoardFilters
         search={search}
         onSearchChange={setSearch}
@@ -515,7 +515,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto p-4 h-[calc(100vh-170px)] no-scrollbar">
+        <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto p-4 no-scrollbar">
           {Object.values(boardData.columns).map((column) => {
             const allColumnTasks = column.taskIds
               .map((taskId) => boardData.tasks[taskId])
@@ -562,6 +562,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
       />
-    </>
+    </div>
   );
 };
