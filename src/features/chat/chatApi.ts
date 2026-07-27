@@ -6,7 +6,31 @@ export interface ChatMessage {
   authorId: string;
   text: string;
   createdAt: string;
-  author: { id: string; name: string; email: string };
+  // email socket'ten gelen mesajlarda bulunmuyor
+  author: { id: string; name: string; email?: string };
+}
+
+// Socket yayini REST cevabindan farkli sekilde geliyor: ic ice author
+// nesnesi yerine duz authorId/authorName alanlari var. Listeye eklemeden
+// once normalize edilmezse arayuz message.author.name'de patliyor.
+export interface ChatMessageSocketPayload {
+  id: string;
+  organizationId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
+export function socketPayloadToMessage(payload: ChatMessageSocketPayload): ChatMessage {
+  return {
+    id: payload.id,
+    organizationId: payload.organizationId,
+    authorId: payload.authorId,
+    text: payload.text,
+    createdAt: payload.createdAt,
+    author: { id: payload.authorId, name: payload.authorName },
+  };
 }
 
 interface ApiEnvelope<T> {

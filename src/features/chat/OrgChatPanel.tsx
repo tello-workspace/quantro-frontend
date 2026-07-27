@@ -6,9 +6,10 @@ import { Send, X, MessagesSquare } from 'lucide-react';
 import { toast } from 'react-toastify';
 import {
   chatApi,
+  socketPayloadToMessage,
   useGetChatMessagesQuery,
   useSendChatMessageMutation,
-  type ChatMessage,
+  type ChatMessageSocketPayload,
 } from '@/features/chat/chatApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import { getSocket } from '@/lib/socket';
@@ -36,14 +37,17 @@ function formatTime(dateStr: string): string {
   });
 }
 
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+function initials(name?: string): string {
+  if (!name) return '?';
+  return (
+    name
+      .split(' ')
+      .map((p) => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || '?'
+  );
 }
 
 export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onClose }) => {
@@ -72,8 +76,11 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
     // Davet sonrasi baglanan soketler org odasinda olmayabilir
     socket.emit('join:org', orgId);
 
-    const handleMessage = (message: ChatMessage) => {
-      if (message.organizationId !== orgId) return;
+    const handleMessage = (payload: ChatMessageSocketPayload) => {
+      if (payload.organizationId !== orgId) return;
+
+      // Socket yuku REST cevabiyla ayni sekle getirilmeli
+      const message = socketPayloadToMessage(payload);
       dispatch(
         chatApi.util.updateQueryData('getChatMessages', orgId, (draft) => {
           if (!draft.some((m) => m.id === message.id)) draft.push(message);
@@ -81,9 +88,9 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
       );
       // Mesaji yazan kisi artik yazmiyordur
       setTypingUsers((prev) => {
-        if (!prev[message.authorId]) return prev;
+        if (!prev[payload.authorId]) return prev;
         const next = { ...prev };
-        delete next[message.authorId];
+        delete next[payload.authorId];
         return next;
       });
     };
@@ -224,12 +231,12 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
             >
               <Avatar className="h-7 w-7 shrink-0">
                 <AvatarFallback className="text-[10px]">
-                  {initials(message.author.name)}
+                  {initials(message.author?.name)}
                 </AvatarFallback>
               </Avatar>
               <div className={`max-w-[75%] ${isMine ? 'text-right' : 'text-left'}`}>
                 <div className="mb-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <span>{isMine ? 'Sen' : message.author.name}</span>
+                  <span>{isMine ? 'Sen' : message.author?.name ?? 'Bilinmeyen kullanıcı'}</span>
                   <span>{formatTime(message.createdAt)}</span>
                 </div>
                 <div
