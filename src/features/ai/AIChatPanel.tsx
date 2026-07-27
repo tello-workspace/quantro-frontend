@@ -360,9 +360,9 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
                     <AvatarFallback className="bg-primary/10 text-primary text-xs">AI</AvatarFallback>
                   </Avatar>
                 )}
-                <div className={`relative flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`relative flex flex-col max-w-[75%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed prose prose-sm dark:prose-invert ${
+                    className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed prose prose-sm dark:prose-invert ${
                       msg.role === 'user'
                         ? 'bg-primary text-primary-foreground rounded-tr-sm prose-strong:text-primary-foreground prose-code:text-primary-foreground'
                         : 'bg-muted rounded-tl-sm'
