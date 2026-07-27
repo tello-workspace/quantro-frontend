@@ -94,13 +94,13 @@ export default function ProjectDetailPage() {
           {!isEditing && (
             <div className="flex items-center gap-2">
               <Link
-                href={`/projects/${projectId}/insights`}
+                href={`/projects/${projectId}/insights?orgId=${orgId}`}
                 className={buttonVariants({ variant: 'outline', size: 'sm' })}
               >
                 İçgörüler
               </Link>
               <Link
-                href={`/projects/${projectId}/activity`}
+                href={`/projects/${projectId}/activity?orgId=${orgId}`}
                 className={buttonVariants({ variant: 'outline', size: 'sm' })}
               >
                 Aktivite

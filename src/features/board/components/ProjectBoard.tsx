@@ -68,7 +68,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
 
   // Kart ekleme sadece ADMIN'e acik; suruklemeyi (kart tasima) herkes yapabilir
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId });
-  const canAddTask = org?.myRole === 'ADMIN';
+  const canAddTask = boardData?.myRole === 'ADMIN' || org?.myRole === 'ADMIN';
   const members = org?.members ?? [];
 
   const { data: labels = [], refetch: refetchLabels } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });

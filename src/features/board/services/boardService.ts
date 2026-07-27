@@ -94,6 +94,7 @@ export interface Column {
 export interface BoardData {
   columns: Record<string, Column>;
   tasks: Record<string, Task>;
+  myRole?: 'ADMIN' | 'MEMBER';
 }
 
 export const boardService = {

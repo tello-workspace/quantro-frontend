@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   PlusCircleIcon,
   PencilSquareIcon,
@@ -68,7 +68,9 @@ function describeActivity(entry: ActivityEntry): string {
 
 export default function ProjectActivityPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const projectId = params?.projectId as string;
+  const orgId = searchParams.get('orgId') ?? '';
 
   const { data: activities, isLoading } = useGetProjectActivitiesQuery({ projectId });
 
@@ -77,7 +79,7 @@ export default function ProjectActivityPage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Aktivite Akışı</h1>
-          <Link href={`/projects/${projectId}`} className="text-sm text-blue-600 hover:underline">
+          <Link href={`/projects/${projectId}?orgId=${orgId}`} className="text-sm text-blue-600 hover:underline">
             ← Panoya dön
           </Link>
         </div>
