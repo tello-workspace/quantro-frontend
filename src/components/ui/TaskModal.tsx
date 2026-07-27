@@ -365,7 +365,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   size="xs"
                   onClick={handleAiFill}
                   disabled={isFilling || !task.title?.trim()}
-                  className="flex items-center gap-1.5 shrink-0 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-950/80 transition-all font-medium py-1 px-2.5 rounded-lg text-xs"
+                  className="flex items-center gap-1.5 shrink-0 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-950/80 transition-all font-medium py-1 px-2.5 rounded-lg text-xs mr-6"
                 >
                   {isFilling ? (
                     <>
