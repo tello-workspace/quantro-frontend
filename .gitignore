@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editor / yerel calisma alani ayarlari
+*.code-workspace
+
+# gecici yamalar ve dokumler (repoya girmemeli)
+*.patch
+-cooked*
