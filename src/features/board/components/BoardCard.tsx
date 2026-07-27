@@ -3,7 +3,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../services/boardService';
-import { CalendarDaysIcon, UserIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, UserIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
@@ -16,11 +16,11 @@ function initials(name: string): string {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase();
 }
 
-const PRIORITY_DOT: Record<string, string> = {
+const PRIORITY_BAR: Record<string, string> = {
   URGENT: 'bg-red-500',
   HIGH: 'bg-orange-500',
   MEDIUM: 'bg-blue-500',
-  LOW: 'bg-zinc-400',
+  LOW: 'bg-muted-foreground/40',
 };
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -67,21 +67,37 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
       {...attributes}
       {...listeners}
       onClick={onClick}
-      title={isStale ? `${Math.floor(days!)} gündür hareketsiz` : undefined}
-      className={`p-3 rounded-xl border shadow-sm cursor-pointer transition group ${
+      title={
+        [
+          task.priority ? `Öncelik: ${PRIORITY_LABEL[task.priority]}` : null,
+          isStale ? `${Math.floor(days!)} gündür hareketsiz` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || undefined
+      }
+      className={`group relative cursor-pointer overflow-hidden rounded-xl border bg-card p-3 pl-4 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-soft-md active:translate-y-0 ${
         isVeryStale
-          ? 'bg-card border-destructive hover:border-destructive'
+          ? 'border-destructive/60'
           : isStale
-            ? 'bg-card/70 border-border opacity-70 hover:border-primary'
-            : 'bg-card border-border hover:border-primary'
+            ? 'border-border opacity-75 hover:opacity-100'
+            : 'border-border'
       }`}
     >
+      {/* Oncelik solda ince bir serit: nokta yerine kart taranirken
+          uzaktan okunabilen bir sinyal veriyor */}
+      {task.priority && (
+        <span
+          aria-hidden
+          className={`absolute inset-y-0 left-0 w-1 ${PRIORITY_BAR[task.priority]}`}
+        />
+      )}
+
       {task.labels && task.labels.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-1.5">
+        <div className="mb-1.5 flex flex-wrap gap-1">
           {task.labels.map((label) => (
             <Badge
               key={label.id}
-              className="text-white border-0 text-[10px]"
+              className="border-0 text-[10px] text-white"
               style={{ backgroundColor: label.color }}
             >
               {label.name}
@@ -90,15 +106,16 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick }) => {
         </div>
       )}
 
-      <h4 className="flex items-center gap-1.5 text-sm font-medium text-foreground mb-1">
-        {task.priority && (
-          <span
-            className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`}
-            title={PRIORITY_LABEL[task.priority]}
-          />
-        )}
+      <h4 className="mb-1 flex items-start gap-1.5 text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
         {task.title}
       </h4>
+
+      {isStale && (
+        <span className="mb-1 inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+          <ClockIcon className="h-3 w-3" />
+          {Math.floor(days!)} gündür hareketsiz
+        </span>
+      )}
 
       {task.description && (
         <p className="text-xs text-muted-foreground line-clamp-2 mb-2">

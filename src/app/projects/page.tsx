@@ -18,7 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { MessagesSquare, Users } from 'lucide-react';
+import { MessagesSquare, Users, FolderPlus, ArrowUpRight, Plus, Settings, LayoutGrid } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { OrgChatPanel } from '@/features/chat/OrgChatPanel';
 import { OrgMembersDialog } from '@/features/organizations/components/OrgMembersDialog';
 import { Badge } from '@/components/ui/badge';
@@ -31,26 +32,47 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <main className="max-w-4xl mx-auto p-6">
-        <p className="text-muted-foreground">Yükleniyor...</p>
+      <main className="mx-auto max-w-5xl p-4 sm:p-6">
+        <Skeleton className="mb-2 h-8 w-56" />
+        <Skeleton className="mb-8 h-4 w-72" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-36 rounded-xl" />
+          ))}
+        </div>
       </main>
     );
   }
 
   if (error) {
     return (
-      <main className="max-w-4xl mx-auto p-6">
-        <p className="text-destructive">Organizasyonlar yüklenirken hata oluştu.</p>
+      <main className="mx-auto max-w-5xl p-4 sm:p-6">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
+          <p className="text-sm font-medium text-destructive">
+            Organizasyonlar yüklenirken hata oluştu.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Sayfayı yenilemeyi dene; sorun sürerse oturumun düşmüş olabilir.
+          </p>
+        </div>
       </main>
     );
   }
 
   if (!orgs || orgs.length === 0) {
     return (
-      <main className="max-w-4xl mx-auto p-6">
-        <div className="text-center py-20">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Tello&apos;ya Hoş Geldin!</h1>
-          <p className="text-muted-foreground mb-8">Başlamak için bir organizasyon oluştur.</p>
+      <main className="mx-auto max-w-5xl p-4 sm:p-6">
+        <div className="py-16 text-center sm:py-20">
+          <span className="mx-auto mb-6 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-soft-md">
+            <LayoutGrid className="size-7" />
+          </span>
+          <h1 className="mb-3 text-3xl font-bold tracking-tight text-foreground">
+            Tello&apos;ya hoş geldin
+          </h1>
+          <p className="mx-auto mb-8 max-w-md text-muted-foreground">
+            Başlamak için bir organizasyon oluştur. Ekibini davet edip projelerini
+            aynı pano üzerinden yürütebilirsin.
+          </p>
 
           {showCreateOrg ? (
             <form onSubmit={async (e) => {
@@ -110,7 +132,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto p-6">
+    <main className="mx-auto max-w-5xl p-4 sm:p-6">
       <OrgTabs orgs={orgs} />
     </main>
   );
@@ -145,39 +167,63 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex gap-2">
-          {orgs.map((org) => (
-            <Button
-              key={org.id}
-              variant={activeOrgId === org.id ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveOrgId(org.id)}
-            >
-              {org.name}
-            </Button>
-          ))}
+      {/* Sayfa basligi: aktif organizasyon ve rol bir bakista gorunsun */}
+      <div className="mb-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{activeOrg.name}</h1>
+          <Badge variant={activeOrg.role === 'ADMIN' ? 'default' : 'secondary'}>
+            {activeOrg.role === 'ADMIN' ? 'Admin' : 'Üye'}
+          </Badge>
         </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Bu organizasyondaki projeler ve ekip.
+        </p>
+      </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowMembers(true)}>
-            <Users className="h-3.5 w-3.5" />
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        {/* Organizasyon secimi: dagilmis dugmeler yerine segment kontrolu */}
+        {orgs.length > 1 && (
+          <div className="flex gap-1 rounded-xl border border-border bg-muted/50 p-1">
+            {orgs.map((org) => (
+              <button
+                key={org.id}
+                onClick={() => setActiveOrgId(org.id)}
+                className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                  activeOrgId === org.id
+                    ? 'bg-card text-foreground shadow-soft'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {org.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowMembers(true)}>
+            <Users className="size-3.5" />
             Üyeler
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowChat(true)}>
-            <MessagesSquare className="h-3.5 w-3.5" />
+          <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowChat(true)}>
+            <MessagesSquare className="size-3.5" />
             Sohbet
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowInvite((v) => !v)}>
-            + Üye Davet Et
+          <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowInvite((v) => !v)}>
+            <Plus className="size-3.5" />
+            Üye Davet Et
           </Button>
           {activeOrg.role === 'ADMIN' && (
-            <Button variant="outline" size="sm" onClick={() => setShowSettings((v) => !v)}>
-              ⚙ Ayarlar
+            <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowSettings((v) => !v)}>
+              <Settings className="size-3.5" />
+              Ayarlar
             </Button>
           )}
           <Link href={`/projects/new?orgId=${activeOrg.id}`}>
-            <Button size="sm">+ Yeni Proje</Button>
+            <Button size="sm" className="cursor-pointer">
+              <Plus className="size-3.5" />
+              Yeni Proje
+            </Button>
           </Link>
         </div>
       </div>
@@ -220,27 +266,70 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
 function ProjectList({ orgId }: { orgId: string }) {
   const { data: projects, isLoading, error } = useGetProjectsQuery({ orgId });
 
-  if (isLoading) return <p className="text-muted-foreground">Yükleniyor...</p>;
-  if (error) return <p className="text-destructive">Projeler yüklenemedi.</p>;
+  // Duz "Yukleniyor..." yazisi yerine iskelet: yukleme sirasinda sayfa
+  // yuksekligi sabit kaliyor, icerik gelince zipla olmuyor
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
+          <Card key={i} className="p-5">
+            <Skeleton className="mb-3 h-5 w-2/5" />
+            <Skeleton className="mb-4 h-3.5 w-4/5" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
+        <p className="text-sm font-medium text-destructive">Projeler yüklenemedi.</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Bağlantını kontrol edip sayfayı yenilemeyi dene.
+        </p>
+      </div>
+    );
+  }
+
   if (!projects || projects.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Henüz proje yok. Üstteki &quot;+ Yeni Proje&quot; ile ilk projeni oluştur.</p>
+      <div className="flex flex-col items-center rounded-2xl border border-dashed border-border px-6 py-14 text-center">
+        <span className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <FolderPlus className="size-6" />
+        </span>
+        <h3 className="text-base font-semibold text-foreground">Henüz proje yok</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          Üstteki &quot;Yeni Proje&quot; düğmesiyle ilk projeni oluştur, kartları
+          sürükleyerek takibe başla.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {projects.map((project) => (
-        <Link key={project.id} href={`/projects/${project.id}?orgId=${orgId}`}>
-          <Card className="hover:shadow-md transition cursor-pointer">
+        <Link key={project.id} href={`/projects/${project.id}?orgId=${orgId}`} className="group">
+          <Card className="h-full cursor-pointer border-border/70 shadow-soft transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-soft-md">
             <CardHeader>
-              <CardTitle>{project.name}</CardTitle>
-              {project.description && <CardDescription>{project.description}</CardDescription>}
+              <div className="flex items-start justify-between gap-3">
+                <CardTitle className="transition-colors group-hover:text-primary">
+                  {project.name}
+                </CardTitle>
+                <ArrowUpRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100" />
+              </div>
+              {project.description ? (
+                <CardDescription className="line-clamp-2">{project.description}</CardDescription>
+              ) : (
+                <CardDescription className="italic opacity-70">Açıklama eklenmemiş</CardDescription>
+              )}
             </CardHeader>
             <CardContent>
-              <Badge variant="secondary">{project._count?.columns ?? 0} sütun</Badge>
+              <Badge variant="secondary" className="tabular-nums">
+                {project._count?.columns ?? 0} sütun
+              </Badge>
             </CardContent>
           </Card>
         </Link>

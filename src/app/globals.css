@@ -144,4 +144,60 @@
   html {
     @apply font-sans;
   }
+
+  /* Basliklar govde metninden ayrissin: daha siki harf araligi ve
+     dengeli satir kirilmasi tek basina "sade" gorunumu belirgin azaltiyor. */
+  h1, h2, h3, h4 {
+    @apply font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Tema degisiminde ani renk sicramasi olmasin */
+  html.theme-transition * {
+    transition: background-color 200ms ease, border-color 200ms ease;
+  }
+}
+
+/* Yumusak, katmanli golgeler: shadcn'in duz border'ina derinlik katiyor.
+   Renkli degil notr tutuldu ki koyu temada da dogru dursun. */
+@utility shadow-soft {
+  box-shadow:
+    0 1px 2px 0 oklch(0 0 0 / 0.04),
+    0 1px 3px 0 oklch(0 0 0 / 0.06);
+}
+
+@utility shadow-soft-md {
+  box-shadow:
+    0 2px 4px -1px oklch(0 0 0 / 0.05),
+    0 8px 16px -4px oklch(0 0 0 / 0.08);
+}
+
+@utility shadow-soft-lg {
+  box-shadow:
+    0 4px 8px -2px oklch(0 0 0 / 0.06),
+    0 16px 32px -8px oklch(0 0 0 / 0.12);
+}
+
+/* Sayfa arka planlarinda kullanilan yumusak marka parlamasi */
+@utility bg-app-gradient {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -20%, var(--color-primary), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 0%, var(--color-chart-3), transparent 70%);
+  background-color: var(--color-background);
+}
+
+/* Hareket azaltma tercihi olan kullanicilar icin tum animasyonlari kis */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

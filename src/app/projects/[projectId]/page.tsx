@@ -67,9 +67,9 @@ export default function ProjectDetailPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background p-6">
+    <main className="min-h-screen bg-background p-4 sm:p-6">
       <div className="mx-auto max-w-full">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             {isEditing ? (
               <form onSubmit={handleRename} className="flex items-center gap-2">

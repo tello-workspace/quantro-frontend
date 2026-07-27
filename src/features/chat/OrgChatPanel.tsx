@@ -15,6 +15,7 @@ import { getSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { AppDispatch } from '@/lib/store';
 
 interface OrgChatPanelProps {
@@ -191,12 +192,27 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-        {isLoading && <p className="text-sm text-muted-foreground">Mesajlar yükleniyor...</p>}
+        {isLoading &&
+          [0, 1, 2].map((i) => (
+            <div key={i} className={`flex gap-2 ${i % 2 ? 'flex-row-reverse' : ''}`}>
+              <Skeleton className="size-7 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className={`h-8 ${i % 2 ? 'w-2/5' : 'w-3/5'} rounded-lg`} />
+              </div>
+            </div>
+          ))}
 
         {!isLoading && messages.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Henüz mesaj yok. İlk mesajı sen yaz 👋
-          </p>
+          <div className="flex h-full flex-col items-center justify-center px-4 text-center">
+            <span className="mb-3 flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <MessagesSquare className="size-5" />
+            </span>
+            <p className="text-sm font-medium text-foreground">Henüz mesaj yok</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              İlk mesajı sen yaz, ekipteki herkes anında görsün.
+            </p>
+          </div>
         )}
 
         {messages.map((message) => {

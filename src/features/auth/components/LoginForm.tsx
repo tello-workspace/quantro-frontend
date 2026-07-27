@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { LayoutGrid, Loader2 } from 'lucide-react';
 
 interface ApiError {
   data?: {
@@ -68,56 +70,70 @@ export default function LoginForm() {
 
   return (
     <div className="relative w-full max-w-md">
-      {/* Dönen RGB border efekti */}
-      <div className="absolute -inset-[2px] rounded-2xl bg-gradient-to-r from-[#4285F4] via-[#34A853] via-[#FBBC05] to-[#EA4335] bg-[length:200%_200%] animate-spin-slow opacity-75 blur-[2px]" />
-      <div className="absolute -inset-[2px] rounded-2xl bg-gradient-to-r from-[#4285F4] via-[#34A853] via-[#FBBC05] to-[#EA4335] bg-[length:200%_200%] animate-spin-slower" />
-    <Card className="w-full max-w-md relative">
-      <CardHeader className="text-center pb-0">
-        <CardTitle className="text-xl">Tello&apos;ya Giriş Yap</CardTitle>
-        <CardDescription className="text-xs">Projelerini ve görevlerini yönetmeye hemen başla.</CardDescription>
-      </CardHeader>
+      {/* Kart cevresinde yumusak marka parlamasi (donen RGB serit yerine:
+          o serit formu okumayi zorlastiriyordu) */}
+      <div
+        aria-hidden
+        className="absolute -inset-3 -z-10 rounded-3xl bg-linear-to-r from-primary/25 via-chart-3/20 to-chart-2/25 blur-2xl"
+      />
+      <Card className="relative w-full max-w-md shadow-soft-lg">
+        <CardHeader className="pb-2 text-center">
+          <span className="mx-auto mb-2 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
+            <LayoutGrid className="size-5" />
+          </span>
+          <CardTitle className="text-xl">Tello&apos;ya giriş yap</CardTitle>
+          <CardDescription>Projelerini ve görevlerini yönetmeye hemen başla.</CardDescription>
+        </CardHeader>
       <CardContent className="pt-4">
         {errorMsg && (
-          <div className="mb-3 p-2.5 text-xs text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
+          <div
+            role="alert"
+            className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
+          >
             {errorMsg}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium">E-posta Adresi</label>
+            <Label htmlFor="login-email">E-posta adresi</Label>
             <Input
+              id="login-email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ornek@tello.com"
-              className="h-8 text-sm"
+              className="h-10"
               required
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium">Şifre</label>
+            <Label htmlFor="login-password">Şifre</Label>
             <Input
+              id="login-password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="h-8 text-sm"
+              className="h-10"
               required
             />
           </div>
 
-          <Button type="submit" disabled={isLoading} className="w-full h-8 text-sm">
-            {isLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+          <Button type="submit" disabled={isLoading} className="h-10 w-full cursor-pointer">
+            {isLoading && <Loader2 className="size-4 animate-spin" />}
+            {isLoading ? 'Giriş yapılıyor...' : 'Giriş yap'}
           </Button>
         </form>
 
-        <div className="relative my-4">
+        <div className="relative my-5">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
           </div>
-          <div className="relative flex justify-center text-[10px] uppercase">
+          <div className="relative flex justify-center text-[11px] uppercase tracking-wide">
             <span className="bg-card px-2 text-muted-foreground">veya</span>
           </div>
         </div>
@@ -126,7 +142,7 @@ export default function LoginForm() {
           type="button"
           variant="outline"
           onClick={handleGoogleLogin}
-          className="w-full h-8 gap-2 text-sm"
+          className="h-10 w-full cursor-pointer gap-2"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -137,7 +153,7 @@ export default function LoginForm() {
           Google ile giriş yap
         </Button>
       </CardContent>
-    </Card>
+      </Card>
     </div>
   );
 }

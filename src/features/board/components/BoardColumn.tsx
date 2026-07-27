@@ -50,24 +50,34 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col w-80 shrink-0 bg-muted/50 rounded-xl p-4 border ${
-        isLimitExceeded
-          ? 'border-destructive/50 bg-destructive/5'
-          : 'border-border'
+      className={`flex w-80 shrink-0 flex-col rounded-2xl border bg-muted/40 p-3 transition-colors ${
+        isLimitExceeded ? 'border-destructive/40 bg-destructive/5' : 'border-border/70'
       }`}
     >
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-foreground text-sm">{title}</h3>
-          <Badge variant="secondary" className="text-xs">
+      {/* Sutun basligi kaydirirken gorunur kalsin */}
+      <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-2 rounded-xl bg-muted/40 px-1 py-1 backdrop-blur-sm">
+        <div className="flex min-w-0 items-center gap-2">
+          <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
+          <Badge
+            variant={isLimitExceeded ? 'destructive' : 'secondary'}
+            className="shrink-0 text-[11px] tabular-nums"
+          >
             {totalCount !== undefined
               ? `${tasks.length} / ${totalCount}${wipLimit ? ` (limit ${wipLimit})` : ''}`
               : `${tasks.length}${wipLimit ? ` / ${wipLimit}` : ''}`}
           </Badge>
         </div>
+        {isLimitExceeded && (
+          <span
+            className="shrink-0 text-[11px] font-medium text-destructive"
+            title="Bu sütun WIP limitine ulaştı"
+          >
+            limit doldu
+          </span>
+        )}
       </div>
 
-      <div className="flex flex-col gap-3 overflow-y-auto flex-1 min-h-[150px] pr-1">
+      <div className="flex min-h-[150px] flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
         <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <BoardCard
@@ -77,6 +87,14 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
             />
           ))}
         </SortableContext>
+
+        {tasks.length === 0 && (
+          <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border/70 px-3 py-6 text-center">
+            <p className="text-xs text-muted-foreground">
+              Bu sütun boş{canAddTask ? ' — aşağıdan kart ekleyebilirsin' : ''}
+            </p>
+          </div>
+        )}
       </div>
 
       {canAddTask && (
@@ -108,7 +126,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
         ) : (
           <button
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground w-full p-1.5 rounded-lg hover:bg-muted transition"
+            className="flex w-full cursor-pointer items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
           >
             <PlusIcon className="h-4 w-4" />
             Yeni kart ekle

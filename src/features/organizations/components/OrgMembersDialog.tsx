@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface OrgMembersDialogProps {
   orgId: string;
@@ -51,7 +52,20 @@ export const OrgMembersDialog: React.FC<OrgMembersDialogProps> = ({ orgId, open,
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading && <p className="text-sm text-muted-foreground">Yükleniyor...</p>}
+        {isLoading && (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-8 shrink-0 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-28" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+                <Skeleton className="h-5 w-14 rounded-full" />
+              </div>
+            ))}
+          </div>
+        )}
 
         {!isLoading && members.length === 0 && (
           <p className="text-sm text-muted-foreground">Bu organizasyonda üye yok.</p>

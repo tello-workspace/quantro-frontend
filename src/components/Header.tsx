@@ -9,6 +9,8 @@ import NotificationBell from './NotificationBell';
 import { supabase } from '@/lib/supabaseClient';
 import { disconnectSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { LayoutGrid, LogOut } from 'lucide-react';
 
 export default function Header(){
     const router = useRouter();
@@ -28,16 +30,38 @@ export default function Header(){
         router.push('/login');
     };
     return (
-        <header className="flex items-center justify-between px-6 py-3 bg-card border-b border-border">
-            <Link href="/projects" className="text-lg font-semibold text-foreground hover:text-primary transition">
-              {me ? `Hoşgeldin, ${me.name}` : 'Tello'}
+        <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
+          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+            <Link
+              href="/projects"
+              className="group flex items-center gap-2.5 rounded-lg transition-colors hover:text-primary"
+            >
+              {/* Marka isareti: metin logonun tek basina kalmasini engelliyor */}
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
+                <LayoutGrid className="size-4" />
+              </span>
+              <span className="flex flex-col leading-none">
+                <span className="text-sm font-bold tracking-tight text-foreground">Tello</span>
+                {me && (
+                  <span className="mt-0.5 text-xs text-muted-foreground">{me.name}</span>
+                )}
+              </span>
             </Link>
-            <div className="flex items-center gap-3">
+
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
               <NotificationBell />
-              <Button variant="ghost" onClick={handleLogout} className="text-destructive hover:text-destructive">
-                Çıkış yap
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="cursor-pointer text-muted-foreground transition-colors hover:text-destructive"
+              >
+                <LogOut className="size-4" />
+                <span className="hidden sm:inline">Çıkış yap</span>
               </Button>
             </div>
+          </div>
         </header>
     );
 }
