@@ -18,6 +18,7 @@ interface BoardColumnProps {
   totalCount?: number;
   wipLimit?: number | null;
   canAddTask: boolean;
+  isAdmin?: boolean;
   onAddTask: (columnId: string, title: string) => void;
   onTaskClick: (taskId: string) => void;
 }
@@ -29,6 +30,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   totalCount,
   wipLimit,
   canAddTask,
+  isAdmin = true,
   onAddTask,
   onTaskClick,
 }) => {
@@ -107,7 +109,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               autoFocus
               value={titleInput}
               onChange={(e) => setTitleInput(e.target.value)}
-              placeholder="Görev başlığı yazın..."
+              placeholder={isAdmin ? 'Görev başlığı yazın...' : 'Talep edilecek görev başlığı...'}
               className="text-sm"
             />
             <div className="flex justify-end gap-2">
@@ -120,7 +122,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
                 İptal
               </Button>
               <Button type="submit" size="sm">
-                Ekle
+                {isAdmin ? 'Ekle' : 'Talep Gönder'}
               </Button>
             </div>
           </form>
@@ -130,7 +132,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
             className="flex w-full cursor-pointer items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
           >
             <PlusIcon className="h-4 w-4" />
-            Yeni kart ekle
+            {isAdmin ? 'Yeni kart ekle' : 'Kart talebi gönder'}
           </button>
         )}
       </div>

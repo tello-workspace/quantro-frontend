@@ -22,6 +22,7 @@ import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { getSocket } from '@/lib/socket';
 import { toast } from 'react-toastify';
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
+import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
 
 interface ProjectBoardProps {
   projectId: string;
@@ -114,7 +115,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
   // Kart ekleme sadece ADMIN'e acik; suruklemeyi (kart tasima) herkes yapabilir
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId });
-  const canAddTask = boardData?.myRole === 'ADMIN' || org?.myRole === 'ADMIN';
+  const isAdmin = boardData?.myRole === 'ADMIN' || org?.myRole === 'ADMIN';
+  // Uye de kart ekleme formunu gorur; farki gonderdigi seyin talep olmasi
+  const canAddTask = true;
+  const [createChangeRequest] = useCreateChangeRequestMutation();
   const members = org?.members ?? [];
 
   const { data: labels = [], refetch: refetchLabels } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
@@ -458,6 +462,21 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   };
 
   const handleAddTask = async (columnId: string, title: string) => {
+    // Uye kart olusturamaz; ayni baslikla degisiklik talebi acar
+    if (!isAdmin) {
+      try {
+        await createChangeRequest({
+          orgId,
+          body: { type: 'CARD_CREATE', targetColumnId: columnId, payload: { title } },
+        }).unwrap();
+        toast.success('Kart talebin adminlere gönderildi.');
+      } catch (err) {
+        const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+        toast.error(mesaj || 'Talep gönderilemedi.');
+      }
+      return;
+    }
+
     try {
       const newTask = await boardService.createTask(projectId, columnId, title);
       if (!newTask) return;
@@ -605,7 +624,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                   tasks={columnTasks}
                   totalCount={hasActiveFilters ? allColumnTasks.length : undefined}
                   wipLimit={column.wipLimit}
-                  canAddTask={!!canAddTask}
+                  canAddTask={canAddTask}
+                  isAdmin={!!isAdmin}
                   onAddTask={handleAddTask}
                   onTaskClick={handleTaskClick}
                 />

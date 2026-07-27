@@ -7,6 +7,7 @@ import { Task, TaskLabel, DependencyCard } from '@/features/board/services/board
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import { useFillCardWithAiMutation } from '@/features/ai/aiApi';
+import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
 import {
   useGetLabelsQuery,
   useCreateLabelMutation,
@@ -215,6 +216,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [addDependency] = useAddDependencyMutation();
   const [removeDependency] = useRemoveDependencyMutation();
   const [fillCardWithAi, { isLoading: isFilling }] = useFillCardWithAiMutation();
+  const [createChangeRequest, { isLoading: isRequesting }] = useCreateChangeRequestMutation();
 
   const handleAiFill = async () => {
     if (!task || !task.title.trim()) return;
@@ -294,11 +296,38 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     setTask({ ...task, assignees: [...current, { id: userId, name: member.user.name }] });
   };
 
-  const handleSave = () => {
-    if (task) {
-      onUpdateTask(task);
-      onClose();
+  const handleSave = async () => {
+    if (!task) return;
+
+    // Admin dogrudan kaydeder. Uye kart icerigini dogrudan degistiremedigi
+    // icin ayni veriyi degisiklik talebi olarak gonderir; admin onaylayinca
+    // sistem uygular, reddederse bu veri kullanilmaz.
+    if (!isAdmin) {
+      try {
+        await createChangeRequest({
+          orgId,
+          body: {
+            type: 'CARD_UPDATE',
+            targetCardId: task.id,
+            payload: {
+              title: task.title,
+              description: task.description ?? null,
+              priority: task.priority,
+              dueDate: task.dueDate ?? null,
+            },
+          },
+        }).unwrap();
+        toast.success('Değişiklik talebin adminlere gönderildi.');
+        onClose();
+      } catch (err) {
+        const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+        toast.error(mesaj || 'Talep gönderilemedi.');
+      }
+      return;
     }
+
+    onUpdateTask(task);
+    onClose();
   };
 
   const handleAttachLabel = async (label: TaskLabel) => {
@@ -363,8 +392,26 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
-  const handleDelete = () => {
-    if (task && window.confirm('Bu görevi silmek istediğinizden emin misiniz?')) {
+  const handleDelete = async () => {
+    if (!task) return;
+
+    if (!isAdmin) {
+      if (!window.confirm('Bu kartın silinmesi için admin onayı istenecek. Devam edilsin mi?')) return;
+      try {
+        await createChangeRequest({
+          orgId,
+          body: { type: 'CARD_DELETE', targetCardId: task.id },
+        }).unwrap();
+        toast.success('Silme talebin adminlere gönderildi.');
+        onClose();
+      } catch (err) {
+        const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+        toast.error(mesaj || 'Talep gönderilemedi.');
+      }
+      return;
+    }
+
+    if (window.confirm('Bu görevi silmek istediğinizden emin misiniz?')) {
       onDeleteTask(task.id);
       onClose();
     }
@@ -738,13 +785,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 disabled={isFilling}
               >
                 <TrashIcon className="h-4 w-4 mr-1" />
-                Görevi Sil
+                {isAdmin ? 'Görevi Sil' : 'Silme Talebi Gönder'}
               </Button>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isFilling}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isFilling || isRequesting}>
                 İptal
               </Button>
-              <Button type="button" onClick={handleSave} disabled={isFilling}>
-                Değişiklikleri Kaydet
+              <Button type="button" onClick={handleSave} disabled={isFilling || isRequesting}>
+                {isAdmin ? 'Değişiklikleri Kaydet' : 'Talep Gönder'}
               </Button>
             </DialogFooter>
           </>

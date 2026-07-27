@@ -18,7 +18,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { MessagesSquare, Users, FolderPlus, ArrowUpRight, Plus, Settings, LayoutGrid } from 'lucide-react';
+import { MessagesSquare, Users, FolderPlus, ArrowUpRight, Plus, Settings, LayoutGrid, Inbox } from 'lucide-react';
+import { ChangeRequestsDialog } from '@/features/requests/components/ChangeRequestsDialog';
+import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrgChatPanel } from '@/features/chat/OrgChatPanel';
 import { OrgMembersDialog } from '@/features/organizations/components/OrgMembersDialog';
@@ -149,6 +151,14 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const [showSettings, setShowSettings] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  const [showRequests, setShowRequests] = useState(false);
+
+  const isAdmin = activeOrg.role === 'ADMIN';
+  // Bekleyen talep sayaci: admin icin is listesi, uye icin kendi takibi
+  const { data: bekleyenTalepler = [] } = useGetChangeRequestsQuery(
+    { orgId: activeOrg.id, status: 'PENDING' },
+    { skip: !activeOrg.id },
+  );
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,22 +219,36 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
             <MessagesSquare className="size-3.5" />
             Sohbet
           </Button>
-          <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowInvite((v) => !v)}>
-            <Plus className="size-3.5" />
-            Üye Davet Et
+          <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowRequests(true)}>
+            <Inbox className="size-3.5" />
+            {isAdmin ? 'Talepler' : 'Taleplerim'}
+            {bekleyenTalepler.length > 0 && (
+              <Badge variant={isAdmin ? 'default' : 'secondary'} className="ml-1 tabular-nums">
+                {bekleyenTalepler.length}
+              </Badge>
+            )}
           </Button>
-          {activeOrg.role === 'ADMIN' && (
+          {isAdmin && (
+            <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowInvite((v) => !v)}>
+              <Plus className="size-3.5" />
+              Üye Davet Et
+            </Button>
+          )}
+          {isAdmin && (
             <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowSettings((v) => !v)}>
               <Settings className="size-3.5" />
               Ayarlar
             </Button>
           )}
-          <Link href={`/projects/new?orgId=${activeOrg.id}`}>
-            <Button size="sm" className="cursor-pointer">
-              <Plus className="size-3.5" />
-              Yeni Proje
-            </Button>
-          </Link>
+          {/* Proje olusturma admin'e ozel; uye talep akisini kullanir */}
+          {isAdmin && (
+            <Link href={`/projects/new?orgId=${activeOrg.id}`}>
+              <Button size="sm" className="cursor-pointer">
+                <Plus className="size-3.5" />
+                Yeni Proje
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -250,6 +274,13 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
       <ProjectList orgId={activeOrg.id} />
 
       <OrgMembersDialog orgId={activeOrg.id} open={showMembers} onOpenChange={setShowMembers} />
+
+      <ChangeRequestsDialog
+        orgId={activeOrg.id}
+        isAdmin={isAdmin}
+        open={showRequests}
+        onOpenChange={setShowRequests}
+      />
 
       <Dialog open={showChat} onOpenChange={setShowChat}>
         <DialogContent className="max-w-lg p-0">
