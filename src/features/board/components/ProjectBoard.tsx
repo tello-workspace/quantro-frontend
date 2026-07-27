@@ -20,6 +20,7 @@ import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { getSocket } from '@/lib/socket';
+import { toast } from 'react-toastify';
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 
 interface ProjectBoardProps {
@@ -494,7 +495,19 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
   const handleUpdateTask = async (updatedTask: Task) => {
     try {
-      await boardService.updateTask(projectId, updatedTask);
+      // Atama listesi degismediyse assigneeIds hic gonderilmez: backend'de bu
+      // alanin varligi ADMIN sarti tetikliyor, aksi halde uyeler kartin
+      // basligini/aciklamasini bile degistiremiyordu.
+      const previous = boardData?.tasks[updatedTask.id];
+      const oncekiIdler = (previous?.assignees ?? []).map((a) => a.id);
+      const yeniIdler = (updatedTask.assignees ?? []).map((a) => a.id);
+      const atamaDegisti =
+        oncekiIdler.length !== yeniIdler.length ||
+        yeniIdler.some((id) => !oncekiIdler.includes(id));
+
+      await boardService.updateTask(projectId, updatedTask, {
+        includeAssignees: atamaDegisti,
+      });
       setBoardData((prev) => {
         if (!prev) return prev;
         return {
@@ -507,6 +520,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       });
     } catch (error) {
       console.error("Görev güncellenirken hata:", error);
+      // Sessizce yutmak yerine sebebi kullaniciya soyle
+      toast.error(error instanceof Error ? error.message : 'Görev güncellenemedi.');
     }
   };
 

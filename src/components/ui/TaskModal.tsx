@@ -230,6 +230,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         updatedFields.dueDate = result.dueDate;
       }
 
+      // Atama onerisi yalnizca ADMIN icin uygulanir: gorev atamasi backend'de
+      // ADMIN'e kisitli, uyeye onerilen kisiyi yazsak kaydetmede 403 aliyordu.
+      let atamaOnerisiAtlandi = false;
       if (result.suggestedAssigneeId && result.suggestedAssigneeId !== 'null') {
         const targetId = result.suggestedAssigneeId.trim().toLowerCase();
         const member = members.find(
@@ -237,8 +240,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             m.userId.trim().toLowerCase() === targetId ||
             m.user.id.trim().toLowerCase() === targetId
         );
-        if (member) {
+        if (member && isAdmin) {
           updatedFields.assignees = [{ id: member.userId, name: member.user.name }];
+        } else if (member && !isAdmin) {
+          atamaOnerisiAtlandi = true;
         }
       }
 
@@ -246,7 +251,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         ...task,
         ...updatedFields,
       });
-      toast.success('AI doldurma başarılı!');
+      toast.success(
+        atamaOnerisiAtlandi
+          ? 'AI doldurma başarılı. Atama önerisi uygulanmadı: görev atamasını yalnızca adminler yapabilir.'
+          : 'AI doldurma başarılı!',
+      );
     } catch {
       toast.error('AI ile doldurma başarısız oldu.');
     }

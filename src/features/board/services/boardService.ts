@@ -16,6 +16,21 @@ function extractData<T>(response: { success: boolean; data: T }): T {
   return response.data;
 }
 
+// Sunucunun anlatti hatayi kullaniciya gosterir. Onceden sabit bir metin
+// firlatiliyordu ("Gorev guncellenemedi.") ve "Sadece adminler gorev atamasi
+// yapabilir" gibi asil sebep kayboluyordu.
+async function readApiError(res: Response, fallback: string): Promise<string> {
+  try {
+    const json = await res.json();
+    const err = json?.error;
+    if (typeof err === 'string') return err;
+    if (err?.message) return err.message;
+  } catch {
+    // JSON olmayan cevap - fallback kullanilir
+  }
+  return fallback;
+}
+
 export interface TaskLabel {
   id: string;
   name: string;
@@ -152,15 +167,27 @@ export const boardService = {
     return normalizeCard(raw);
   },
 
-  async updateTask(projectId: string, task: Task): Promise<Task> {
+  async updateTask(
+    projectId: string,
+    task: Task,
+    options: { includeAssignees?: boolean } = {},
+  ): Promise<Task> {
     const body: Record<string, unknown> = {
       title: task.title,
       description: task.description,
       dueDate: task.dueDate || null,
       columnId: task.columnId,
+      // priority eskiden gonderilmiyordu: AI'nin onerdigi (ya da elle
+      // secilen) oncelik kaydedilmis gibi gorunup sessizce kayboluyordu
+      priority: task.priority,
     };
-    // assignees varsa backend'e id listesi olarak gonder (tam liste ile degistirir)
-    if (task.assignees !== undefined) {
+
+    // assigneeIds SADECE atama gercekten degistiyse gonderilir.
+    // Backend'de assigneeIds alaninin varligi ADMIN sarti tetikliyor
+    // (card.service: "Sadece adminler gorev atamasi yapabilir"), bu yuzden
+    // her kaydetmede gondermek uyelerin baslik/aciklama duzenlemesini bile
+    // 403'e dusuruyordu.
+    if (options.includeAssignees && task.assignees !== undefined) {
       body.assigneeIds = task.assignees.map((a) => a.id);
     }
 
@@ -169,7 +196,7 @@ export const boardService = {
       headers: getAuthHeaders(),
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error('Görev güncellenemedi.');
+    if (!res.ok) throw new Error(await readApiError(res, 'Görev güncellenemedi.'));
     const json = await res.json();
     const raw = extractData<RawCard>(json);
     return normalizeCard(raw);
