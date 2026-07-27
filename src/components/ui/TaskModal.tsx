@@ -370,6 +370,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     name="title"
                     value={task.title}
                     onChange={handleChange}
+                    disabled={isFilling}
                     className="w-full text-lg font-semibold bg-transparent focus:outline-none focus:ring-1 focus:ring-ring rounded-md px-1 -mx-1 text-foreground"
                     placeholder="Görev Başlığı"
                   />
@@ -430,6 +431,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       variant="outline"
                       size="xs"
                       onClick={() => setShowLabelPicker((v) => !v)}
+                      disabled={isFilling}
                     >
                       <TagIcon className="h-3 w-3" />
                       Etiket
@@ -553,6 +555,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     variant="outline"
                     size="xs"
                     onClick={() => setShowDependencyPicker((v) => !v)}
+                    disabled={isFilling}
                   >
                     <LinkIcon className="h-3 w-3" />
                     Bağımlılık ekle
@@ -593,14 +596,27 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <label htmlFor="description" className="block text-sm font-medium text-muted-foreground mb-1">
                   Açıklama
                 </label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  rows={5}
-                  value={task.description || ''}
-                  onChange={handleChange}
-                  placeholder="Görev için bir açıklama ekleyin..."
-                />
+                <div className="relative">
+                  <Textarea
+                    id="description"
+                    name="description"
+                    rows={5}
+                    value={task.description || ''}
+                    onChange={handleChange}
+                    disabled={isFilling}
+                    placeholder="Görev için bir açıklama ekleyin..."
+                    className={isFilling ? "opacity-30" : ""}
+                  />
+                  {isFilling && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 rounded-md backdrop-blur-[1px] border border-dashed border-blue-300 dark:border-blue-800 animate-pulse">
+                      <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium text-sm">
+                        <SparklesIcon className="h-5 w-5 animate-bounce" />
+                        <span>AI görevi detaylandırıyor...</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground mt-1">İş yükü analizi ve açıklama oluşturuluyor</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 items-start">
@@ -615,6 +631,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     name="dueDate"
                     value={task.dueDate ? task.dueDate.split('T')[0] : ''}
                     onChange={handleChange}
+                    disabled={isFilling}
                   />
                 </div>
 
@@ -651,6 +668,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                           variant="outline"
                           size="xs"
                           onClick={() => setShowAssigneePicker((v) => !v)}
+                          disabled={isFilling}
                         >
                           + Kişi
                         </Button>
@@ -702,14 +720,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 variant="destructive"
                 onClick={handleDelete}
                 className="mr-auto"
+                disabled={isFilling}
               >
                 <TrashIcon className="h-4 w-4 mr-1" />
                 Görevi Sil
               </Button>
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isFilling}>
                 İptal
               </Button>
-              <Button type="button" onClick={handleSave}>
+              <Button type="button" onClick={handleSave} disabled={isFilling}>
                 Değişiklikleri Kaydet
               </Button>
             </DialogFooter>
