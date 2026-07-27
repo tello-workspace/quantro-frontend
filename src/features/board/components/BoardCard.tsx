@@ -64,7 +64,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   const days = staleDays(task.lastActivityAt);
@@ -86,12 +86,16 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
           .filter(Boolean)
           .join(' · ') || undefined
       }
-      className={`group relative cursor-pointer overflow-hidden rounded-xl border bg-card p-3 pl-4 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-soft-md active:translate-y-0 shrink-0 ${
-        isVeryStale
-          ? 'border-destructive/60'
-          : isStale
-            ? 'border-border opacity-75 hover:opacity-100'
-            : 'border-border'
+      className={`group relative cursor-pointer overflow-hidden rounded-xl border p-3 pl-4 transition-all duration-200 shrink-0 ${
+        isDragging
+          ? 'border-dashed border-primary/40 bg-muted/20 shadow-none'
+          : `bg-card shadow-soft hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-soft-md active:translate-y-0 ${
+              isVeryStale
+                ? 'border-destructive/60'
+                : isStale
+                  ? 'border-border opacity-75 hover:opacity-100'
+                  : 'border-border'
+            }`
       }`}
     >
       {/* Oncelik solda ince bir serit: nokta yerine kart taranirken

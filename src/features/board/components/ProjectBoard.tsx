@@ -9,9 +9,11 @@ import {
   DragStartEvent,
   PointerSensor,
   useSensor,
-  useSensors
+  useSensors,
+  DragOverlay
 } from '@dnd-kit/core';
 import { BoardColumn } from './BoardColumn';
+import { BoardCard } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { boardService, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
@@ -62,7 +64,7 @@ interface ColumnDeletedPayload {
 export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) => {
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // Kart ekleme sadece ADMIN'e acik; suruklemeyi (kart tasima) herkes yapabilir
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId });
@@ -535,6 +537,16 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
             );
           })}
         </div>
+        <DragOverlay>
+          {activeId && boardData.tasks[activeId] ? (
+            <div className="transform rotate-2 scale-[1.03] cursor-grabbing select-none shadow-2xl transition-transform duration-200">
+              <BoardCard
+                task={boardData.tasks[activeId]}
+                onClick={() => {}}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       <TaskModal
