@@ -4,13 +4,7 @@ import {
   useGetMyOrganizationsQuery,
   useAddMemberMutation,
   useGetOrganizationByIdQuery,
-  useUpdateOrganizationMutation,
-  useDeleteOrganizationMutation,
-  useRemoveMemberMutation,
-  useGetPendingInvitationsQuery,
-  useCancelInvitationMutation,
 } from '@/features/organizations/organizationsApi';
-import { useGetMeQuery } from '@/features/auth/meApi';
 import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
@@ -24,6 +18,7 @@ import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrgChatPanel } from '@/features/chat/OrgChatPanel';
 import { OrgMembersDialog } from '@/features/organizations/components/OrgMembersDialog';
+import { OrgSettingsDialog } from '@/features/organizations/components/OrgSettingsDialog';
 import { Badge } from '@/components/ui/badge';
 
 export default function ProjectsPage() {
@@ -148,7 +143,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteMsg, setInviteMsg] = useState('');
   const [addMember, { isLoading: isInviting }] = useAddMemberMutation();
-  const [showSettings, setShowSettings] = useState(false);
+  const [showOrgSettings, setShowOrgSettings] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
@@ -235,7 +230,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
             </Button>
           )}
           {isAdmin && (
-            <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowSettings((v) => !v)}>
+            <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowOrgSettings(true)}>
               <Settings className="size-3.5" />
               Ayarlar
             </Button>
@@ -269,11 +264,17 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
           </Button>
         </form>
       )}
-      {showSettings && <OrgSettingsPanel orgId={activeOrg.id} />}
 
       <ProjectList orgId={activeOrg.id} />
 
       <OrgMembersDialog orgId={activeOrg.id} open={showMembers} onOpenChange={setShowMembers} />
+
+      <OrgSettingsDialog
+        orgId={activeOrg.id}
+        isAdmin={isAdmin}
+        open={showOrgSettings}
+        onOpenChange={setShowOrgSettings}
+      />
 
       <ChangeRequestsDialog
         orgId={activeOrg.id}
@@ -283,7 +284,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
       />
 
       <Dialog open={showChat} onOpenChange={setShowChat}>
-        <DialogContent className="max-w-lg p-0">
+        <DialogContent className="sm:max-w-lg w-full p-0">
           <DialogTitle className="sr-only">Organizasyon Sohbeti</DialogTitle>
           <div className="h-[70vh]">
             <OrgChatPanel orgId={activeOrg.id} orgName={activeOrg.name} />
@@ -369,155 +370,5 @@ function ProjectList({ orgId }: { orgId: string }) {
   );
 }
 
-function OrgSettingsPanel({ orgId }: { orgId: string }) {
-  const { data: me } = useGetMeQuery();
-  const { data: org } = useGetOrganizationByIdQuery({ orgId });
-
-  const [editingName, setEditingName] = useState(false);
-  const [name, setName] = useState('');
-  const [msg, setMsg] = useState('');
-
-  const [updateOrganization, { isLoading: isSaving }] = useUpdateOrganizationMutation();
-  const [deleteOrganization, { isLoading: isDeleting }] = useDeleteOrganizationMutation();
-  const [removeMember, { isLoading: isRemoving }] = useRemoveMemberMutation();
-  const [cancelInvitation, { isLoading: isCancelling }] = useCancelInvitationMutation();
-  const isAdmin = org?.myRole === 'ADMIN';
-  const { data: pendingInvitations } = useGetPendingInvitationsQuery({ orgId }, { skip: !isAdmin });
-
-  if (!org) return <p className="mb-6 text-sm text-muted-foreground">Yükleniyor...</p>;
-
-  const isOwner = me?.id === org.ownerId;
-
-  const handleCancelInvitation = async (invitationId: string) => {
-    try {
-      await cancelInvitation({ orgId, invitationId }).unwrap();
-      toast.success('Davet geri alındı');
-    } catch (err) {
-      const errData = (err as { data?: { error?: { message?: string } | string } })?.data?.error;
-      alert(typeof errData === 'string' ? errData : errData?.message || 'Davet geri alınamadı.');
-    }
-  };
-
-  const startEditing = () => {
-    setName(org.name);
-    setEditingName(true);
-  };
-
-  const handleRename = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    try {
-      await updateOrganization({ orgId, name: name.trim() }).unwrap();
-      toast.success('Organizasyon güncellendi');
-      setEditingName(false);
-    } catch (err: any) {
-      const errData = err?.data?.error;
-      setMsg(typeof errData === 'string' ? errData : errData?.message || 'Güncellenemedi.');
-    }
-  };
-
-  const handleDeleteOrg = async () => {
-    if (!confirm('Bu organizasyonu silmek istediğine emin misin? Tüm projeler de silinecek. Bu işlem geri alınamaz.')) return;
-    try {
-      await deleteOrganization({ orgId }).unwrap();
-      window.location.href = '/projects';
-    } catch (err: any) {
-      const errData = err?.data?.error;
-      alert(typeof errData === 'string' ? errData : errData?.message || 'Silinemedi.');
-    }
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    if (!confirm('Bu üyeyi organizasyondan çıkarmak istediğine emin misin?')) return;
-    try {
-      await removeMember({ orgId, userId }).unwrap();
-      toast.success('Üye çıkarıldı');
-    } catch (err: any) {
-      const errData = err?.data?.error;
-      alert(typeof errData === 'string' ? errData : errData?.message || 'Çıkarılamadı.');
-    }
-  };
-
-  return (
-    <Card className="mb-6">
-      <CardHeader>
-        {editingName ? (
-          <form onSubmit={handleRename} className="flex items-center gap-2">
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="max-w-xs"
-              autoFocus
-            />
-            <Button type="submit" disabled={isSaving} size="sm">Kaydet</Button>
-            <Button type="button" variant="ghost" onClick={() => setEditingName(false)} size="sm">İptal</Button>
-          </form>
-        ) : (
-          <div className="flex items-center gap-2">
-            <CardTitle>{org.name}</CardTitle>
-            <Button variant="link" size="sm" onClick={startEditing}>Yeniden Adlandır</Button>
-          </div>
-        )}
-        {msg && <p className="text-xs text-destructive mt-1">{msg}</p>}
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        <div>
-          <h4 className="text-sm font-medium mb-2">Üyeler</h4>
-          <ul className="space-y-1">
-            {org.members.map((m) => (
-              <li key={m.userId} className="flex items-center justify-between text-sm">
-                <span className="text-foreground">
-                  {m.user.name} <span className="text-muted-foreground">({m.role === 'ADMIN' ? 'Admin' : 'Üye'})</span>
-                </span>
-                {isOwner && m.userId !== org.ownerId && (
-                  <Button
-                    variant="destructive"
-                    size="xs"
-                    disabled={isRemoving}
-                    onClick={() => handleRemoveMember(m.userId)}
-                  >
-                    Çıkar
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {isAdmin && pendingInvitations && pendingInvitations.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium mb-2">Bekleyen Davetler</h4>
-            <ul className="space-y-1">
-              {pendingInvitations.map((inv) => (
-                <li key={inv.id} className="flex items-center justify-between text-sm">
-                  <span className="text-foreground">
-                    {inv.invitedUser.name}{' '}
-                    <span className="text-muted-foreground">({inv.invitedUser.email})</span>
-                  </span>
-                  <Button
-                    variant="destructive"
-                    size="xs"
-                    disabled={isCancelling}
-                    onClick={() => handleCancelInvitation(inv.id)}
-                  >
-                    Geri Al
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {isOwner && (
-          <Button variant="destructive" size="sm" disabled={isDeleting} onClick={handleDeleteOrg}>
-            Organizasyonu Sil
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';

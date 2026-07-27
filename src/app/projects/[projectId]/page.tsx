@@ -92,7 +92,7 @@ export default function ProjectDetailPage() {
           </div>
 
           {!isEditing && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Link
                 href={`/projects/${projectId}/insights?orgId=${orgId}`}
                 className={buttonVariants({ variant: 'outline', size: 'sm' })}

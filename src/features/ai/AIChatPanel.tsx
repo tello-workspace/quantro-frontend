@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useSendAiMessageMutation, useGetAiInsightsQuery } from '@/features/ai/aiApi';
-import { X, Send, Loader2, Bot, Lightbulb, MessageSquare } from 'lucide-react';
+import { X, Send, Loader2, Bot, Lightbulb, MessageSquare, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -234,13 +234,7 @@ interface AIChatPanelProps {
 }
 
 export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName, onClose, isMobile }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: `Merhaba! 👋 Proje hakkında sorularınızı cevaplayabilirim. Örneğin:\n\n• "Bu projede neler yapılıyor?"\n• "Kartları nasıl daha iyi organize edebilirim?"\n• "Takım üyelerinin iş yükü nasıl?"`,
-      id: 'welcome',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [tab, setTab] = useState<'chat' | 'insights'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -249,12 +243,55 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
   const [sendMessage, { isLoading }] = useSendAiMessageMutation();
   const { data: insights, isLoading: insightsLoading } = useGetAiInsightsQuery(projectId, { skip: tab !== 'insights' });
 
+  // Load from localStorage on mount or when projectId changes
+  useEffect(() => {
+    const saved = localStorage.getItem(`ai-chat-messages-${projectId}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+          return;
+        }
+      } catch (e) {
+        console.error('Error loading AI chat messages:', e);
+      }
+    }
+    // Fallback default welcome message
+    setMessages([
+      {
+        role: 'assistant',
+        content: `Merhaba! 👋 Proje hakkında sorularınızı cevaplayabilirim. Örneğin:\n\n- "Bu projede neler yapılıyor?"\n- "Kartları nasıl daha iyi organize edebilirim?"\n- "Takım üyelerinin iş yükü nasıl?"`,
+        id: 'welcome',
+      },
+    ]);
+  }, [projectId]);
+
+  // Save to localStorage when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem(`ai-chat-messages-${projectId}`, JSON.stringify(messages));
+    }
+  }, [messages, projectId]);
+
+  const handleClearHistory = () => {
+    if (window.confirm('Sohbet geçmişini temizlemek istediğinizden emin misiniz?')) {
+      const welcomeMsg: Message = {
+        role: 'assistant',
+        content: `Merhaba! 👋 Proje hakkında sorularınızı cevaplayabilirim. Örneğin:\n\n- "Bu projede neler yapılıyor?"\n- "Kartları nasıl daha iyi organize edebilirim?"\n- "Takım üyelerinin iş yükü nasıl?"`,
+        id: 'welcome',
+      };
+      setMessages([welcomeMsg]);
+      localStorage.setItem(`ai-chat-messages-${projectId}`, JSON.stringify([welcomeMsg]));
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   useEffect(() => {
-    if (tab === 'chat') inputRef.current?.focus();
+    if (tab === 'chat') inputRef.current?.focus({ preventScroll: true });
   }, [tab]);
 
   const handleSend = async () => {
@@ -316,11 +353,16 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
             )}
           </div>
         </div>
-        {isMobile && onClose && (
-          <Button variant="ghost" size="icon" onClick={onClose} title="Kapat">
-            <X className="h-4 w-4" />
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={handleClearHistory} title="Sohbet geçmişini temizle">
+            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
           </Button>
-        )}
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose} title="Kapat">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tab Bar */}
@@ -457,7 +499,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
                 )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1.5 text-center">
+            <p className="text-xs text-muted-foreground mt-1.5 text-center whitespace-normal break-words">
               AI cevapları yönlendirme amaçlıdır, aksiyon almadan önce doğrulayın.
             </p>
           </div>

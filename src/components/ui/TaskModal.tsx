@@ -181,6 +181,9 @@ interface TaskModalProps {
   onDeleteTask: (taskId: string) => void;
   fetchTaskDetails: (taskId: string) => Promise<Task>;
   availableCards?: DependencyCard[];
+  columnId?: string | null;
+  initialTitle?: string;
+  onCreateTask?: (columnId: string, payload: any) => Promise<void>;
 }
 
 export const TaskModal: React.FC<TaskModalProps> = ({
@@ -193,6 +196,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   onDeleteTask,
   fetchTaskDetails,
   availableCards = [],
+  columnId,
+  initialTitle,
+  onCreateTask,
 }) => {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(false);
@@ -219,22 +225,19 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [createChangeRequest, { isLoading: isRequesting }] = useCreateChangeRequestMutation();
 
   const handleAiFill = async () => {
-    if (!task || !task.title.trim()) return;
+    if (!task || !task.title?.trim()) return;
     try {
       const result = await fillCardWithAi({ projectId, title: task.title.trim() }).unwrap();
       console.log('AI Fill Result:', result);
       const updatedFields: Partial<Task> = {
         description: result.description,
-        priority: result.priority,
+        priority: result.priority as any,
       };
 
       if (result.dueDate && result.dueDate !== 'null' && result.dueDate !== 'undefined') {
         updatedFields.dueDate = result.dueDate;
       }
 
-      // Atama onerisi yalnizca ADMIN icin uygulanir: gorev atamasi backend'de
-      // ADMIN'e kisitli, uyeye onerilen kisiyi yazsak kaydetmede 403 aliyordu.
-      let atamaOnerisiAtlandi = false;
       if (result.suggestedAssigneeId && result.suggestedAssigneeId !== 'null') {
         const targetId = result.suggestedAssigneeId.trim().toLowerCase();
         const member = members.find(
@@ -242,10 +245,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             m.userId.trim().toLowerCase() === targetId ||
             m.user.id.trim().toLowerCase() === targetId
         );
-        if (member && isAdmin) {
+        if (member) {
           updatedFields.assignees = [{ id: member.userId, name: member.user.name }];
-        } else if (member && !isAdmin) {
-          atamaOnerisiAtlandi = true;
         }
       }
 
@@ -253,27 +254,39 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         ...task,
         ...updatedFields,
       });
-      toast.success(
-        atamaOnerisiAtlandi
-          ? 'AI doldurma başarılı. Atama önerisi uygulanmadı: görev atamasını yalnızca adminler yapabilir.'
-          : 'AI doldurma başarılı!',
-      );
+      toast.success('AI doldurma başarılı!');
     } catch {
       toast.error('AI ile doldurma başarısız oldu.');
     }
   };
 
   useEffect(() => {
-    if (taskId && isOpen) {
-      setLoading(true);
-      fetchTaskDetails(taskId)
-        .then((data) => setTask(data))
-        .catch((err) => console.error('Görev detayları yüklenemedi:', err))
-        .finally(() => setLoading(false));
-    } else if (!isOpen) {
+    if (isOpen) {
+      if (taskId && taskId !== 'new') {
+        setLoading(true);
+        fetchTaskDetails(taskId)
+          .then((data) => setTask(data))
+          .catch((err) => console.error('Görev detayları yüklenemedi:', err))
+          .finally(() => setLoading(false));
+      } else if (taskId === 'new') {
+        setTask({
+          id: 'new',
+          columnId: columnId || '',
+          title: initialTitle || '',
+          description: '',
+          priority: 'MEDIUM',
+          dueDate: '',
+          assignees: [],
+          labels: [],
+          blockedBy: [],
+          blocking: [],
+          lastActivityAt: new Date().toISOString(),
+        });
+      }
+    } else {
       setTask(null);
     }
-  }, [taskId, isOpen, fetchTaskDetails]);
+  }, [taskId, isOpen, fetchTaskDetails, columnId, initialTitle]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (!task) return;
@@ -299,6 +312,55 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const handleSave = async () => {
     if (!task) return;
 
+    if (taskId === 'new') {
+      if (!task.title.trim() || !columnId) return;
+
+      if (!isAdmin) {
+        try {
+          await createChangeRequest({
+            orgId,
+            body: {
+              type: 'CARD_CREATE',
+              targetColumnId: columnId,
+              payload: {
+                title: task.title.trim(),
+                description: task.description?.trim() || null,
+                priority: task.priority,
+                dueDate: task.dueDate || null,
+                assigneeIds: task.assignees?.map((a) => a.id) ?? [],
+                labelIds: task.labels?.map((l) => l.id) ?? [],
+                blockerIds: task.blockedBy?.map((b) => b.id) ?? [],
+              },
+            },
+          }).unwrap();
+          toast.success('Kart ekleme talebi başarıyla oluşturuldu ve admin onayına gönderildi.');
+          onClose();
+        } catch (err) {
+          const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+          toast.error(mesaj || 'Talep oluşturulamadı.');
+        }
+        return;
+      }
+
+      if (onCreateTask) {
+        try {
+          await onCreateTask(columnId, {
+            title: task.title.trim(),
+            description: task.description?.trim() || null,
+            priority: task.priority,
+            dueDate: task.dueDate || null,
+            assigneeIds: task.assignees?.map((a) => a.id) ?? [],
+            labelIds: task.labels?.map((l) => l.id) ?? [],
+            blockerIds: task.blockedBy?.map((b) => b.id) ?? [],
+          });
+          onClose();
+        } catch (err) {
+          toast.error('Kart oluşturulamadı.');
+        }
+      }
+      return;
+    }
+
     // Admin dogrudan kaydeder. Uye kart icerigini dogrudan degistiremedigi
     // icin ayni veriyi degisiklik talebi olarak gonderir; admin onaylayinca
     // sistem uygular, reddederse bu veri kullanilmaz.
@@ -314,6 +376,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               description: task.description ?? null,
               priority: task.priority,
               dueDate: task.dueDate ?? null,
+              assigneeIds: task.assignees?.map((a) => a.id) ?? [],
             },
           },
         }).unwrap();
@@ -332,6 +395,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const handleAttachLabel = async (label: TaskLabel) => {
     if (!task) return;
+    if (taskId === 'new') {
+      setTask({ ...task, labels: [...(task.labels ?? []), label] });
+      setShowLabelPicker(false);
+      return;
+    }
     try {
       await attachLabel({ cardId: task.id, labelId: label.id }).unwrap();
       setTask({ ...task, labels: [...(task.labels ?? []), label] });
@@ -343,6 +411,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const handleDetachLabel = async (labelId: string) => {
     if (!task) return;
+    if (taskId === 'new') {
+      setTask({ ...task, labels: (task.labels ?? []).filter((l) => l.id !== labelId) });
+      return;
+    }
     try {
       await detachLabel({ cardId: task.id, labelId, projectId }).unwrap();
       setTask({ ...task, labels: (task.labels ?? []).filter((l) => l.id !== labelId) });
@@ -361,6 +433,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         name: newLabelName.trim(),
         color: newLabelColor,
       }).unwrap();
+      if (taskId === 'new') {
+        setTask({ ...task, labels: [...(task.labels ?? []), label] });
+        setShowLabelPicker(false);
+        setNewLabelName('');
+        return;
+      }
       await handleAttachLabel(label);
       setNewLabelName('');
     } catch {
@@ -370,6 +448,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const handleAddDependency = async (blockerId: string) => {
     if (!task) return;
+    if (taskId === 'new') {
+      const blockerCard = availableCards.find((c) => c.id === blockerId);
+      if (blockerCard) {
+        setTask({
+          ...task,
+          blockedBy: [...(task.blockedBy ?? []), { id: blockerId, title: blockerCard.title }],
+        });
+      }
+      setShowDependencyPicker(false);
+      return;
+    }
     try {
       await addDependency({ cardId: task.id, blockerId }).unwrap();
       const refreshed = await fetchTaskDetails(task.id);
@@ -383,6 +472,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const handleRemoveDependency = async (cardId: string, blockerId: string) => {
     if (!task) return;
+    if (taskId === 'new') {
+      setTask({
+        ...task,
+        blockedBy: (task.blockedBy ?? []).filter((b) => b.id !== blockerId),
+      });
+      return;
+    }
     try {
       await removeDependency({ cardId, blockerId }).unwrap();
       const refreshed = await fetchTaskDetails(task.id);
@@ -419,7 +515,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
           <div className="text-center py-10 text-muted-foreground">Yükleniyor...</div>
         ) : task ? (
@@ -682,19 +778,41 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-4 items-start">
-                <div>
-                  <label htmlFor="dueDate" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <CalendarDaysIcon className="h-4 w-4" />
-                    Son Teslim Tarihi
-                  </label>
-                  <Input
-                    type="date"
-                    id="dueDate"
-                    name="dueDate"
-                    value={task.dueDate ? task.dueDate.split('T')[0] : ''}
-                    onChange={handleChange}
-                    disabled={isFilling}
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="dueDate" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                      <CalendarDaysIcon className="h-4 w-4" />
+                      Son Teslim Tarihi
+                    </label>
+                    <Input
+                      type="date"
+                      id="dueDate"
+                      name="dueDate"
+                      value={task.dueDate ? task.dueDate.split('T')[0] : ''}
+                      onChange={handleChange}
+                      disabled={isFilling}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="priority" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                      Öncelik
+                    </label>
+                    <select
+                      id="priority"
+                      name="priority"
+                      value={task.priority || ''}
+                      onChange={handleChange}
+                      disabled={isFilling}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
+                    >
+                      <option value="" className="text-foreground bg-popover">Belirtilmemiş</option>
+                      <option value="LOW" className="text-foreground bg-popover">Düşük</option>
+                      <option value="MEDIUM" className="text-foreground bg-popover">Orta</option>
+                      <option value="HIGH" className="text-foreground bg-popover">Yüksek</option>
+                      <option value="URGENT" className="text-foreground bg-popover">Acil</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
@@ -710,7 +828,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         className="flex items-center gap-1 pl-2 pr-1"
                       >
                         {a.name}
-                        {isAdmin && (
+                        {true && (
                           <button
                             type="button"
                             onClick={() => handleToggleAssignee(a.id)}
@@ -723,7 +841,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       </Badge>
                     ))}
 
-                    {isAdmin && (
+                    {true && (
                       <div className="relative">
                         <Button
                           type="button"
@@ -736,7 +854,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         </Button>
 
                         {showAssigneePicker && (
-                          <div className="absolute z-10 mt-2 w-48 rounded-lg border border-border bg-popover shadow-lg p-2 max-h-40 overflow-y-auto">
+                          <div className="absolute right-0 z-10 mt-2 w-48 rounded-lg border border-border bg-popover shadow-lg p-2 max-h-40 overflow-y-auto">
                             {members.map((m) => {
                               const checked = (task.assignees ?? []).some((a) => a.id === m.userId);
                               return (
@@ -760,38 +878,47 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     )}
                   </div>
 
-                  {!isAdmin && (task.assignees ?? []).length === 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">Atanan yok</p>
-                  )}
                   {!isAdmin && (
-                    <p className="text-xs text-muted-foreground mt-1">Sadece adminler atama yapabilir</p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
+                      Atamalar değişiklik talebi olarak admin onayına sunulur.
+                    </p>
                   )}
                 </div>
               </div>
 
-              <CommentsSection cardId={task.id} />
+              {taskId !== 'new' && (
+                <CommentsSection cardId={task.id} />
+              )}
 
               <p className="text-xs text-muted-foreground font-mono">
-                  ID: {task.id} | Sütun: {task.columnId}
+                {taskId === 'new' ? `Yeni Görev Talebi | Sütun ID: ${columnId}` : `ID: ${task.id} | Sütun: ${task.columnId}`}
               </p>
             </div>
 
             <DialogFooter className="mt-8 pt-4 border-t border-border">
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDelete}
-                className="mr-auto"
-                disabled={isFilling}
-              >
-                <TrashIcon className="h-4 w-4 mr-1" />
-                {isAdmin ? 'Görevi Sil' : 'Silme Talebi Gönder'}
-              </Button>
+              {taskId !== 'new' && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  className="mr-auto"
+                  disabled={isFilling}
+                >
+                  <TrashIcon className="h-4 w-4 mr-1" />
+                  {isAdmin ? 'Görevi Sil' : 'Silme Talebi Gönder'}
+                </Button>
+              )}
               <Button type="button" variant="outline" onClick={onClose} disabled={isFilling || isRequesting}>
                 İptal
               </Button>
               <Button type="button" onClick={handleSave} disabled={isFilling || isRequesting}>
-                {isAdmin ? 'Değişiklikleri Kaydet' : 'Talep Gönder'}
+                {taskId === 'new'
+                  ? isAdmin
+                    ? 'Kartı Oluştur'
+                    : 'Talebi Oluştur'
+                  : isAdmin
+                  ? 'Değişiklikleri Kaydet'
+                  : 'Talep Gönder'}
               </Button>
             </DialogFooter>
           </>

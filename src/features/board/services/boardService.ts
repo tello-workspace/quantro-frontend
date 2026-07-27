@@ -37,9 +37,17 @@ export interface TaskLabel {
   color: string;
 }
 
+export interface BadgeInfo {
+  id: string;
+  name: string;
+  color: string;
+  icon: string | null;
+}
+
 export interface TaskAssignee {
   id: string;
   name: string;
+  badges?: BadgeInfo[];
 }
 
 export interface DependencyCard {
@@ -76,7 +84,7 @@ interface RawCard {
   position?: number;
   priority?: Priority;
   lastActivityAt?: string;
-  assignees?: { user: { id: string; name: string } }[];
+  assignees?: { user: { id: string; name: string; badges?: { badge: BadgeInfo }[] } }[];
   labels?: { label: { id: string; name: string; color: string } }[];
   blockedBy?: { blocker: DependencyCard }[];
   blocking?: { blocked: DependencyCard }[];
@@ -92,7 +100,10 @@ function normalizeCard(raw: RawCard): Task {
     position: raw.position,
     priority: raw.priority,
     lastActivityAt: raw.lastActivityAt,
-    assignees: raw.assignees?.map((a) => a.user) ?? [],
+    assignees: raw.assignees?.map((a) => ({
+      ...a.user,
+      badges: a.user.badges?.map((b) => b.badge) ?? [],
+    })) ?? [],
     labels: raw.labels?.map((cl) => cl.label) ?? [],
     blockedBy: raw.blockedBy?.map((d) => d.blocker) ?? [],
     blocking: raw.blocking?.map((d) => d.blocked) ?? [],
@@ -208,5 +219,22 @@ export const boardService = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Görev silinemedi.');
+  },
+
+  async createColumn(orgId: string, projectId: string, name: string): Promise<Column> {
+    const res = await fetch(`${API_BASE_URL}/organizations/${orgId}/projects/${projectId}/columns`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) throw new Error(await readApiError(res, 'Sütun oluşturulamadı.'));
+    const json = await res.json();
+    const raw = extractData<{ id: string; name: string; wipLimit: number | null }>(json);
+    return {
+      id: raw.id,
+      title: raw.name,
+      wipLimit: raw.wipLimit,
+      taskIds: [],
+    };
   },
 };

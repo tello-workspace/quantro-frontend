@@ -35,13 +35,13 @@ function initials(name: string): string {
 // Uyeyi cikarma/davet yonetimi gibi admin islemleri Ayarlar panelinde kaliyor.
 export const OrgMembersDialog: React.FC<OrgMembersDialogProps> = ({ orgId, open, onOpenChange }) => {
   const { data: me } = useGetMeQuery();
-  const { data: org, isLoading } = useGetOrganizationByIdQuery({ orgId }, { skip: !open });
+  const { data: org, isLoading } = useGetOrganizationByIdQuery({ orgId }, { skip: !open || !orgId });
 
   const members = org?.members ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" />

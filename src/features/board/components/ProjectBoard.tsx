@@ -18,11 +18,13 @@ import { BoardFilters } from './BoardFilters';
 import { boardService, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
-import { useGetLabelsQuery } from '@/features/labels/labelsApi';
+import { useGetLabelsQuery, useAttachLabelMutation } from '@/features/labels/labelsApi';
+import { useAddDependencyMutation } from '@/features/dependencies/dependenciesApi';
 import { getSocket } from '@/lib/socket';
 import { toast } from 'react-toastify';
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
+import { Bot } from 'lucide-react';
 
 interface ProjectBoardProps {
   projectId: string;
@@ -119,14 +121,22 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // Uye de kart ekleme formunu gorur; farki gonderdigi seyin talep olmasi
   const canAddTask = true;
   const [createChangeRequest] = useCreateChangeRequestMutation();
+  const [attachLabel] = useAttachLabelMutation();
+  const [addDependency] = useAddDependencyMutation();
   const members = org?.members ?? [];
 
   const { data: labels = [], refetch: refetchLabels } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
+  const [initialTitle, setInitialTitle] = useState('');
 
   const [search, setSearch] = useState('');
+  const [isDesktopChatOpen, setIsDesktopChatOpen] = useState(false);
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [newColumnName, setNewColumnName] = useState('');
+  const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [selectedPriorities, setSelectedPriorities] = useState<Set<Priority>>(new Set());
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<Set<string>>(new Set());
   const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(new Set());
@@ -462,48 +472,59 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   };
 
   const handleAddTask = async (columnId: string, title: string) => {
-    // Uye kart olusturamaz; ayni baslikla degisiklik talebi acar
-    if (!isAdmin) {
-      try {
-        await createChangeRequest({
-          orgId,
-          body: { type: 'CARD_CREATE', targetColumnId: columnId, payload: { title } },
-        }).unwrap();
-        toast.success('Kart talebin adminlere gönderildi.');
-      } catch (err) {
-        const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-        toast.error(mesaj || 'Talep gönderilemedi.');
-      }
-      return;
-    }
+    setCreateRequestColumnId(columnId);
+    setInitialTitle(title);
+    setSelectedTaskId('new');
+    setIsModalOpen(true);
+  };
 
+  const handleCreateTask = async (
+    columnId: string,
+    payload: {
+      title: string;
+      description?: string | null;
+      priority?: string;
+      dueDate?: string | null;
+      assigneeIds?: string[];
+      labels?: any[];
+      blockers?: any[];
+    }
+  ) => {
     try {
-      const newTask = await boardService.createTask(projectId, columnId, title);
+      const newTask = await boardService.createTask(projectId, columnId, payload.title);
       if (!newTask) return;
 
-      setBoardData((prev) => {
-        if (!prev) return prev;
-        const column = prev.columns[columnId];
-        // card:created socket eventi REST cevabindan once gelmis olabilir
-        // (uzak DB nedeniyle REST daha yavas donebiliyor) - tekrar eklemeyi onle
-        if (column.taskIds.includes(newTask.id)) return prev;
-        return {
-          ...prev,
-          tasks: {
-            ...prev.tasks,
-            [newTask.id]: newTask,
-          },
-          columns: {
-            ...prev.columns,
-            [columnId]: {
-              ...column,
-              taskIds: [...column.taskIds, newTask.id],
-            },
-          },
-        };
-      });
-    } catch (error) {
-      console.error("Kart eklenirken hata oluştu:", error);
+      const updatedFields: any = {
+        id: newTask.id,
+        columnId,
+        title: payload.title,
+        description: payload.description || undefined,
+        priority: payload.priority as any,
+        dueDate: payload.dueDate || undefined,
+        assignees: payload.assigneeIds?.map((id) => {
+          const m = members.find((mem) => mem.userId === id);
+          return { id, name: m?.user.name || 'Bilinmeyen' };
+        }) ?? [],
+      };
+
+      await boardService.updateTask(projectId, updatedFields, { includeAssignees: true });
+
+      if (payload.labels && payload.labels.length > 0) {
+        for (const label of payload.labels) {
+          await attachLabel({ cardId: newTask.id, labelId: label.id }).unwrap().catch(console.error);
+        }
+      }
+
+      if (payload.blockers && payload.blockers.length > 0) {
+        for (const blocker of payload.blockers) {
+          await addDependency({ cardId: newTask.id, blockerId: blocker.id }).unwrap().catch(console.error);
+        }
+      }
+
+      toast.success('Kart başarıyla oluşturuldu.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Kart oluşturulamadı.');
     }
   };
 
@@ -567,6 +588,39 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   };
 
+  const handleCreateColumn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newColumnName.trim() || isCreatingColumn) return;
+    setIsCreatingColumn(true);
+    try {
+      const newCol = await boardService.createColumn(orgId, projectId, newColumnName.trim());
+      
+      setBoardData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: {
+            ...prev.columns,
+            [newCol.id]: {
+              id: newCol.id,
+              title: newCol.title,
+              wipLimit: newCol.wipLimit,
+              taskIds: [],
+            },
+          },
+        };
+      });
+      
+      toast.success('Yeni sütun başarıyla eklendi');
+      setIsAddingColumn(false);
+      setNewColumnName('');
+    } catch (error: any) {
+      toast.error(error?.message || 'Sütun eklenemedi');
+    } finally {
+      setIsCreatingColumn(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Board yükleniyor...</div>;
   }
@@ -597,7 +651,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         }}
       />
 
-      <div className="flex-1 min-h-0 flex gap-4 sm:gap-6">
+      <div className="flex-1 min-h-0 flex gap-4 sm:gap-6 relative overflow-hidden">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -631,6 +685,51 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                 />
               );
             })}
+
+            {isAdmin && (
+              <div className="w-72 shrink-0 select-none">
+                {isAddingColumn ? (
+                  <form onSubmit={handleCreateColumn} className="bg-background/80 backdrop-blur-md rounded-xl p-3 border border-border/80 shadow-md space-y-2">
+                    <input
+                      type="text"
+                      value={newColumnName}
+                      onChange={(e) => setNewColumnName(e.target.value)}
+                      placeholder="Sütun başlığı girin..."
+                      className="w-full text-sm bg-transparent outline-none border-b border-muted-foreground/30 focus:border-primary px-1 py-1 text-foreground"
+                      autoFocus
+                      required
+                    />
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="submit"
+                        disabled={isCreatingColumn}
+                        className="px-3 py-1 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {isCreatingColumn ? 'Ekleniyor...' : 'Sütun Ekle'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingColumn(false);
+                          setNewColumnName('');
+                        }}
+                        className="px-3 py-1 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-xs font-semibold transition-all active:scale-95"
+                      >
+                        İptal
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <button
+                    onClick={() => setIsAddingColumn(true)}
+                    className="w-full h-12 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-accent/40 text-muted-foreground hover:text-foreground transition-all duration-300 font-medium text-sm group cursor-pointer"
+                  >
+                    <span className="text-lg group-hover:scale-110 transition-transform">+</span>
+                    <span>Yeni Sütun Ekle</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <DragOverlay>
             {activeId && boardData.tasks[activeId] ? (
@@ -644,17 +743,68 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           </DragOverlay>
         </DndContext>
 
-        {/* AI Chat sidebar (desktop) */}
-        <div className="hidden sm:block shrink-0 h-full pt-1 pb-4 pr-4 sm:pr-6 pl-0">
-          <div className="h-full w-80 lg:w-[420px] xl:w-[480px] transition-all duration-300">
-            <AIChatPanel projectId={projectId} projectName={projectName} />
+        {/* AI Chat drawer overlay (desktop) */}
+        {isDesktopChatOpen && (
+          <div className="hidden sm:block shrink-0 h-full pt-1 pb-4 pr-4 sm:pr-6 pl-0">
+            <div className="h-full w-80 lg:w-[420px] xl:w-[480px] shadow-2xl rounded-xl overflow-hidden border border-border">
+              <AIChatPanel
+                projectId={projectId}
+                projectName={projectName}
+                onClose={() => setIsDesktopChatOpen(false)}
+              />
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Floating AI Chat Trigger Button (desktop only) */}
+        {!isDesktopChatOpen && (
+          <button
+            onClick={() => setIsDesktopChatOpen(true)}
+            className="hidden sm:flex fixed bottom-6 right-6 z-40 items-center justify-center rounded-full bg-primary hover:bg-primary/95 text-primary-foreground shadow-2xl transition-all duration-300 w-14 h-14 hover:scale-110 active:scale-95 animate-pop-in cursor-pointer hover:shadow-primary/30 hover:shadow-lg"
+            title="AI Asistanı Aç"
+          >
+            <Bot className="h-6 w-6" />
+          </button>
+        )}
+
+        <style>{`
+          @keyframes slideIn {
+            from {
+              transform: translateX(100%);
+              opacity: 0.9;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+          @keyframes popIn {
+            from {
+              transform: scale(0.8) translateY(20px);
+              opacity: 0;
+            }
+            to {
+              transform: scale(1) translateY(0);
+              opacity: 1;
+            }
+          }
+          .animate-slide-in {
+            animation: slideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+          .animate-pop-in {
+            animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          }
+        `}</style>
       </div>
 
       <TaskModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedTaskId(null);
+          setCreateRequestColumnId(null);
+          setInitialTitle('');
+        }}
         taskId={selectedTaskId}
         orgId={orgId}
         projectId={projectId}
@@ -662,6 +812,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         fetchTaskDetails={(id) => boardService.getTaskDetails(projectId, id)}
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
+        columnId={createRequestColumnId}
+        initialTitle={initialTitle}
+        onCreateTask={handleCreateTask}
       />
     </div>
   );

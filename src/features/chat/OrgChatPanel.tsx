@@ -53,7 +53,7 @@ function initials(name?: string): string {
 export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onClose }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { data: me } = useGetMeQuery();
-  const { data: messages = [], isLoading } = useGetChatMessagesQuery(orgId);
+  const { data: messages = [], isLoading } = useGetChatMessagesQuery(orgId, { skip: !orgId });
   const [sendChatMessage, { isLoading: isSending }] = useSendChatMessageMutation();
 
   const [input, setInput] = useState('');

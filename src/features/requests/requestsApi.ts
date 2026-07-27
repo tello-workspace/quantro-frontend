@@ -20,6 +20,9 @@ export interface ChangeRequest {
     description?: string | null;
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
     dueDate?: string | null;
+    assigneeIds?: string[];
+    labelIds?: string[];
+    blockerIds?: string[];
     name?: string;
     reason?: string;
   };
@@ -69,12 +72,12 @@ export const requestsApi = api.injectEndpoints({
 
     reviewChangeRequest: builder.mutation<
       ChangeRequest,
-      { orgId: string; requestId: string; action: 'approve' | 'reject'; note?: string }
+      { orgId: string; requestId: string; action: 'approve' | 'reject'; note?: string; payload?: any }
     >({
-      query: ({ requestId, action, note }) => ({
+      query: ({ requestId, action, note, payload }) => ({
         url: `/requests/${requestId}/review?action=${action}`,
         method: 'POST',
-        body: note ? { note } : {},
+        body: { note, payload },
       }),
       transformResponse: (response: ApiEnvelope<ChangeRequest>) => response.data,
       // Onay kart/kolon/proje olusturabildigi icin ilgili listeler de tazelenmeli

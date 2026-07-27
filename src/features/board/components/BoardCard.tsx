@@ -160,13 +160,23 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
 
         {task.assignees && task.assignees.length > 0 ? (
           <div className="flex items-center -space-x-1.5">
-            {task.assignees.slice(0, MAX_VISIBLE_ASSIGNEES).map((a) => (
-              <Avatar key={a.id} size="sm" className="border-2 border-background">
-                <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
-                  {initials(a.name)}
-                </AvatarFallback>
-              </Avatar>
-            ))}
+            {task.assignees.slice(0, MAX_VISIBLE_ASSIGNEES).map((a) => {
+              const badgeList = (a as any).badges?.length
+                ? (a as any).badges.map((b: any) => `${b.icon || ''} ${b.name}`).join(' · ')
+                : '';
+              return (
+                <Avatar
+                  key={a.id}
+                  size="sm"
+                  className="border-2 border-background"
+                  title={badgeList ? `${a.name}\n${badgeList}` : a.name}
+                >
+                  <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                    {initials(a.name)}
+                  </AvatarFallback>
+                </Avatar>
+              );
+            })}
             {task.assignees.length > MAX_VISIBLE_ASSIGNEES && (
               <Avatar size="sm" className="border-2 border-background">
                 <AvatarFallback className="text-[9px]">

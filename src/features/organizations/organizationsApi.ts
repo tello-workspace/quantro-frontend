@@ -77,6 +77,14 @@ export const organizationsApi = api.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }],
     }),
+    updateMemberRole: builder.mutation<void, { orgId: string; userId: string; role: 'ADMIN' | 'MEMBER' }>({
+      query: ({ orgId, ...body }) => ({
+        url: `/organizations/${orgId}/members`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }],
+    }),
     getPendingInvitations: builder.query<PendingInvitation[], { orgId: string }>({
       query: ({ orgId }) => `/organizations/${orgId}/invitations`,
       transformResponse: (response: { success: boolean; data: PendingInvitation[] }) => response.data,
@@ -103,6 +111,54 @@ export const organizationsApi = api.injectEndpoints({
       }),
       invalidatesTags: ['Notification'],
     }),
+
+    // ─── Badge / Rozet endpoints ───────────────────────────────────────
+    listBadges: builder.query<
+      { id: string; name: string; color: string; icon: string | null; assignedUsers: { id: string; name: string }[] }[],
+      { orgId: string }
+    >({
+      query: ({ orgId }) => `/organizations/${orgId}/badges`,
+      transformResponse: (response: { success: boolean; data: any }) => response.data,
+      providesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+    }),
+    createBadge: builder.mutation<
+      { id: string; name: string; color: string; icon: string | null },
+      { orgId: string; name: string; color: string; icon?: string }
+    >({
+      query: ({ orgId, ...body }) => ({
+        url: `/organizations/${orgId}/badges`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: { success: boolean; data: any }) => response.data,
+      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+    }),
+    deleteBadge: builder.mutation<void, { orgId: string; badgeId: string }>({
+      query: ({ orgId, badgeId }) => ({
+        url: `/organizations/${orgId}/badges?badgeId=${badgeId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+    }),
+    assignBadge: builder.mutation<
+      { assigned: boolean; badgeName: string },
+      { orgId: string; badgeId: string; userId: string }
+    >({
+      query: ({ orgId, ...body }) => ({
+        url: `/organizations/${orgId}/badges/assign`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: { success: boolean; data: any }) => response.data,
+      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+    }),
+    removeBadge: builder.mutation<void, { orgId: string; badgeId: string; userId: string }>({
+      query: ({ orgId, badgeId, userId }) => ({
+        url: `/organizations/${orgId}/badges/assign?badgeId=${badgeId}&userId=${userId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+    }),
   }),
 });
 
@@ -113,8 +169,14 @@ export const {
   useUpdateOrganizationMutation,
   useDeleteOrganizationMutation,
   useRemoveMemberMutation,
+  useUpdateMemberRoleMutation,
   useAcceptInvitationMutation,
   useDeclineInvitationMutation,
   useGetPendingInvitationsQuery,
   useCancelInvitationMutation,
+  useListBadgesQuery,
+  useCreateBadgeMutation,
+  useDeleteBadgeMutation,
+  useAssignBadgeMutation,
+  useRemoveBadgeMutation,
 } = organizationsApi;
