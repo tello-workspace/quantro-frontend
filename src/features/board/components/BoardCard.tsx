@@ -133,7 +133,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
       )}
 
       {task.description && (
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+        <p className="text-xs text-muted-foreground whitespace-pre-wrap mb-2">
           {task.description}
         </p>
       )}
