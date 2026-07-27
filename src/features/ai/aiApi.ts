@@ -15,6 +15,14 @@ interface InsightsResponse {
   data: { insights: string };
 }
 
+interface FillCardResponse {
+  success: boolean;
+  data: {
+    description: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  };
+}
+
 export const aiApi = api.injectEndpoints({
   endpoints: (builder) => ({
     sendAiMessage: builder.mutation<string, { projectId: string; messages: ChatMessage[] }>({
@@ -29,7 +37,22 @@ export const aiApi = api.injectEndpoints({
       query: (projectId) => `/ai/insights?projectId=${projectId}`,
       transformResponse: (response: InsightsResponse) => response.data.insights,
     }),
+    fillCardWithAi: builder.mutation<
+      { description: string; priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' },
+      { projectId: string; title: string }
+    >({
+      query: ({ projectId, title }) => ({
+        url: '/ai/fill',
+        method: 'POST',
+        body: { projectId, title },
+      }),
+      transformResponse: (response: FillCardResponse) => response.data,
+    }),
   }),
 });
 
-export const { useSendAiMessageMutation, useGetAiInsightsQuery } = aiApi;
+export const {
+  useSendAiMessageMutation,
+  useGetAiInsightsQuery,
+  useFillCardWithAiMutation,
+} = aiApi;
