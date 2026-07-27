@@ -63,6 +63,49 @@ interface ColumnDeletedPayload {
   projectId: string;
 }
 
+// Pano state'inde tek bir degismez kural var: bir kart id'si TUM sutunlar
+// icinde toplam bir kez bulunur. Bu yardimci once id'yi her sutundan
+// temizler, sonra hedefe tek kopya olarak yerlestirir.
+//
+// Onceden her yazan taraf kendi kontrolunu yapiyordu ve handleCardMoved
+// karti yalnizca payload.fromColumnId'den siliyordu. Kart yerelde baska bir
+// sutundaysa (bayat state) orada kaliyor, hedefe de eklenince ayni kart iki
+// yerde birden gorunuyordu; ayni sutuna iki kez girdiginde React "two
+// children with the same key" uyarisi veriyordu.
+function placeCard(
+  columns: BoardData['columns'],
+  cardId: string,
+  targetColumnId: string,
+  insertAt?: number,
+): BoardData['columns'] {
+  const next: BoardData['columns'] = {};
+
+  for (const [colId, col] of Object.entries(columns)) {
+    const temizlenmis = col.taskIds.filter((id) => id !== cardId);
+    next[colId] = temizlenmis.length === col.taskIds.length ? col : { ...col, taskIds: temizlenmis };
+  }
+
+  const target = next[targetColumnId];
+  if (!target) return next; // hedef sutun yoksa kart hicbir yere yazilmaz
+
+  const taskIds = [...target.taskIds];
+  const index = insertAt === undefined ? taskIds.length : Math.max(0, Math.min(insertAt, taskIds.length));
+  taskIds.splice(index, 0, cardId);
+  next[targetColumnId] = { ...target, taskIds };
+
+  return next;
+}
+
+// Bir kartin id'sini tum sutunlardan cikarir (silme ve kolon silme yollari icin)
+function removeCard(columns: BoardData['columns'], cardId: string): BoardData['columns'] {
+  const next: BoardData['columns'] = {};
+  for (const [colId, col] of Object.entries(columns)) {
+    const temizlenmis = col.taskIds.filter((id) => id !== cardId);
+    next[colId] = temizlenmis.length === col.taskIds.length ? col : { ...col, taskIds: temizlenmis };
+  }
+  return next;
+}
+
 export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName }) => {
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -161,28 +204,29 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     const handleCardCreated = (payload: CardSocketPayload) => {
       if (payload.projectId !== projectId) return;
       setBoardData((prev) => {
-        if (!prev || prev.tasks[payload.id]) return prev;
+        if (!prev) return prev;
         const column = prev.columns[payload.columnId];
         if (!column) return prev;
+        const existing = prev.tasks[payload.id];
         return {
           ...prev,
           tasks: {
             ...prev.tasks,
             [payload.id]: {
+              // Kart zaten varsa (kendi eylemimizin echo'su) etiket/atanan
+              // gibi yerel alanlari korur, ustune payload'i yazar
+              ...existing,
               id: payload.id,
               title: payload.title,
               description: payload.description ?? undefined,
               dueDate: payload.dueDate ?? undefined,
               columnId: payload.columnId,
               position: payload.position,
-              assignees: payload.assignees ?? [],
-              labels: [],
+              assignees: payload.assignees ?? existing?.assignees ?? [],
+              labels: existing?.labels ?? [],
             },
           },
-          columns: {
-            ...prev.columns,
-            [payload.columnId]: { ...column, taskIds: [...column.taskIds, payload.id] },
-          },
+          columns: placeCard(prev.columns, payload.id, payload.columnId),
         };
       });
     };
@@ -192,6 +236,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       setBoardData((prev) => {
         const existing = prev?.tasks[payload.id];
         if (!prev || !existing) return prev;
+
+        // Guncelleme kolon degisikligi de tasiyabiliyor (ornegin AI kartin
+        // kolonunu degistirdiginde). Onceden yalnizca tasks guncellenirdi,
+        // taskIds eski sutunda kalip iki yapi birbirinden ayrisiyordu.
+        const targetColumnId = payload.columnId ?? existing.columnId;
+        const needsMove =
+          !!prev.columns[targetColumnId] &&
+          !prev.columns[targetColumnId].taskIds.includes(payload.id);
+
         return {
           ...prev,
           tasks: {
@@ -201,9 +254,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               title: payload.title,
               description: payload.description ?? undefined,
               dueDate: payload.dueDate ?? undefined,
+              columnId: targetColumnId,
               assignees: payload.assignees ?? existing.assignees,
             },
           },
+          columns: needsMove ? placeCard(prev.columns, payload.id, targetColumnId) : prev.columns,
         };
       });
     };
@@ -212,20 +267,24 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       if (payload.projectId !== projectId) return;
       setBoardData((prev) => {
         if (!prev) return prev;
-        const from = prev.columns[payload.fromColumnId];
-        const to = prev.columns[payload.toColumnId];
-        if (!from || !to || to.taskIds.includes(payload.cardId)) return prev;
+        // Hedef sutun yerelde yoksa yapacak bir sey yok
+        if (!prev.columns[payload.toColumnId]) return prev;
+
         const existingTask = prev.tasks[payload.cardId];
+        const alreadyInTarget = prev.columns[payload.toColumnId].taskIds.includes(payload.cardId);
+        const duplicated =
+          Object.values(prev.columns).filter((c) => c.taskIds.includes(payload.cardId)).length > 1;
+
+        // Zaten dogru yerdeyse ve baska sutunda kopyasi yoksa dokunmuyoruz;
+        // aksi halde placeCard kartin tek kopya kalmasini garanti ediyor
+        if (alreadyInTarget && !duplicated) return prev;
+
         return {
           ...prev,
           tasks: existingTask
             ? { ...prev.tasks, [payload.cardId]: { ...existingTask, columnId: payload.toColumnId } }
             : prev.tasks,
-          columns: {
-            ...prev.columns,
-            [from.id]: { ...from, taskIds: from.taskIds.filter((id) => id !== payload.cardId) },
-            [to.id]: { ...to, taskIds: [...to.taskIds, payload.cardId] },
-          },
+          columns: placeCard(prev.columns, payload.cardId, payload.toColumnId),
         };
       });
     };
@@ -239,16 +298,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         if (!prev || !prev.tasks[payload.cardId]) return prev;
         const newTasks = { ...prev.tasks };
         delete newTasks[payload.cardId];
-        const newColumns = { ...prev.columns };
-        for (const colId of Object.keys(newColumns)) {
-          if (newColumns[colId].taskIds.includes(payload.cardId)) {
-            newColumns[colId] = {
-              ...newColumns[colId],
-              taskIds: newColumns[colId].taskIds.filter((id) => id !== payload.cardId),
-            };
-          }
-        }
-        return { ...prev, tasks: newTasks, columns: newColumns };
+        return { ...prev, tasks: newTasks, columns: removeCard(prev.columns, payload.cardId) };
       });
     };
 
@@ -374,6 +424,18 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     setBoardData((prev) => {
       if (!prev) return prev;
       const existingTask = prev.tasks[activeTaskId];
+
+      // Hedef indeksi guncel state uzerinden yeniden hesapliyoruz. Onceden
+      // sutun nesneleri kapanistaki (bayat) boardData'dan spread ediliyordu;
+      // surukleme sirasinda socket'ten bir degisiklik gelirse o degisiklik
+      // eziliyor ya da kart iki sutunda birden gorunuyordu.
+      const guncelHedef = prev.columns[destinationColumn.id];
+      if (!guncelHedef) return prev;
+
+      const hedefListe = guncelHedef.taskIds.filter((id) => id !== activeTaskId);
+      const overIdx = overIsColumn ? hedefListe.length : hedefListe.indexOf(overId);
+      const yerlestirilecekIndex = overIdx === -1 ? hedefListe.length : overIdx;
+
       return {
         ...prev,
         tasks: existingTask
@@ -382,11 +444,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               [activeTaskId]: { ...existingTask, columnId: destinationColumn.id, position: newPosition },
             }
           : prev.tasks,
-        columns: {
-          ...prev.columns,
-          [sourceColumn.id]: { ...sourceColumn, taskIds: sourceTaskIds },
-          [destinationColumn.id]: { ...destinationColumn, taskIds: destTaskIds },
-        },
+        columns: placeCard(prev.columns, activeTaskId, destinationColumn.id, yerlestirilecekIndex),
       };
     });
 
@@ -459,13 +517,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       setBoardData((prev) => {
         if (!prev) return prev;
         
-        const newColumns = { ...prev.columns };
-        for (const colId of Object.keys(newColumns)) {
-          newColumns[colId] = {
-            ...newColumns[colId],
-            taskIds: newColumns[colId].taskIds.filter((id) => id !== taskId),
-          };
-        }
+        const newColumns = removeCard(prev.columns, taskId);
 
         const newTasks = { ...prev.tasks };
         delete newTasks[taskId];
@@ -520,7 +572,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         >
           <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto pt-1 pb-4 px-4 no-scrollbar">
             {Object.values(boardData.columns).map((column) => {
-              const allColumnTasks = column.taskIds
+              // Guvenlik agi: placeCard/removeCard zaten tekrari engelliyor ama
+              // acik bir oturumda state bozulmussa React'in "same key" uyarisi
+              // yerine kart tek kez cizilsin.
+              const allColumnTasks = Array.from(new Set(column.taskIds))
                 .map((taskId) => boardData.tasks[taskId])
                 .filter((task): task is Task => task !== undefined);
               const columnTasks = hasActiveFilters
