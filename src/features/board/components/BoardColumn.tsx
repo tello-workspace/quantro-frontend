@@ -50,7 +50,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-80 shrink-0 flex-col rounded-2xl border bg-muted/40 p-3 transition-colors ${
+      className={`flex w-80 lg:w-[350px] shrink-0 flex-col rounded-2xl border bg-muted/40 p-3 transition-all duration-300 ${
         isLimitExceeded ? 'border-destructive/40 bg-destructive/5' : 'border-border/70'
       }`}
     >

@@ -120,14 +120,14 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Board + AI Chat side-by-side */}
-        <div className="flex gap-0 sm:gap-4">
-          <div className="flex-1 min-w-0 lg:max-w-[calc(100%-24rem)]">
+        <div className="flex gap-4 sm:gap-6">
+          <div className="flex-1 min-w-0">
             <ProjectBoard projectId={projectId} orgId={orgId} />
           </div>
 
           {/* AI Chat sidebar (desktop) */}
           <div className="hidden sm:block shrink-0">
-            <div className="sticky top-6 h-[calc(100vh-8rem)] w-80 lg:w-96">
+            <div className="sticky top-6 h-[calc(100vh-8rem)] w-80 lg:w-[420px] xl:w-[480px] transition-all duration-300">
               <AIChatPanel projectId={projectId} projectName={project?.name} />
             </div>
           </div>
