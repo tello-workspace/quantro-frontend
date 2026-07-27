@@ -220,10 +220,25 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     if (!task || !task.title.trim()) return;
     try {
       const result = await fillCardWithAi({ projectId, title: task.title.trim() }).unwrap();
-      setTask({
-        ...task,
+      const updatedFields: Partial<Task> = {
         description: result.description,
         priority: result.priority,
+      };
+
+      if (result.dueDate) {
+        updatedFields.dueDate = result.dueDate;
+      }
+
+      if (result.suggestedAssigneeId) {
+        const member = members.find((m) => m.userId === result.suggestedAssigneeId);
+        if (member) {
+          updatedFields.assignees = [{ id: member.userId, name: member.user.name }];
+        }
+      }
+
+      setTask({
+        ...task,
+        ...updatedFields,
       });
       toast.success('AI doldurma başarılı!');
     } catch {

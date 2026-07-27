@@ -20,6 +20,8 @@ interface FillCardResponse {
   data: {
     description: string;
     priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+    dueDate?: string;
+    suggestedAssigneeId?: string;
   };
 }
 
@@ -38,7 +40,7 @@ export const aiApi = api.injectEndpoints({
       transformResponse: (response: InsightsResponse) => response.data.insights,
     }),
     fillCardWithAi: builder.mutation<
-      { description: string; priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' },
+      FillCardResponse['data'],
       { projectId: string; title: string }
     >({
       query: ({ projectId, title }) => ({
