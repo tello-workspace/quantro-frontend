@@ -20,10 +20,12 @@ import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { getSocket } from '@/lib/socket';
+import { AIChatPanel } from '@/features/ai/AIChatPanel';
 
 interface ProjectBoardProps {
   projectId: string;
   orgId: string;
+  projectName?: string;
 }
 
 interface CardSocketPayload {
@@ -61,7 +63,7 @@ interface ColumnDeletedPayload {
   projectId: string;
 }
 
-export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) => {
+export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName }) => {
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -509,47 +511,56 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId }) 
         }}
       />
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto p-4 no-scrollbar">
-          {Object.values(boardData.columns).map((column) => {
-            const allColumnTasks = column.taskIds
-              .map((taskId) => boardData.tasks[taskId])
-              .filter((task): task is Task => task !== undefined);
-            const columnTasks = hasActiveFilters
-              ? allColumnTasks.filter(matchesFilters)
-              : allColumnTasks;
+      <div className="flex-1 min-h-0 flex gap-4 sm:gap-6">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto p-4 no-scrollbar">
+            {Object.values(boardData.columns).map((column) => {
+              const allColumnTasks = column.taskIds
+                .map((taskId) => boardData.tasks[taskId])
+                .filter((task): task is Task => task !== undefined);
+              const columnTasks = hasActiveFilters
+                ? allColumnTasks.filter(matchesFilters)
+                : allColumnTasks;
 
-            return (
-              <BoardColumn
-                key={column.id}
-                id={column.id}
-                title={column.title}
-                tasks={columnTasks}
-                totalCount={hasActiveFilters ? allColumnTasks.length : undefined}
-                wipLimit={column.wipLimit}
-                canAddTask={!!canAddTask}
-                onAddTask={handleAddTask}
-                onTaskClick={handleTaskClick}
-              />
-            );
-          })}
+              return (
+                <BoardColumn
+                  key={column.id}
+                  id={column.id}
+                  title={column.title}
+                  tasks={columnTasks}
+                  totalCount={hasActiveFilters ? allColumnTasks.length : undefined}
+                  wipLimit={column.wipLimit}
+                  canAddTask={!!canAddTask}
+                  onAddTask={handleAddTask}
+                  onTaskClick={handleTaskClick}
+                />
+              );
+            })}
+          </div>
+          <DragOverlay>
+            {activeId && boardData.tasks[activeId] ? (
+              <div className="transform rotate-2 scale-[1.03] cursor-grabbing select-none shadow-2xl transition-transform duration-200">
+                <BoardCard
+                  task={boardData.tasks[activeId]}
+                  onClick={() => {}}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+
+        {/* AI Chat sidebar (desktop) */}
+        <div className="hidden sm:block shrink-0 h-full py-4 pr-4 sm:pr-6 pl-0">
+          <div className="h-full w-80 lg:w-[420px] xl:w-[480px] transition-all duration-300">
+            <AIChatPanel projectId={projectId} projectName={projectName} />
+          </div>
         </div>
-        <DragOverlay>
-          {activeId && boardData.tasks[activeId] ? (
-            <div className="transform rotate-2 scale-[1.03] cursor-grabbing select-none shadow-2xl transition-transform duration-200">
-              <BoardCard
-                task={boardData.tasks[activeId]}
-                onClick={() => {}}
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      </div>
 
       <TaskModal
         isOpen={isModalOpen}
