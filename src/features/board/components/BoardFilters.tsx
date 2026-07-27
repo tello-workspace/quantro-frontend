@@ -51,7 +51,7 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
   onClear,
 }) => {
   return (
-    <div className="flex flex-wrap items-center gap-3 px-4 pt-4 pb-2">
+    <div className="flex flex-wrap items-center gap-3 px-4 py-1.5 shrink-0">
       <div className="relative">
         <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
         <input

@@ -67,9 +67,9 @@ export default function ProjectDetailPage() {
   };
 
   return (
-    <main className="h-[calc(100vh-56px)] bg-background flex flex-col overflow-hidden p-4 sm:p-6">
+    <main className="h-[calc(100vh-56px)] bg-background flex flex-col overflow-hidden pt-2 pb-4 px-4 sm:px-6">
       <div className="flex flex-col flex-1 min-h-0 max-w-full">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div>
             {isEditing ? (
               <form onSubmit={handleRename} className="flex items-center gap-2">

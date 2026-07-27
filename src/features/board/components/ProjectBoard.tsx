@@ -518,7 +518,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto p-4 no-scrollbar">
+          <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto pt-1 pb-4 px-4 no-scrollbar">
             {Object.values(boardData.columns).map((column) => {
               const allColumnTasks = column.taskIds
                 .map((taskId) => boardData.tasks[taskId])
@@ -555,7 +555,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         </DndContext>
 
         {/* AI Chat sidebar (desktop) */}
-        <div className="hidden sm:block shrink-0 h-full py-4 pr-4 sm:pr-6 pl-0">
+        <div className="hidden sm:block shrink-0 h-full pt-1 pb-4 pr-4 sm:pr-6 pl-0">
           <div className="h-full w-80 lg:w-[420px] xl:w-[480px] transition-all duration-300">
             <AIChatPanel projectId={projectId} projectName={projectName} />
           </div>
