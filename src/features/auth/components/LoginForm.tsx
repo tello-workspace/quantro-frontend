@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useLoginMutation } from '../authApi';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
@@ -112,7 +113,12 @@ export default function LoginForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="login-password">Şifre</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="login-password">Şifre</Label>
+              <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                Şifremi unuttum
+              </Link>
+            </div>
             <Input
               id="login-password"
               type="password"
