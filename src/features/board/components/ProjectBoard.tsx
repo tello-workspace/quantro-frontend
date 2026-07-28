@@ -370,6 +370,22 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       }));
     });
 
+    // Taraflardan biri dosyadan ayrilinca uyari dusmeli. Ayni kartin BASKA bir
+    // dosyadaki aktif uyarisini silmemek icin filePath eslesmesi araniyor.
+    const unsubscribeConflictResolved = realtimeBoard.onConflictResolved((payload) => {
+      setConflicts((prev) => {
+        const next = { ...prev };
+        let degisti = false;
+        for (const cardId of payload.cardIds) {
+          if (next[cardId]?.filePath === payload.filePath) {
+            delete next[cardId];
+            degisti = true;
+          }
+        }
+        return degisti ? next : prev;
+      });
+    });
+
     return () => {
       unsubscribeCardCreated();
       unsubscribeCardUpdated();
@@ -379,6 +395,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       unsubscribeColumnUpdated();
       unsubscribeColumnDeleted();
       unsubscribeConflictDetected();
+      unsubscribeConflictResolved();
     };
   }, [boardData, realtimeBoard, orgId, projectId, refetchLabels]);
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useRef } from "react";
 import { useSocket } from "@/lib/socket";
-import type { CardPayload, CardMovedPayload, ColumnPayload, OrgEventPayload, ConflictPayload } from "@/lib/socket.tsx";
+import type { CardPayload, CardMovedPayload, ColumnPayload, OrgEventPayload, ConflictPayload, ConflictResolvedPayload } from "@/lib/socket.tsx";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import { AppDispatch } from "@/lib/store";
@@ -256,6 +256,19 @@ export function useRealtimeBoard(projectId: string) {
     [on, off]
   );
 
+  const onConflictResolved = useCallback(
+    (callback: (data: ConflictResolvedPayload) => void) => {
+      on("conflict:resolved", callback);
+      const unsubscribe = () => {
+        off("conflict:resolved", callback);
+        unsubscribeRef.current = unsubscribeRef.current.filter((fn) => fn !== unsubscribe);
+      };
+      unsubscribeRef.current.push(unsubscribe);
+      return unsubscribe;
+    },
+    [on, off]
+  );
+
   return {
     onCardCreated,
     onCardUpdated,
@@ -265,6 +278,7 @@ export function useRealtimeBoard(projectId: string) {
     onColumnUpdated,
     onColumnDeleted,
     onConflictDetected,
+    onConflictResolved,
   };
 }
 

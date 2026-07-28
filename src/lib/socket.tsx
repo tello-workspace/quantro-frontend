@@ -157,6 +157,14 @@ export interface ConflictPayload {
   userB: ConflictUserRef;
 }
 
+// Taraflardan biri dosyadan ayrilinca / baglantisi kopunca / kaydi bayatlayinca
+// gelir. filePath ile birlikte gelmesinin sebebi: ayni kartin BASKA bir
+// dosyadaki hala aktif olan uyarisini yanlislikla silmemek.
+export interface ConflictResolvedPayload {
+  filePath: string;
+  cardIds: [string, string];
+}
+
 type SocketEventMap = {
   // Auth
   authenticate: (token: string) => void;
@@ -218,6 +226,7 @@ type SocketEventMap = {
 
   // Git Cakisma Erken Uyari
   "conflict:detected": (data: ConflictPayload) => void;
+  "conflict:resolved": (data: ConflictResolvedPayload) => void;
 
   // Custom room events
   "join:project": (projectId: string) => void;
