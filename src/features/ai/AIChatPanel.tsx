@@ -71,7 +71,6 @@ const InteractiveChart: React.FC<{ data: ChartConfig }> = ({ data }) => {
   }
 
   if (type === 'pie') {
-    let accumulatedPercent = 0;
     const colors = [
       '#3B82F6',
       '#10B981',
@@ -81,6 +80,15 @@ const InteractiveChart: React.FC<{ data: ChartConfig }> = ({ data }) => {
       '#EC4899',
     ];
 
+    // Her dilimin baslangic yuzdesini (kumulatif) render'dan ONCE hesapla.
+    // Render sirasinda disaridaki bir degiskeni mutasyona ugratmak
+    // (accumulatedPercent += ...) React'in saflik kuraliyla celisiyordu.
+    const slices = points.map((p) => (p.value / totalValue) * 100);
+    const cumulativeStarts = slices.reduce<number[]>((acc, pct, idx) => {
+      acc.push(idx === 0 ? 0 : acc[idx - 1] + slices[idx - 1]);
+      return acc;
+    }, []);
+
     return (
       <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 rounded-xl p-3 my-2 shadow-sm font-sans flex flex-col items-center not-prose">
         <h4 className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2 w-full text-left">{title}</h4>
@@ -89,10 +97,9 @@ const InteractiveChart: React.FC<{ data: ChartConfig }> = ({ data }) => {
             <svg viewBox="0 0 36 36" className="h-full w-full transform -rotate-90">
               <circle cx="18" cy="18" r="15.915" fill="none" stroke="currentColor" strokeWidth="3" className="text-zinc-200 dark:text-zinc-800" />
               {points.map((p, idx) => {
-                const pct = (p.value / totalValue) * 100;
+                const pct = slices[idx];
                 const dashArray = `${pct} ${100 - pct}`;
-                const dashOffset = 100 - accumulatedPercent;
-                accumulatedPercent += pct;
+                const dashOffset = 100 - cumulativeStarts[idx];
                 return (
                   <circle
                     key={idx}

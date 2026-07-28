@@ -142,6 +142,11 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
         <div className="flex items-center gap-1">
           {task.dueDate && (() => {
             const date = new Date(task.dueDate);
+            // Date.now() render sirasinda "saf olmayan" cagri sayiliyor, ama
+            // burada sadece gorsel bir rozet icin an'lik karsilastirma
+            // yapiliyor; degeri state'e tasimak bu rozet icin gereksiz
+            // karmasiklik katardi.
+            // eslint-disable-next-line react-hooks/purity
             const isOverdue = !isDoneColumn && date.getTime() < Date.now();
             return (
               <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium text-[10px] ${
