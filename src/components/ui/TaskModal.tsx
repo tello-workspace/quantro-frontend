@@ -285,6 +285,12 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
   );
 };
 
+interface TaskModalConflictInfo {
+  filePath: string;
+  otherCardTitle: string;
+  otherUserName: string;
+}
+
 interface TaskModalProps {
   taskId: string | null;
   isOpen: boolean;
@@ -298,6 +304,7 @@ interface TaskModalProps {
   columnId?: string | null;
   initialTitle?: string;
   onCreateTask?: (columnId: string, payload: any) => Promise<void>;
+  conflict?: TaskModalConflictInfo;
 }
 
 export const TaskModal: React.FC<TaskModalProps> = ({
@@ -313,6 +320,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   columnId,
   initialTitle,
   onCreateTask,
+  conflict,
 }) => {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(false);
@@ -671,6 +679,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </Button>
               </div>
             </DialogHeader>
+
+            {conflict && (
+              <div className="flex items-start gap-2 rounded-lg border border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40 px-3 py-2 text-xs text-orange-800 dark:text-orange-300">
+                <span className="mt-0.5">⚠️</span>
+                <span>
+                  <strong>Kod Çakışması Riski:</strong> <code className="font-mono">{conflict.filePath}</code> dosyası
+                  şu an <strong>{conflict.otherUserName}</strong> tarafından &ldquo;{conflict.otherCardTitle}&rdquo;
+                  kartı üzerinde de düzenleniyor. Bu bir kesinlik değil, dosya bazlı bir risk sinyalidir —
+                  merge sırasında çakışma yaşamamak için erken iletişime geçmeniz önerilir.
+                </span>
+              </div>
+            )}
 
             <div className="space-y-5">
               <div>

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { BoardCard } from './BoardCard';
+import { BoardCard, CardConflictInfo } from './BoardCard';
 import { Task } from '../services/boardService';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ interface BoardColumnProps {
   isAdmin?: boolean;
   onAddTask: (columnId: string, title: string) => void;
   onTaskClick: (taskId: string) => void;
+  conflicts?: Record<string, CardConflictInfo>;
 }
 
 export const BoardColumn: React.FC<BoardColumnProps> = ({
@@ -33,6 +34,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   isAdmin = true,
   onAddTask,
   onTaskClick,
+  conflicts,
 }) => {
   const { setNodeRef } = useDroppable({ id });
   const [isAdding, setIsAdding] = useState(false);
@@ -87,6 +89,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               task={task}
               isDoneColumn={title.toLowerCase() === 'done' || title.toLowerCase() === 'tamamlandı'}
               onClick={() => onTaskClick(task.id)}
+              conflict={conflicts?.[task.id]}
             />
           ))}
         </SortableContext>

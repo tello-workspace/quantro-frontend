@@ -136,6 +136,27 @@ export interface TypingPayload {
   isTyping: boolean;
 }
 
+// Git Cakisma Erken Uyari: VSCode extension'dan gelen dosya-seviyesi presence
+// kesisiminden turetilir. Satir/hunk analizi yok — "kesin cakisma" degil "risk".
+export interface ConflictCardRef {
+  id: string;
+  title: string;
+  projectId: string;
+}
+
+export interface ConflictUserRef {
+  id: string;
+  name: string;
+}
+
+export interface ConflictPayload {
+  filePath: string;
+  cardA: ConflictCardRef;
+  userA: ConflictUserRef;
+  cardB: ConflictCardRef;
+  userB: ConflictUserRef;
+}
+
 type SocketEventMap = {
   // Auth
   authenticate: (token: string) => void;
@@ -194,6 +215,9 @@ type SocketEventMap = {
   "presence:online": (userId: string) => void;
   "presence:offline": (userId: string) => void;
   "presence:typing": (data: TypingPayload) => void;
+
+  // Git Cakisma Erken Uyari
+  "conflict:detected": (data: ConflictPayload) => void;
 
   // Custom room events
   "join:project": (projectId: string) => void;

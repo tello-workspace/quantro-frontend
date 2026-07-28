@@ -3,14 +3,21 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../services/boardService';
-import { CalendarDaysIcon, UserIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
+export interface CardConflictInfo {
+  filePath: string;
+  otherCardTitle: string;
+  otherUserName: string;
+}
 
 interface BoardCardProps {
   task: Task;
   onClick: () => void;
   isDoneColumn?: boolean;
+  conflict?: CardConflictInfo;
 }
 
 function initials(name: string): string {
@@ -51,7 +58,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColumn = false }) => {
+export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColumn = false, conflict }) => {
   const {
     attributes,
     listeners,
@@ -82,6 +89,9 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
         [
           task.priority ? `Öncelik: ${PRIORITY_LABEL[task.priority]}` : null,
           isStale ? `${Math.floor(days!)} gündür hareketsiz` : null,
+          conflict
+            ? `⚠️ Çakışma riski: ${conflict.filePath} dosyası, "${conflict.otherCardTitle}" kartında ${conflict.otherUserName} tarafından da düzenleniyor`
+            : null,
         ]
           .filter(Boolean)
           .join(' · ') || undefined
@@ -105,6 +115,15 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
           aria-hidden
           className={`absolute inset-y-0 left-0 w-1 ${PRIORITY_BAR[task.priority]}`}
         />
+      )}
+
+      {conflict && (
+        <span
+          aria-hidden
+          className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm animate-pulse"
+        >
+          <ExclamationTriangleIcon className="h-2.5 w-2.5" />
+        </span>
       )}
 
       {task.labels && task.labels.length > 0 && (

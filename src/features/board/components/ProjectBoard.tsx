@@ -13,7 +13,7 @@ import {
   DragOverlay
 } from '@dnd-kit/core';
 import { BoardColumn } from './BoardColumn';
-import { BoardCard } from './BoardCard';
+import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { boardService, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
@@ -116,6 +116,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Git Cakisma Erken Uyari: kartId -> "hangi dosyada, kim, hangi diger kart" bilgisi
+  const [conflicts, setConflicts] = useState<Record<string, CardConflictInfo>>({});
 
   // Real-time board updates
   const realtimeBoard = useRealtimeBoard(projectId);
@@ -350,6 +352,24 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       });
     });
 
+    // Git Cakisma Erken Uyari: iki kartin da rozeti olsun diye her iki tarafi
+    // da isliyoruz. Kesinlik degil, dosya-seviyesi bir risk sinyali.
+    const unsubscribeConflictDetected = realtimeBoard.onConflictDetected((payload) => {
+      setConflicts((prev) => ({
+        ...prev,
+        [payload.cardA.id]: {
+          filePath: payload.filePath,
+          otherCardTitle: payload.cardB.title,
+          otherUserName: payload.userB.name,
+        },
+        [payload.cardB.id]: {
+          filePath: payload.filePath,
+          otherCardTitle: payload.cardA.title,
+          otherUserName: payload.userA.name,
+        },
+      }));
+    });
+
     return () => {
       unsubscribeCardCreated();
       unsubscribeCardUpdated();
@@ -358,6 +378,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       unsubscribeColumnCreated();
       unsubscribeColumnUpdated();
       unsubscribeColumnDeleted();
+      unsubscribeConflictDetected();
     };
   }, [boardData, realtimeBoard, orgId, projectId, refetchLabels]);
 
@@ -667,6 +688,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                   isAdmin={!!isAdmin}
                   onAddTask={handleAddTask}
                   onTaskClick={handleTaskClick}
+                  conflicts={conflicts}
                 />
               );
             })}
@@ -800,6 +822,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         columnId={createRequestColumnId}
         initialTitle={initialTitle}
         onCreateTask={handleCreateTask}
+        conflict={selectedTaskId ? conflicts[selectedTaskId] : undefined}
       />
     </div>
   );
