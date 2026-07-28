@@ -12,7 +12,7 @@ const baseQuery = fetchBaseQuery({
   },
 })
 
-const baseQueryWithLogout = async (args: string | FetchArgs, api: BaseQueryApi, extraOptions: {}) => {
+const baseQueryWithLogout = async (args: string | FetchArgs, api: BaseQueryApi, extraOptions: object) => {
   const result = await baseQuery(args, api, extraOptions)
 
   // 401 → token geçersiz/süresi dolmuş → logout + full reload (store sıfırlanır)

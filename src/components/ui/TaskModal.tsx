@@ -228,7 +228,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     if (!task || !task.title?.trim()) return;
     try {
       const result = await fillCardWithAi({ projectId, title: task.title.trim() }).unwrap();
-      console.log('AI Fill Result:', result);
       const updatedFields: Partial<Task> = {
         description: result.description,
         priority: result.priority as any,
@@ -828,54 +827,51 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         className="flex items-center gap-1 pl-2 pr-1"
                       >
                         {a.name}
-                        {true && (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleAssignee(a.id)}
-                            className="hover:bg-black/10 rounded-sm p-0.5"
-                            aria-label={`${a.name} atamasını kaldır`}
-                          >
-                            <XMarkIcon className="h-3 w-3" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAssignee(a.id)}
+                          className="hover:bg-black/10 rounded-sm p-0.5"
+                          aria-label={`${a.name} atamasını kaldır`}
+                        >
+                          <XMarkIcon className="h-3 w-3" />
+                        </button>
                       </Badge>
                     ))}
 
-                    {true && (
-                      <div className="relative">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          onClick={() => setShowAssigneePicker((v) => !v)}
-                          disabled={isFilling}
-                        >
-                          + Kişi
-                        </Button>
+                    {/* Uye de atama secebilir; kaydederken degisiklik talebine donusur */}
+                    <div className="relative">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        onClick={() => setShowAssigneePicker((v) => !v)}
+                        disabled={isFilling}
+                      >
+                        + Kişi
+                      </Button>
 
-                        {showAssigneePicker && (
-                          <div className="absolute right-0 z-10 mt-2 w-48 rounded-lg border border-border bg-popover shadow-lg p-2 max-h-40 overflow-y-auto">
-                            {members.map((m) => {
-                              const checked = (task.assignees ?? []).some((a) => a.id === m.userId);
-                              return (
-                                <label
-                                  key={m.userId}
-                                  className="flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer hover:bg-muted"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => handleToggleAssignee(m.userId)}
-                                    className="rounded-md"
-                                  />
-                                  <span className="text-foreground">{m.user.name}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      {showAssigneePicker && (
+                        <div className="absolute right-0 z-10 mt-2 w-48 rounded-lg border border-border bg-popover shadow-lg p-2 max-h-40 overflow-y-auto">
+                          {members.map((m) => {
+                            const checked = (task.assignees ?? []).some((a) => a.id === m.userId);
+                            return (
+                              <label
+                                key={m.userId}
+                                className="flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer hover:bg-muted"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => handleToggleAssignee(m.userId)}
+                                  className="rounded-md"
+                                />
+                                <span className="text-foreground">{m.user.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {!isAdmin && (
