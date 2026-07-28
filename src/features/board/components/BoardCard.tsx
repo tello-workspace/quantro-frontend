@@ -162,7 +162,10 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
           <div className="flex items-center -space-x-1.5">
             {task.assignees.slice(0, MAX_VISIBLE_ASSIGNEES).map((a) => {
               const badgeList = (a as any).badges?.length
-                ? (a as any).badges.map((b: any) => `${b.icon || ''} ${b.name}`).join(' · ')
+                ? (a as any).badges.map((b: any) => {
+                    const iconText = b.icon && (b.icon.startsWith('http') || b.icon.startsWith('data:')) ? '🏅' : (b.icon || '');
+                    return `${iconText} ${b.name}`;
+                  }).join(' · ')
                 : '';
               return (
                 <Avatar

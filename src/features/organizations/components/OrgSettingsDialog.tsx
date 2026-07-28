@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 interface OrgSettingsDialogProps {
   orgId: string;
@@ -44,6 +45,14 @@ function initials(name: string): string {
   return name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 }
 
+const renderBadgeIcon = (icon: string | null, className: string = "size-4") => {
+  if (!icon) return null;
+  if (icon.startsWith('http') || icon.startsWith('data:')) {
+    return <img src={icon} alt="Badge" className={`${className} object-contain rounded`} />;
+  }
+  return <span className={className.includes("size-9") ? "text-lg" : "text-xs"}>{icon}</span>;
+};
+
 export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isAdmin, open, onOpenChange }) => {
   const { data: org, isLoading: orgLoading } = useGetOrganizationByIdQuery({ orgId }, { skip: !open || !orgId });
   const { data: badges = [], isLoading: badgesLoading } = useListBadgesQuery({ orgId }, { skip: !open || !orgId });
@@ -59,7 +68,24 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
   const [badgeName, setBadgeName] = useState('');
   const [badgeColor, setBadgeColor] = useState(PILL_COLORS[0]);
   const [badgeIcon, setBadgeIcon] = useState('');
-  const [assigningTo, setAssigningTo] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 200 * 1024) {
+      toast.error("Görsel boyutu çok büyük (maksimum 200KB)");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setBadgeIcon(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const members = org?.members ?? [];
 
@@ -179,102 +205,119 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
             {members.map(m => {
               const userBadges = getMemberBadges(m.userId);
               const isOwner = m.userId === org?.ownerId;
+              const isNameEmail = m.user.name.includes('@');
+              const displayName = isNameEmail 
+                ? m.user.name.split('@')[0].charAt(0).toUpperCase() + m.user.name.split('@')[0].slice(1) 
+                : m.user.name;
+
               return (
-                <li key={m.userId} className="flex items-start gap-3 rounded-xl border border-border/60 bg-card p-4">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarFallback className="text-sm">{initials(m.user.name)}</AvatarFallback>
+                <li key={m.userId} className="flex items-center gap-3.5 rounded-xl border border-border/50 bg-card/65 p-3.5 hover:bg-card hover:border-border transition-all">
+                  <Avatar className="h-10 w-10 shrink-0 shadow-sm border border-border/20">
+                    <AvatarFallback className="text-sm font-semibold bg-secondary text-secondary-foreground">{initials(displayName)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="text-sm font-medium text-foreground">{m.user.name}</p>
-                      {isOwner && <Badge variant="secondary" className="text-[10px]">Kurucu</Badge>}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground tracking-tight">{displayName}</p>
+                      {isOwner && <Badge variant="secondary" className="text-[10px] px-2 py-0 h-4 bg-muted hover:bg-muted text-muted-foreground font-semibold">Kurucu</Badge>}
                       {isAdmin && !isOwner ? (
                         <select
                           value={m.role}
                           onChange={(e) => handleRoleChange(m.userId, e.target.value as 'ADMIN' | 'MEMBER')}
-                          className="text-[10px] font-semibold px-2 py-0.5 rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer h-5 leading-none"
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all cursor-pointer focus:outline-none h-4.5 border-0 shadow-sm ${
+                            m.role === 'ADMIN'
+                              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                              : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
+                          }`}
                         >
-                          <option value="MEMBER">Üye</option>
-                          <option value="ADMIN">Admin</option>
+                          <option value="MEMBER" className="bg-background text-foreground text-xs font-normal">Üye</option>
+                          <option value="ADMIN" className="bg-background text-foreground text-xs font-normal">Admin</option>
                         </select>
                       ) : (
-                        <Badge variant={m.role === 'ADMIN' ? 'default' : 'secondary'} className="text-[10px]">
-                          {m.role === 'ADMIN' ? 'Admin' : 'Üye'}
-                        </Badge>
+                        !isOwner && (
+                          <Badge variant={m.role === 'ADMIN' ? 'default' : 'secondary'} className="text-[10px] px-2 py-0 h-4 font-semibold">
+                            {m.role === 'ADMIN' ? 'Admin' : 'Üye'}
+                          </Badge>
+                        )
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{m.user.email}</p>
+                    {isNameEmail && <p className="text-[11px] text-muted-foreground/75 mt-0.5">{m.user.email}</p>}
 
-                    {/* Rozetler */}
-                    <div className="flex flex-wrap gap-1.5 mt-2">
+                    {/* Rozetler ve Yönetim */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       {userBadges.map((b: any) => (
                         <span
                           key={b.id}
-                          style={{ backgroundColor: b.color + '20', color: b.color, borderColor: b.color + '40' }}
-                          className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium"
+                          style={{ backgroundColor: b.color + '20', color: b.color, borderColor: b.color + '30' }}
+                          className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full border font-medium transition-all hover:scale-[1.02]"
                         >
-                          {b.icon && <span className="text-xs">{b.icon}</span>}
+                          {b.icon && renderBadgeIcon(b.icon)}
                           {b.name}
                           {isAdmin && (
                             <button
                               onClick={() => handleToggleBadge(m.userId, b.id, true)}
-                              className="ml-0.5 hover:opacity-60"
+                              className="ml-1 hover:opacity-60 cursor-pointer"
                             >
                               <X className="size-2.5" />
                             </button>
                           )}
                         </span>
                       ))}
-                    </div>
 
-                    {/* Admin: rozet ata paneli */}
-                    {isAdmin && (
-                      <div className="mt-2">
-                        {assigningTo === m.userId ? (
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            {badges.filter(b => !userBadges.some((ub: any) => ub.id === b.id)).map(b => (
-                              <button
-                                key={b.id}
-                                onClick={() => handleToggleBadge(m.userId, b.id, false)}
-                                style={{ borderColor: b.color + '40', color: b.color }}
-                                className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border hover:bg-muted transition-colors"
-                              >
-                                {b.icon && <span>{b.icon}</span>}
-                                +{b.name}
-                              </button>
-                            ))}
-                            {badges.filter(b => !userBadges.some((ub: any) => ub.id === b.id)).length === 0 && (
-                              <span className="text-[11px] text-muted-foreground">Tüm rozetler atanmış</span>
-                            )}
-                            <button
-                              onClick={() => setAssigningTo(null)}
-                              className="text-[11px] text-muted-foreground hover:text-foreground ml-1"
-                            >
-                              Kapat
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setAssigningTo(m.userId)}
-                            className="text-[11px] text-primary hover:text-primary/80 font-medium mt-1"
-                          >
-                            + Rozet ata
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      {isAdmin && (
+                        <Popover>
+                          <PopoverTrigger className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground hover:border-muted-foreground/60 transition-all cursor-pointer font-semibold h-[20px] bg-transparent">
+                            <Plus className="size-2.5" /> Rozet Ekle
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="w-60 p-2 border border-border/85 bg-popover text-popover-foreground rounded-xl shadow-lg">
+                            <div className="space-y-1.5">
+                              <p className="text-[11px] font-semibold text-muted-foreground px-2 py-1">Rozetleri Aç / Kapat</p>
+                              <div className="max-h-48 overflow-y-auto no-scrollbar space-y-0.5">
+                                {badges.map(b => {
+                                  const isAssigned = userBadges.some((ub: any) => ub.id === b.id);
+                                  return (
+                                    <button
+                                      key={b.id}
+                                      onClick={() => handleToggleBadge(m.userId, b.id, isAssigned)}
+                                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
+                                        isAssigned 
+                                          ? 'bg-primary/10 text-primary hover:bg-primary/15' 
+                                          : 'hover:bg-muted text-foreground'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span
+                                          className="flex size-5 shrink-0 items-center justify-center rounded-md overflow-hidden"
+                                          style={{ backgroundColor: b.color + '20' }}
+                                        >
+                                          {b.icon ? renderBadgeIcon(b.icon, "size-5") : '🏅'}
+                                        </span>
+                                        <span className="truncate">{b.name}</span>
+                                      </div>
+                                      {isAssigned && (
+                                        <span className="size-1.5 rounded-full bg-primary shrink-0" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                                {badges.length === 0 && (
+                                  <p className="text-xs text-muted-foreground text-center py-4">Henüz rozet oluşturulmamış.</p>
+                                )}
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
                   </div>
 
                   {isAdmin && !isOwner && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
+                    <button
                       onClick={() => handleRemoveMember(m.userId, m.user.name)}
-                      className="shrink-0 text-muted-foreground hover:text-destructive self-center"
+                      className="shrink-0 size-8 flex items-center justify-center rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all ml-2 cursor-pointer"
                       title="Üyeyi Organizasyondan Çıkar"
                     >
-                      <X className="size-3.5" />
-                    </Button>
+                      <X className="size-4" />
+                    </button>
                   )}
                 </li>
               );
@@ -318,7 +361,7 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
 
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground mb-1.5">İkon (opsiyonel)</label>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 mb-2">
                     <button
                       type="button"
                       onClick={() => setBadgeIcon('')}
@@ -340,6 +383,29 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                         {e}
                       </button>
                     ))}
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      className="h-9 text-xs"
+                      placeholder="Veya özel PNG/görsel URL'si girin"
+                      value={badgeIcon.startsWith('http') ? badgeIcon : ''}
+                      onChange={e => setBadgeIcon(e.target.value)}
+                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-muted-foreground">Veya Görsel Yükle:</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="text-xs file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                      />
+                    </div>
+                    {badgeIcon && (badgeIcon.startsWith('http') || badgeIcon.startsWith('data:')) && (
+                      <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-card">
+                        <span className="text-xs font-semibold text-muted-foreground">Önizleme:</span>
+                        <img src={badgeIcon} alt="Önizleme" className="size-6 object-contain rounded" />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -378,10 +444,10 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-lg"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-lg overflow-hidden"
                       style={{ backgroundColor: b.color + '20' }}
                     >
-                      {b.icon || '🏅'}
+                      {b.icon ? renderBadgeIcon(b.icon, "size-9") : '🏅'}
                     </span>
                     <div>
                       <div className="flex items-center gap-1.5">

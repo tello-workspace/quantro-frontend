@@ -75,7 +75,21 @@ export const organizationsApi = api.injectEndpoints({
         url: `/organizations/${orgId}/members?userId=${userId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }],
+      async onQueryStarted({ orgId, userId }, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          organizationsApi.util.updateQueryData('getOrganizationById', { orgId }, (draft) => {
+            if (draft && draft.members) {
+              draft.members = draft.members.filter((m) => m.userId !== userId);
+            }
+          })
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
+      invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }, 'Project'],
     }),
     updateMemberRole: builder.mutation<void, { orgId: string; userId: string; role: 'ADMIN' | 'MEMBER' }>({
       query: ({ orgId, ...body }) => ({
@@ -83,7 +97,24 @@ export const organizationsApi = api.injectEndpoints({
         method: 'PATCH',
         body,
       }),
-      invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }],
+      async onQueryStarted({ orgId, userId, role }, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          organizationsApi.util.updateQueryData('getOrganizationById', { orgId }, (draft) => {
+            if (draft && draft.members) {
+              const member = draft.members.find((m) => m.userId === userId);
+              if (member) {
+                member.role = role;
+              }
+            }
+          })
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
+      invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }, 'Project'],
     }),
     getPendingInvitations: builder.query<PendingInvitation[], { orgId: string }>({
       query: ({ orgId }) => `/organizations/${orgId}/invitations`,
@@ -131,14 +162,14 @@ export const organizationsApi = api.injectEndpoints({
         body,
       }),
       transformResponse: (response: { success: boolean; data: any }) => response.data,
-      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }, { type: 'Project', id: orgId }],
     }),
     deleteBadge: builder.mutation<void, { orgId: string; badgeId: string }>({
       query: ({ orgId, badgeId }) => ({
         url: `/organizations/${orgId}/badges?badgeId=${badgeId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }, { type: 'Project', id: orgId }],
     }),
     assignBadge: builder.mutation<
       { assigned: boolean; badgeName: string },
@@ -150,14 +181,14 @@ export const organizationsApi = api.injectEndpoints({
         body,
       }),
       transformResponse: (response: { success: boolean; data: any }) => response.data,
-      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }, { type: 'Project', id: orgId }],
     }),
     removeBadge: builder.mutation<void, { orgId: string; badgeId: string; userId: string }>({
       query: ({ orgId, badgeId, userId }) => ({
         url: `/organizations/${orgId}/badges/assign?badgeId=${badgeId}&userId=${userId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }],
+      invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }, { type: 'Project', id: orgId }],
     }),
   }),
 });
