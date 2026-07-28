@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Task, TaskLabel, DependencyCard } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
@@ -21,6 +21,11 @@ import {
   useDeleteCommentMutation,
 } from '@/features/comments/commentsApi';
 import { useAddDependencyMutation, useRemoveDependencyMutation } from '@/features/dependencies/dependenciesApi';
+import {
+  useGetAttachmentsQuery,
+  useUploadAttachmentMutation,
+  useDeleteAttachmentMutation,
+} from '@/features/attachments/attachmentsApi';
 import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -167,6 +172,115 @@ const CommentsSection: React.FC<{ cardId: string }> = ({ cardId }) => {
           Gönder
         </Button>
       </form>
+    </div>
+  );
+};
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ cardId, isAdmin }) => {
+  const { data: me } = useGetMeQuery();
+  const { data: attachments = [] } = useGetAttachmentsQuery(cardId);
+  const [uploadAttachment, { isLoading: isUploading }] = useUploadAttachmentMutation();
+  const [deleteAttachment] = useDeleteAttachmentMutation();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      toast.error('Dosya en fazla 10MB olabilir.');
+      return;
+    }
+
+    try {
+      await uploadAttachment({ cardId, file }).unwrap();
+    } catch (err: unknown) {
+      const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
+      toast.error(errData?.message || 'Dosya yüklenemedi.');
+    }
+  };
+
+  const handleDelete = async (attachmentId: string) => {
+    if (!window.confirm('Bu eki silmek istediğinizden emin misiniz?')) return;
+    try {
+      await deleteAttachment({ cardId, attachmentId }).unwrap();
+    } catch (err: unknown) {
+      const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
+      toast.error(errData?.message || 'Ek silinemedi.');
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+        Ekler {attachments.length > 0 && `(${attachments.length})`}
+      </label>
+
+      <div className="space-y-2 mb-3">
+        {attachments.length === 0 && (
+          <p className="text-xs text-muted-foreground">Henüz ek dosya yok.</p>
+        )}
+        {attachments.map((a) => (
+          <div
+            key={a.id}
+            className="flex items-center justify-between gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <PaperClipIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="truncate font-medium text-foreground">{a.fileName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatFileSize(a.fileSize)} · {a.uploader.name} · {timeAgo(a.createdAt)}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {a.downloadUrl && (
+                <a
+                  href={a.downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="İndir"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
+                </a>
+              )}
+              {(a.uploaderId === me?.id || isAdmin) && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(a.id)}
+                  title="Sil"
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <input ref={fileInputRef} type="file" onChange={handleFileSelect} className="hidden" />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={isUploading}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <PaperClipIcon className="h-4 w-4" />
+        {isUploading ? 'Yükleniyor...' : 'Dosya Ekle'}
+      </Button>
     </div>
   );
 };
@@ -881,6 +995,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {taskId !== 'new' && (
+                <AttachmentsSection cardId={task.id} isAdmin={isAdmin} />
+              )}
 
               {taskId !== 'new' && (
                 <CommentsSection cardId={task.id} />
