@@ -3,6 +3,8 @@
 import { useCallback, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { BellIcon } from '@heroicons/react/24/outline';
+import { useSocket } from '@/lib/socket';
+import { api } from '@/lib/api';
 import {
   useGetNotificationsQuery,
   useGetUnreadCountQuery,
@@ -14,9 +16,7 @@ import {
   useDeclineInvitationMutation,
 } from '@/features/organizations/organizationsApi';
 import { toast } from 'react-toastify';
-import { api } from '@/lib/api';
 import type { AppDispatch } from '@/lib/store';
-import { getSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -33,50 +33,56 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function NotificationBell() {
-  const dispatch = useDispatch<AppDispatch>();
-  const { data: unreadCount = 0 } = useGetUnreadCountQuery(undefined, { pollingInterval: 30000 });
+  // Polling YOK — canlı güncelleme socket ile
+  const { data: unreadCount = 0 } = useGetUnreadCountQuery();
   const { data: notifications = [] } = useGetNotificationsQuery();
   const [markAsRead] = useMarkAsReadMutation();
   const [markAllAsRead] = useMarkAllAsReadMutation();
   const [acceptInvitation] = useAcceptInvitationMutation();
   const [declineInvitation] = useDeclineInvitationMutation();
+  const { on, off } = useSocket();
+  const dispatch = useDispatch<AppDispatch>();
 
   const refresh = useCallback(
-    () => dispatch(api.util.invalidateTags(['Notification', 'Project', 'Card'])),
+    () => {
+      console.log("[NotificationBell] invalidateTags tag'leri invalidate ediyor");
+      dispatch(api.util.invalidateTags(['Notification', 'Project', 'Card']));
+    },
     [dispatch],
   );
 
+  // Socket ile canlı bildirim ve güncellemeleri dinle
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
+    console.log(`[NotificationBell] useEffect çalıştı — handler'lar register ediliyor`);
 
     const handleNew = (notification: { message?: string }) => {
       refresh();
       if (notification?.message) toast.info(notification.message);
     };
 
-    socket.on('notification:new', handleNew);
-    socket.on('notification:read', refresh);
-    socket.on('notification:all_read', refresh);
-    socket.on('org:member_added', refresh);
-    socket.on('org:member_removed', refresh);
-    socket.on('org:member_role_changed', refresh);
-    socket.on('project:created', refresh);
-    socket.on('project:updated', refresh);
-    socket.on('project:deleted', refresh);
+    on('notification:new', handleNew);
+    on('notification:read', refresh);
+    on('notification:all_read', refresh);
+    on('org:member_added', refresh);
+    on('org:member_removed', refresh);
+    on('org:member_role_changed', refresh);
+    on('project:created', refresh);
+    on('project:updated', refresh);
+    on('project:deleted', refresh);
 
     return () => {
-      socket.off('notification:new', handleNew);
-      socket.off('notification:read', refresh);
-      socket.off('notification:all_read', refresh);
-      socket.off('org:member_added', refresh);
-      socket.off('org:member_removed', refresh);
-      socket.off('org:member_role_changed', refresh);
-      socket.off('project:created', refresh);
-      socket.off('project:updated', refresh);
-      socket.off('project:deleted', refresh);
+      console.log("[NotificationBell] cleanup — handler'lar kaldırılıyor");
+      off('notification:new', handleNew);
+      off('notification:read', refresh);
+      off('notification:all_read', refresh);
+      off('org:member_added', refresh);
+      off('org:member_removed', refresh);
+      off('org:member_role_changed', refresh);
+      off('project:created', refresh);
+      off('project:updated', refresh);
+      off('project:deleted', refresh);
     };
-  }, [refresh]);
+  }, [on, off, refresh]);
 
   const handleAccept = async (e: React.MouseEvent, invitationId: string) => {
     e.stopPropagation();

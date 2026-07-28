@@ -23,6 +23,7 @@ const baseQueryWithLogout = async (args: string | FetchArgs, api: BaseQueryApi, 
       window.location.pathname !== '/register'
     ) {
       localStorage.removeItem('token')
+      window.dispatchEvent(new Event('auth:changed'))
       window.location.href = '/login'
     }
   }

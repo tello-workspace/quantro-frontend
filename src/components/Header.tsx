@@ -35,6 +35,7 @@ export default function Header(){
         if (supabase) {
           await supabase.auth.signOut();
         }
+        window.dispatchEvent(new Event('auth:changed'));
         dispatch(api.util.resetApiState());
         toast.success('Çıkış yapıldı');
         router.push('/login');

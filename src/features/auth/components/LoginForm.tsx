@@ -39,6 +39,7 @@ export default function LoginForm() {
       toast.error('Google girişi için Supabase ayarları eksik.');
       return;
     }
+
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
@@ -56,6 +57,7 @@ export default function LoginForm() {
       const token = resp.data?.token ?? resp.token;
       if (token) {
         localStorage.setItem('token', token);
+        window.dispatchEvent(new Event('auth:changed'));
         toast.success('Giriş yapıldı!');
         router.push('/projects');
       } else {

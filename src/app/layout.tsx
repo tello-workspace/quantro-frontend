@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import StoreProvider from '@/lib/StoreProvider'
+import { SocketProvider } from '@/lib/socket'
+import NotificationListener from '@/components/NotificationListener'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import './globals.css'
@@ -40,7 +42,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased">
-        <StoreProvider>{children}</StoreProvider>
+        <StoreProvider>
+          <SocketProvider>
+            {children}
+            <NotificationListener />
+          </SocketProvider>
+        </StoreProvider>
         <ToastContainer position="top-right" autoClose={3000} theme="colored" />
       </body>
     </html>

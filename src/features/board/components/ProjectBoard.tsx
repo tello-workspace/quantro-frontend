@@ -20,11 +20,11 @@ import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery, useAttachLabelMutation } from '@/features/labels/labelsApi';
 import { useAddDependencyMutation } from '@/features/dependencies/dependenciesApi';
-import { getSocket } from '@/lib/socket';
 import { toast } from 'react-toastify';
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
 import { Bot } from 'lucide-react';
+import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 
 interface ProjectBoardProps {
   projectId: string;
@@ -114,6 +114,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Real-time board updates
+  const realtimeBoard = useRealtimeBoard(projectId);
 
   // Kart ekleme sadece ADMIN'e acik; suruklemeyi (kart tasima) herkes yapabilir
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId });
@@ -211,13 +214,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // Kendi eylemlerimiz zaten optimistic olarak uygulandigi icin handler'lar idempotent:
   // veri zaten mevcutsa (id/taskId eslesiyorsa) tekrar uygulanmaz.
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
+    if (!boardData) return;
 
-    socket.emit('join:project', projectId);
-
-    const handleCardCreated = (payload: CardSocketPayload) => {
-      if (payload.projectId !== projectId) return;
+    const unsubscribeCardCreated = realtimeBoard.onCardCreated((payload) => {
       setBoardData((prev) => {
         if (!prev) return prev;
         const column = prev.columns[payload.columnId];
@@ -228,8 +227,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           tasks: {
             ...prev.tasks,
             [payload.id]: {
-              // Kart zaten varsa (kendi eylemimizin echo'su) etiket/atanan
-              // gibi yerel alanlari korur, ustune payload'i yazar
               ...existing,
               id: payload.id,
               title: payload.title,
@@ -244,17 +241,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           columns: placeCard(prev.columns, payload.id, payload.columnId),
         };
       });
-    };
+    });
 
-    const handleCardUpdated = (payload: CardSocketPayload) => {
-      if (payload.projectId !== projectId) return;
+    const unsubscribeCardUpdated = realtimeBoard.onCardUpdated((payload) => {
       setBoardData((prev) => {
         const existing = prev?.tasks[payload.id];
         if (!prev || !existing) return prev;
 
-        // Guncelleme kolon degisikligi de tasiyabiliyor (ornegin AI kartin
-        // kolonunu degistirdiginde). Onceden yalnizca tasks guncellenirdi,
-        // taskIds eski sutunda kalip iki yapi birbirinden ayrisiyordu.
         const targetColumnId = payload.columnId ?? existing.columnId;
         const needsMove =
           !!prev.columns[targetColumnId] &&
@@ -276,13 +269,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           columns: needsMove ? placeCard(prev.columns, payload.id, targetColumnId) : prev.columns,
         };
       });
-    };
+    });
 
-    const handleCardMoved = (payload: CardMovedPayload) => {
-      if (payload.projectId !== projectId) return;
+    const unsubscribeCardMoved = realtimeBoard.onCardMoved((payload) => {
       setBoardData((prev) => {
         if (!prev) return prev;
-        // Hedef sutun yerelde yoksa yapacak bir sey yok
         if (!prev.columns[payload.toColumnId]) return prev;
 
         const existingTask = prev.tasks[payload.cardId];
@@ -290,8 +281,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         const duplicated =
           Object.values(prev.columns).filter((c) => c.taskIds.includes(payload.cardId)).length > 1;
 
-        // Zaten dogru yerdeyse ve baska sutunda kopyasi yoksa dokunmuyoruz;
-        // aksi halde placeCard kartin tek kopya kalmasini garanti ediyor
         if (alreadyInTarget && !duplicated) return prev;
 
         return {
@@ -302,37 +291,34 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           columns: placeCard(prev.columns, payload.cardId, payload.toColumnId),
         };
       });
-    };
+    });
 
-    const handleCardDeleted = (payload: CardDeletedPayload) => {
-      if (payload.projectId !== projectId) return;
+    const unsubscribeCardDeleted = realtimeBoard.onCardDeleted((cardId) => {
       if (orgId && projectId) {
         refetchLabels();
       }
       setBoardData((prev) => {
-        if (!prev || !prev.tasks[payload.cardId]) return prev;
+        if (!prev || !prev.tasks[cardId]) return prev;
         const newTasks = { ...prev.tasks };
-        delete newTasks[payload.cardId];
-        return { ...prev, tasks: newTasks, columns: removeCard(prev.columns, payload.cardId) };
+        delete newTasks[cardId];
+        return { ...prev, tasks: newTasks, columns: removeCard(prev.columns, cardId) };
       });
-    };
+    });
 
-    const handleColumnCreated = (payload: ColumnSocketPayload) => {
-      if (payload.projectId !== projectId) return;
+    const unsubscribeColumnCreated = realtimeBoard.onColumnCreated((payload) => {
       setBoardData((prev) => {
         if (!prev || prev.columns[payload.id]) return prev;
         return {
           ...prev,
           columns: {
             ...prev.columns,
-            [payload.id]: { id: payload.id, title: payload.name, wipLimit: payload.wipLimit, taskIds: [] },
+            [payload.id]: { id: payload.id, title: payload.name, wipLimit: payload.wipLimit ?? null, taskIds: [] },
           },
         };
       });
-    };
+    });
 
-    const handleColumnUpdated = (payload: ColumnSocketPayload) => {
-      if (payload.projectId !== projectId) return;
+    const unsubscribeColumnUpdated = realtimeBoard.onColumnUpdated((payload) => {
       setBoardData((prev) => {
         const existing = prev?.columns[payload.id];
         if (!prev || !existing) return prev;
@@ -340,41 +326,31 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           ...prev,
           columns: {
             ...prev.columns,
-            [payload.id]: { ...existing, title: payload.name, wipLimit: payload.wipLimit },
+            [payload.id]: { ...existing, title: payload.name, wipLimit: payload.wipLimit ?? null },
           },
         };
       });
-    };
+    });
 
-    const handleColumnDeleted = (payload: ColumnDeletedPayload) => {
-      if (payload.projectId !== projectId) return;
+    const unsubscribeColumnDeleted = realtimeBoard.onColumnDeleted((payload) => {
       setBoardData((prev) => {
         if (!prev || !prev.columns[payload.columnId]) return prev;
         const newColumns = { ...prev.columns };
         delete newColumns[payload.columnId];
         return { ...prev, columns: newColumns };
       });
-    };
-
-    socket.on('card:created', handleCardCreated);
-    socket.on('card:updated', handleCardUpdated);
-    socket.on('card:moved', handleCardMoved);
-    socket.on('card:deleted', handleCardDeleted);
-    socket.on('column:created', handleColumnCreated);
-    socket.on('column:updated', handleColumnUpdated);
-    socket.on('column:deleted', handleColumnDeleted);
+    });
 
     return () => {
-      socket.emit('leave:project', projectId);
-      socket.off('card:created', handleCardCreated);
-      socket.off('card:updated', handleCardUpdated);
-      socket.off('card:moved', handleCardMoved);
-      socket.off('card:deleted', handleCardDeleted);
-      socket.off('column:created', handleColumnCreated);
-      socket.off('column:updated', handleColumnUpdated);
-      socket.off('column:deleted', handleColumnDeleted);
+      unsubscribeCardCreated();
+      unsubscribeCardUpdated();
+      unsubscribeCardMoved();
+      unsubscribeCardDeleted();
+      unsubscribeColumnCreated();
+      unsubscribeColumnUpdated();
+      unsubscribeColumnDeleted();
     };
-  }, [projectId, refetchLabels]);
+  }, [boardData, realtimeBoard, orgId, projectId, refetchLabels]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
