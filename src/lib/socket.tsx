@@ -297,7 +297,13 @@ export function SocketProvider({ children }: SocketProviderProps) {
     });
 
     socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error.message);
+      // Vercel gibi serverless ortamlarda Socket.io sunucusu olmadigi icin
+      // "xhr poll error" normaldir — kullaniciyi rahatsiz etmeden sessizce yönet.
+      if (error.message === "xhr poll error") {
+        console.warn("[SOCKET] Socket.io sunucusu bulunamadi. Realtime özellikler devre disi.");
+      } else {
+        console.warn("[SOCKET] Baglanti hatasi:", error.message);
+      }
       setIsConnected(false);
     });
 
@@ -445,6 +451,7 @@ let globalSocket: Socket | null = null;
 
 export function getSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
+  if (!isRealtimeEnabled()) return null;
 
   const token = localStorage.getItem('token');
   if (!token) return null;
@@ -454,7 +461,7 @@ export function getSocket(): Socket | null {
   if (!globalSocket) {
     const configured = process.env.NEXT_PUBLIC_SOCKET_URL;
     const socketUrl = configured || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/api\/?$/, '');
-    
+
     globalSocket = io(socketUrl, {
       auth: { token },
       autoConnect: false,
