@@ -12,13 +12,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { MessagesSquare, Users, FolderPlus, ArrowUpRight, Plus, Settings, LayoutGrid, Inbox } from 'lucide-react';
+import { MessagesSquare, Users, FolderPlus, ArrowUpRight, Plus, Settings, LayoutGrid, Inbox, Search } from 'lucide-react';
 import { ChangeRequestsDialog } from '@/features/requests/components/ChangeRequestsDialog';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrgChatPanel } from '@/features/chat/OrgChatPanel';
 import { OrgMembersDialog } from '@/features/organizations/components/OrgMembersDialog';
 import { OrgSettingsDialog } from '@/features/organizations/components/OrgSettingsDialog';
+import { OrgSearchDialog } from '@/features/organizations/components/OrgSearchDialog';
 import { Badge } from '@/components/ui/badge';
 
 export default function ProjectsPage() {
@@ -147,6 +148,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const [showChat, setShowChat] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   const isAdmin = activeOrg.role === 'ADMIN';
   // Bekleyen talep sayaci: admin icin is listesi, uye icin kendi takibi
@@ -206,6 +208,10 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
         )}
 
         <div className="ml-auto flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowSearch(true)}>
+            <Search className="size-3.5" />
+            Ara
+          </Button>
           <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowMembers(true)}>
             <Users className="size-3.5" />
             Üyeler
@@ -266,6 +272,8 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
       )}
 
       <ProjectList orgId={activeOrg.id} />
+
+      <OrgSearchDialog orgId={activeOrg.id} open={showSearch} onOpenChange={setShowSearch} />
 
       <OrgMembersDialog orgId={activeOrg.id} open={showMembers} onOpenChange={setShowMembers} />
 

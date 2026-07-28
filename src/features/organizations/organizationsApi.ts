@@ -35,6 +35,17 @@ export interface PendingInvitation {
   invitedUser: { id: string; name: string; email: string };
 }
 
+export interface SearchResultCard {
+  id: string;
+  title: string;
+  description: string | null;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  columnId: string;
+  columnName: string;
+  projectId: string;
+  projectName: string;
+}
+
 export const organizationsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getMyOrganizations: builder.query<Organization[], void>({
@@ -190,6 +201,17 @@ export const organizationsApi = api.injectEndpoints({
       }),
       invalidatesTags: (_r, _e, { orgId }) => [{ type: 'Project', id: `badges-${orgId}` }, { type: 'Project', id: orgId }],
     }),
+
+    // ─── Organizasyon geneli arama ──────────────────────────────────────
+    // Tek bir projenin panosuyla sinirli degil; org'daki TUM projelerin
+    // kartlarinda arar. BoardFilters'taki arama sadece o an acik olan
+    // panonun icini filtreler, bu ise "hangi projedeydi hatirlamiyorum"
+    // durumunu cozer.
+    searchOrganization: builder.query<SearchResultCard[], { orgId: string; q: string }>({
+      query: ({ orgId, q }) => `/organizations/${orgId}/search?q=${encodeURIComponent(q)}`,
+      transformResponse: (response: { success: boolean; data: { cards: SearchResultCard[] } }) =>
+        response.data.cards,
+    }),
   }),
 });
 
@@ -210,4 +232,5 @@ export const {
   useDeleteBadgeMutation,
   useAssignBadgeMutation,
   useRemoveBadgeMutation,
+  useLazySearchOrganizationQuery,
 } = organizationsApi;

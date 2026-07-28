@@ -30,6 +30,8 @@ interface ProjectBoardProps {
   projectId: string;
   orgId: string;
   projectName?: string;
+  // Org-genelinde arama sonucundan direkt bu karti acmak icin (bkz. OrgSearchDialog)
+  initialOpenCardId?: string;
 }
 
 interface CardSocketPayload {
@@ -110,7 +112,7 @@ function removeCard(columns: BoardData['columns'], cardId: string): BoardData['c
   return next;
 }
 
-export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName }) => {
+export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId }) => {
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -209,6 +211,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, [projectId]);
+
+  // Org-genelinde aramadan gelen deep-link: pano yuklenince o karti direkt ac
+  useEffect(() => {
+    if (!initialOpenCardId || !boardData) return;
+    setSelectedTaskId(initialOpenCardId);
+    setIsModalOpen(true);
+  }, [initialOpenCardId, boardData]);
 
   // Board'u ayni anda acmis diger kullanicilarin kart/kolon islemlerini anlik yansit.
   // Kendi eylemlerimiz zaten optimistic olarak uygulandigi icin handler'lar idempotent:
