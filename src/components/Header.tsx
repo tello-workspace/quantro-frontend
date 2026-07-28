@@ -9,8 +9,18 @@ import NotificationBell from './NotificationBell';
 import { supabase } from '@/lib/supabaseClient';
 import { disconnectSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LayoutGrid, LogOut } from 'lucide-react';
+
+function initials(name: string) {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase())
+        .join('');
+}
 
 export default function Header(){
     const router = useRouter();
@@ -40,17 +50,24 @@ export default function Header(){
               <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
                 <LayoutGrid className="size-4" />
               </span>
-              <span className="flex flex-col leading-none">
-                <span className="text-sm font-bold tracking-tight text-foreground">Tello</span>
-                {me && (
-                  <span className="mt-0.5 text-xs text-muted-foreground">{me.name}</span>
-                )}
-              </span>
+              <span className="text-sm font-bold tracking-tight text-foreground">Tello</span>
             </Link>
 
             <div className="flex items-center gap-1">
               <ThemeToggle />
               <NotificationBell />
+              {me && (
+                <Link
+                  href="/profile"
+                  title="Profilim"
+                  className="ml-1 flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted"
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback>{initials(me.name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden text-xs font-medium text-foreground sm:inline">{me.name}</span>
+                </Link>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
