@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useDispatch } from 'react-redux';
 import { api } from '@/lib/api';
 import { useGetMeQuery } from '@/features/auth/meApi';
+import { useGetMyOrganizationsQuery } from '@/features/organizations/organizationsApi';
 import { toast } from 'react-toastify';
 import NotificationBell from './NotificationBell';
 import { supabase } from '@/lib/supabaseClient';
@@ -11,7 +12,7 @@ import { disconnectSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { LayoutGrid, LogOut } from 'lucide-react';
+import { LayoutGrid, LogOut, AlertTriangle } from 'lucide-react';
 
 function initials(name: string) {
     return name
@@ -26,6 +27,8 @@ export default function Header(){
     const router = useRouter();
     const dispatch = useDispatch();
     const { data: me } = useGetMeQuery();
+    const { data: myOrgs } = useGetMyOrganizationsQuery(undefined, { skip: !me });
+    const isAnyOrgAdmin = myOrgs?.some((o) => o.role === 'ADMIN') ?? false;
 
     const handleLogout = async () => {
         localStorage.removeItem('token');
@@ -56,6 +59,15 @@ export default function Header(){
 
             <div className="flex items-center gap-1">
               <ThemeToggle />
+              {isAnyOrgAdmin && (
+                <Link
+                  href="/admin/error-logs"
+                  title="Hata Kayıtları"
+                  className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                >
+                  <AlertTriangle className="size-4" />
+                </Link>
+              )}
               <NotificationBell />
               {me && (
                 <Link
