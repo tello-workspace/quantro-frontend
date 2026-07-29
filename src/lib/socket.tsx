@@ -266,10 +266,6 @@ interface SocketProviderProps {
   children: ReactNode;
 }
 
-function isRealtimeEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_ENABLE_REALTIME !== "false";
-}
-
 function getSocketUrl(): string {
   const configured = process.env.NEXT_PUBLIC_SOCKET_URL;
   if (configured) return configured;
@@ -295,11 +291,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, []);
 
   const createSocket = useCallback((token: string) => {
-    if (!isRealtimeEnabled()) {
-      setIsConnected(false);
-      return;
-    }
-
     // Socket.io doğrudan HTTP server'a bağlı, /api prefix'i yok
     const socketUrl = getSocketUrl();
     const socket = io(socketUrl, {
@@ -330,13 +321,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     });
 
     socket.on("connect_error", (error) => {
-      // Vercel gibi serverless ortamlarda Socket.io sunucusu olmadigi icin
-      // "xhr poll error" normaldir — kullaniciyi rahatsiz etmeden sessizce yönet.
-      if (error.message === "xhr poll error") {
-        console.warn("[SOCKET] Socket.io sunucusu bulunamadi. Realtime özellikler devre disi.");
-      } else {
-        console.warn("[SOCKET] Baglanti hatasi:", error.message);
-      }
+      console.warn("[SOCKET] Baglanti hatasi:", error.message);
       setIsConnected(false);
     });
 
@@ -352,11 +337,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, [flushPending]);
 
   const connect = useCallback(() => {
-    if (!isRealtimeEnabled()) {
-      disconnect();
-      return;
-    }
-
     const token = getToken();
     if (!token) return;
 
@@ -380,11 +360,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, []);
 
   const syncConnection = useCallback(() => {
-    if (!isRealtimeEnabled()) {
-      disconnect();
-      return;
-    }
-
     const token = getToken();
 
     if (!token) {
@@ -484,7 +459,6 @@ let globalSocket: Socket | null = null;
 
 export function getSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
-  if (!isRealtimeEnabled()) return null;
 
   const token = localStorage.getItem('token');
   if (!token) return null;
