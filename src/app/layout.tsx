@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import StoreProvider from '@/lib/StoreProvider'
 import { SocketProvider } from '@/lib/socket'
+import { ConfirmProvider } from '@/hooks/useConfirm'
 import NotificationListener from '@/components/NotificationListener'
 import { Toaster } from 'sonner'
 import './globals.css'
@@ -43,8 +44,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased">
         <StoreProvider>
           <SocketProvider>
-            {children}
-            <NotificationListener />
+            <ConfirmProvider>
+              {children}
+              <NotificationListener />
+            </ConfirmProvider>
           </SocketProvider>
         </StoreProvider>
         <Toaster

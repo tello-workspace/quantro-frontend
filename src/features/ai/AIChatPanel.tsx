@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -241,6 +242,7 @@ interface AIChatPanelProps {
 }
 
 export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName, onClose, isMobile }) => {
+  const confirm = useConfirm();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [tab, setTab] = useState<'chat' | 'insights'>('chat');
@@ -281,8 +283,15 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
     }
   }, [messages, projectId]);
 
-  const handleClearHistory = () => {
-    if (window.confirm('Sohbet geçmişini temizlemek istediğinizden emin misiniz?')) {
+  const handleClearHistory = async () => {
+    const ok = await confirm({
+      title: 'Geçmişi Temizle',
+      description: 'Sohbet geçmişini temizlemek istediğinizden emin misiniz?',
+      confirmText: 'Temizle',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (ok) {
       const welcomeMsg: Message = {
         role: 'assistant',
         content: `Merhaba! 👋 Proje hakkında sorularınızı cevaplayabilirim. Örneğin:\n\n- "Bu projede neler yapılıyor?"\n- "Kartları nasıl daha iyi organize edebilirim?"\n- "Takım üyelerinin iş yükü nasıl?"`,

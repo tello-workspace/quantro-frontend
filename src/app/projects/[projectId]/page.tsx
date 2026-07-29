@@ -12,6 +12,7 @@ import {
 } from '@/features/projects/projectsApi';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { toast } from "sonner";
+import { useConfirm } from '@/hooks/useConfirm';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Bot } from 'lucide-react';
@@ -20,6 +21,7 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const confirm = useConfirm();
   const projectId = params?.projectId as string;
   const orgId = searchParams.get('orgId') ?? '';
   const openCard = searchParams.get('openCard') ?? undefined;
@@ -56,14 +58,21 @@ export default function ProjectDetailPage() {
 
   const handleDelete = async () => {
     if (!orgId) return;
-    if (!confirm('Bu projeyi silmek istediğine emin misin? Bu işlem geri alınamaz.')) return;
+    const ok = await confirm({
+      title: 'Projeyi Sil',
+      description: 'Bu projeyi silmek istediğinize emin misin? Bu işlem geri alınamaz.',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       await deleteProject({ orgId, projectId }).unwrap();
       toast.success('Proje silindi');
       router.push('/projects');
     } catch (err: unknown) {
       const errData = (err as { data?: { error?: string | { message?: string } } })?.data?.error;
-      alert(typeof errData === 'string' ? errData : errData?.message || 'Silinemedi.');
+      toast.error(typeof errData === 'string' ? errData : errData?.message || 'Silinemedi.');
     }
   };
 
