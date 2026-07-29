@@ -27,7 +27,7 @@ interface RegisterInput {
 interface RegisterResponse {
   success: boolean;
   data: {
-    verificationRequired: true;
+    verificationRequired: boolean;
     email: string;
   };
 }

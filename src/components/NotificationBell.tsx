@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
+import { useRouter } from 'next/navigation';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { useSocket } from '@/lib/socket';
 import { api } from '@/lib/api';
@@ -33,7 +34,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function NotificationBell() {
-  // Polling YOK — canlı güncelleme socket ile
+  const router = useRouter();
   const { data: unreadCount = 0 } = useGetUnreadCountQuery();
   const { data: notifications = [] } = useGetNotificationsQuery();
   const [markAsRead] = useMarkAsReadMutation();
@@ -104,8 +105,31 @@ export default function NotificationBell() {
     }
   };
 
+  const handleNotificationClick = async (n: any) => {
+    if (!n.read) {
+      try {
+        await markAsRead(n.id).unwrap();
+      } catch (err) {
+        console.error('Bildirim okundu olarak işaretlenirken hata:', err);
+      }
+    }
+
+    if (n.card) {
+      const cardId = n.card.id;
+      const projectId = n.card.column?.projectId;
+      const orgId = n.card.column?.project?.organizationId;
+      if (projectId && orgId) {
+        router.push(`/projects/${projectId}?orgId=${orgId}&openCard=${cardId}`);
+      }
+    }
+  };
+
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => {
+      if (open && unreadCount > 0) {
+        markAllAsRead();
+      }
+    }}>
       <PopoverTrigger className="relative p-2 rounded-full hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer">
         <BellIcon className="h-5 w-5 text-foreground/70" />
         {unreadCount > 0 && (
@@ -117,14 +141,6 @@ export default function NotificationBell() {
       <PopoverContent align="end" sideOffset={8} className="w-80 p-0 max-h-96 overflow-y-auto">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-sm font-semibold text-foreground">Bildirimler</span>
-          {unreadCount > 0 && (
-            <button
-              onClick={() => markAllAsRead()}
-              className="text-xs text-primary hover:underline"
-            >
-              Tümünü okundu işaretle
-            </button>
-          )}
         </div>
 
         {notifications.length === 0 ? (
@@ -134,7 +150,7 @@ export default function NotificationBell() {
             {notifications.map((n) => (
               <li
                 key={n.id}
-                onClick={() => !n.read && markAsRead(n.id)}
+                onClick={() => handleNotificationClick(n)}
                 className={`px-4 py-3 text-sm border-b border-border last:border-0 cursor-pointer transition ${
                   n.read ? 'text-muted-foreground' : 'text-foreground bg-accent/30'
                 }`}
