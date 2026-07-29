@@ -22,7 +22,7 @@ import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery, useAttachLabelMutation } from '@/features/labels/labelsApi';
 import { useAddDependencyMutation } from '@/features/dependencies/dependenciesApi';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
 import { Bot, GripVerticalIcon } from 'lucide-react';
@@ -496,7 +496,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       destinationColumn.wipLimit &&
       destinationColumn.taskIds.length >= destinationColumn.wipLimit
     ) {
-      alert(`Bu sütun için WIP limiti (${destinationColumn.wipLimit}) doludur!`);
+      toast.warning(`Bu sütun için WIP limiti (${destinationColumn.wipLimit}) doludur!`);
       return;
     }
 
@@ -559,6 +559,30 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   };
 
   const handleAddTask = async (columnId: string, title: string) => {
+    if (!isAdmin) {
+      try {
+        await createChangeRequest({
+          orgId,
+          body: {
+            type: 'CARD_CREATE',
+            targetColumnId: columnId,
+            payload: {
+              title,
+              description: null,
+              priority: 'MEDIUM',
+              dueDate: null,
+              assigneeIds: [],
+            },
+          },
+        }).unwrap();
+        toast.success('Kart ekleme talebi başarıyla oluşturuldu ve admin onayına gönderildi.');
+      } catch (err) {
+        const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+        toast.error(mesaj || 'Talep oluşturulamadı.');
+      }
+      return;
+    }
+
     // Direkt kart oluştur — Trello'daki gibi anında ekle
     try {
       const newTask = await boardService.createTask(projectId, columnId, title);

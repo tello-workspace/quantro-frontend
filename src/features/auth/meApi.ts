@@ -12,6 +12,10 @@ export interface Me {
   linkedinUrl: string | null;
   expertiseAreas: string[];
   languages: string[];
+  aiProvider: string | null;
+  aiApiKey: string | null;
+  aiBaseUrl: string | null;
+  aiModel: string | null;
 }
 
 export interface UpdateProfileInput {
@@ -22,6 +26,10 @@ export interface UpdateProfileInput {
   linkedinUrl?: string | null;
   expertiseAreas?: string[];
   languages?: string[];
+  aiProvider?: string | null;
+  aiApiKey?: string | null;
+  aiBaseUrl?: string | null;
+  aiModel?: string | null;
 }
 
 interface ApiEnvelope<T> {

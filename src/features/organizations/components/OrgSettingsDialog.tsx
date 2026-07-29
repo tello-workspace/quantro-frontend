@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Users, ShieldPlus, X, Plus } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import {
   useListBadgesQuery,
@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface OrgSettingsDialogProps {
   orgId: string;
@@ -54,6 +55,7 @@ const renderBadgeIcon = (icon: string | null, className: string = "size-4") => {
 };
 
 export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isAdmin, open, onOpenChange }) => {
+  const confirm = useConfirm();
   const { data: org, isLoading: orgLoading } = useGetOrganizationByIdQuery({ orgId }, { skip: !open || !orgId });
   const { data: badges = [], isLoading: badgesLoading } = useListBadgesQuery({ orgId }, { skip: !open || !orgId });
   const [createBadge, { isLoading: creating }] = useCreateBadgeMutation();
@@ -107,7 +109,14 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
   };
 
   const handleDeleteBadge = async (badgeId: string, name: string) => {
-    if (!confirm(`"${name}" rozetini silmek istediğine emin misin?`)) return;
+    const ok = await confirm({
+      title: 'Rozeti Sil',
+      description: `"${name}" rozetini silmek istediğinize emin misiniz?`,
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       await deleteBadge({ orgId, badgeId }).unwrap();
       toast.success(`"${name}" rozeti silindi`);
@@ -138,7 +147,14 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
   };
 
   const handleRemoveMember = async (userId: string, userName: string) => {
-    if (!confirm(`${userName} isimli üyeyi organizasyondan çıkarmak istediğinize emin misiniz?`)) return;
+    const ok = await confirm({
+      title: 'Üyeyi Çıkar',
+      description: `${userName} isimli üyeyi organizasyondan çıkarmak istediğinize emin misiniz?`,
+      confirmText: 'Çıkar',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       await removeMember({ orgId, userId }).unwrap();
       toast.success(`${userName} organizasyondan çıkarıldı`);

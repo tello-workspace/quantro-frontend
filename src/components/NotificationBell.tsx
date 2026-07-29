@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
+import { useRouter } from 'next/navigation';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { useSocket } from '@/lib/socket';
 import { api } from '@/lib/api';
@@ -15,7 +16,7 @@ import {
   useAcceptInvitationMutation,
   useDeclineInvitationMutation,
 } from '@/features/organizations/organizationsApi';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import type { AppDispatch } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,8 +33,15 @@ function timeAgo(dateStr: string): string {
   return `${days} gün önce`;
 }
 
+function parseMessage(message: string) {
+  const orgIdMatch = message.match(/\[orgId:([^\]]+)\]/);
+  const orgId = orgIdMatch ? orgIdMatch[1] : null;
+  const cleanMessage = message.replace(/\s*\[orgId:[^\]]+\]/, '');
+  return { cleanMessage, orgId };
+}
+
 export default function NotificationBell() {
-  // Polling YOK — canlı güncelleme socket ile
+  const router = useRouter();
   const { data: unreadCount = 0 } = useGetUnreadCountQuery();
   const { data: notifications = [] } = useGetNotificationsQuery();
   const [markAsRead] = useMarkAsReadMutation();
@@ -55,9 +63,8 @@ export default function NotificationBell() {
   useEffect(() => {
     console.log(`[NotificationBell] useEffect çalıştı — handler'lar register ediliyor`);
 
-    const handleNew = (notification: { message?: string }) => {
+    const handleNew = () => {
       refresh();
-      if (notification?.message) toast.info(notification.message);
     };
 
     on('notification:new', handleNew);
@@ -104,8 +111,38 @@ export default function NotificationBell() {
     }
   };
 
+  const handleNotificationClick = async (n: any) => {
+    if (!n.read) {
+      try {
+        await markAsRead(n.id).unwrap();
+      } catch (err) {
+        console.error('Bildirim okundu olarak işaretlenirken hata:', err);
+      }
+    }
+
+    const { orgId } = parseMessage(n.message);
+
+    if (n.type === 'REQUEST_CREATED' && orgId) {
+      router.push(`/projects?orgId=${orgId}&showRequests=true`);
+      return;
+    }
+
+    if (n.card) {
+      const cardId = n.card.id;
+      const projectId = n.card.column?.projectId;
+      const orgId = n.card.column?.project?.organizationId;
+      if (projectId && orgId) {
+        router.push(`/projects/${projectId}?orgId=${orgId}&openCard=${cardId}`);
+      }
+    }
+  };
+
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => {
+      if (open && unreadCount > 0) {
+        markAllAsRead();
+      }
+    }}>
       <PopoverTrigger className="relative p-2 rounded-full hover:bg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer">
         <BellIcon className="h-5 w-5 text-foreground/70" />
         {unreadCount > 0 && (
@@ -117,14 +154,6 @@ export default function NotificationBell() {
       <PopoverContent align="end" sideOffset={8} className="w-80 p-0 max-h-96 overflow-y-auto">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-sm font-semibold text-foreground">Bildirimler</span>
-          {unreadCount > 0 && (
-            <button
-              onClick={() => markAllAsRead()}
-              className="text-xs text-primary hover:underline"
-            >
-              Tümünü okundu işaretle
-            </button>
-          )}
         </div>
 
         {notifications.length === 0 ? (
@@ -134,7 +163,7 @@ export default function NotificationBell() {
             {notifications.map((n) => (
               <li
                 key={n.id}
-                onClick={() => !n.read && markAsRead(n.id)}
+                onClick={() => handleNotificationClick(n)}
                 className={`px-4 py-3 text-sm border-b border-border last:border-0 cursor-pointer transition ${
                   n.read ? 'text-muted-foreground' : 'text-foreground bg-accent/30'
                 }`}
@@ -142,7 +171,7 @@ export default function NotificationBell() {
                 <div className="flex items-start gap-2">
                   {!n.read && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
                   <div className="flex-1">
-                    <p className={n.read ? '' : 'font-medium'}>{n.message}</p>
+                    <p className={n.read ? '' : 'font-medium'}>{parseMessage(n.message).cleanMessage}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(n.createdAt)}</p>
 
                     {n.type === 'ORG_INVITE' && n.invitation?.status === 'PENDING' && (

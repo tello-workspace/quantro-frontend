@@ -27,10 +27,6 @@ interface RegisterInput {
 interface RegisterResponse {
   success: boolean;
   data: {
-    // Backend artik kayit aninda otomatik dogruluyor (Resend sandbox kisiti
-    // yuzunden gercek kullanicilara mail gitmiyordu), yani bu her zaman
-    // false donuyor. Ileride domain eklenip gercek dogrulama geri acilirsa
-    // true da donebilir - alan bu yuzden korunuyor.
     verificationRequired: boolean;
     email: string;
   };

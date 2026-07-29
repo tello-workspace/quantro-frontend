@@ -26,7 +26,8 @@ import {
   useUploadAttachmentMutation,
   useDeleteAttachmentMutation,
 } from '@/features/attachments/attachmentsApi';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
+import { useConfirm } from '@/hooks/useConfirm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -55,6 +56,7 @@ function timeAgo(dateStr: string): string {
 }
 
 const CommentsSection: React.FC<{ cardId: string }> = ({ cardId }) => {
+  const confirm = useConfirm();
   const { data: me } = useGetMeQuery();
   const { data: comments = [] } = useGetCommentsQuery(cardId);
   const [createComment, { isLoading: isPosting }] = useCreateCommentMutation();
@@ -92,7 +94,14 @@ const CommentsSection: React.FC<{ cardId: string }> = ({ cardId }) => {
   };
 
   const handleDelete = async (commentId: string) => {
-    if (!window.confirm('Bu yorumu silmek istediğinizden emin misiniz?')) return;
+    const ok = await confirm({
+      title: 'Yorumu Sil',
+      description: 'Bu yorumu silmek istediğinizden emin misiniz?',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       await deleteComment({ commentId, cardId }).unwrap();
     } catch {
@@ -185,6 +194,7 @@ function formatFileSize(bytes: number): string {
 }
 
 const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ cardId, isAdmin }) => {
+  const confirm = useConfirm();
   const { data: me } = useGetMeQuery();
   const { data: attachments = [] } = useGetAttachmentsQuery(cardId);
   const [uploadAttachment, { isLoading: isUploading }] = useUploadAttachmentMutation();
@@ -210,7 +220,14 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
   };
 
   const handleDelete = async (attachmentId: string) => {
-    if (!window.confirm('Bu eki silmek istediğinizden emin misiniz?')) return;
+    const ok = await confirm({
+      title: 'Eki Sil',
+      description: 'Bu eki silmek istediğinizden emin misiniz?',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       await deleteAttachment({ cardId, attachmentId }).unwrap();
     } catch (err: unknown) {
@@ -322,6 +339,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   onCreateTask,
   conflict,
 }) => {
+  const confirm = useConfirm();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
@@ -613,7 +631,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     if (!task) return;
 
     if (!isAdmin) {
-      if (!window.confirm('Bu kartın silinmesi için admin onayı istenecek. Devam edilsin mi?')) return;
+      const ok = await confirm({
+        title: 'Silme Talebi',
+        description: 'Bu kartın silinmesi için admin onayı istenecek. Devam edilsin mi?',
+        confirmText: 'Devam Et',
+        cancelText: 'İptal',
+      });
+      if (!ok) return;
       try {
         await createChangeRequest({
           orgId,
@@ -628,7 +652,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       return;
     }
 
-    if (window.confirm('Bu görevi silmek istediğinizden emin misiniz?')) {
+    const ok = await confirm({
+      title: 'Görevi Sil',
+      description: 'Bu görevi silmek istediğinizden emin misiniz?',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (ok) {
       onDeleteTask(task.id);
       onClose();
     }

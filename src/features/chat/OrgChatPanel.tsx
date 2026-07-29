@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Send, X, MessagesSquare } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import {
   chatApi,
   socketPayloadToMessage,

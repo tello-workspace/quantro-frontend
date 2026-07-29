@@ -23,6 +23,6 @@ export default function ProjectsLayout({ children }: { children: React.ReactNode
     <>
       <Header />
       {children}
-    </>
+    </> 
   );
 }

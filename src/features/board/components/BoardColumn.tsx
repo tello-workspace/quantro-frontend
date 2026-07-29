@@ -8,6 +8,7 @@ import { PlusIcon, GripVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface BoardColumnProps {
   id: string;
@@ -60,6 +61,8 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
     }
   }, [isRenaming]);
 
+  const confirm = useConfirm();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!titleInput.trim()) return;
@@ -86,8 +89,15 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
     }
   };
 
-  const handleDelete = () => {
-    if (confirm(`"${title}" sütununu ve içindeki tüm kartları silmek istediğinize emin misiniz?`)) {
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: 'Sütunu Sil',
+      description: `"${title}" sütununu ve içindeki tüm kartları silmek istediğinize emin misiniz?`,
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (ok) {
       onDeleteColumn?.(id);
     }
   };

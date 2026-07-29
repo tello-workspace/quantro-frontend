@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Inbox, Clock, Edit2, ArrowRight, Calendar, Users, AlignLeft, AlertCircle } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { boardService } from '@/features/board/services/boardService';

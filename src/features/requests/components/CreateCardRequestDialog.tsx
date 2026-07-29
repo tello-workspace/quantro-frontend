@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { CalendarDaysIcon, PlusIcon, SparklesIcon } from '@heroicons/react/24/outline';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useFillCardWithAiMutation } from '@/features/ai/aiApi';

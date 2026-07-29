@@ -2,25 +2,23 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRegisterMutation, useResendVerificationMutation } from '../authApi';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-toastify';
+import { useRegisterMutation } from '../authApi';
+import { toast } from "sonner";
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function RegisterForm() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
-  const router = useRouter();
 
   const [registerUser, { isLoading }] = useRegisterMutation();
-  const [resendVerification, { isLoading: isResending }] = useResendVerificationMutation();
 
   const handleGoogleRegister = async () => {
     if (!supabase) {
@@ -44,50 +42,17 @@ export default function RegisterForm() {
     }
 
     try {
-      const res = await registerUser({ name, email, password }).unwrap();
-      if (res.data.verificationRequired) {
-        setRegisteredEmail(email);
-      } else {
-        toast.success('Kayıt başarıyla tamamlandı! Giriş sayfasına yönlendiriliyorsunuz.');
-        router.push('/login');
-      }
+      const result = await registerUser({ name, email, password }).unwrap();
+
+      // Artık doğrulama gerekmiyor - doğrudan login sayfasına yönlendir
+      toast.success('Kayıt başarılı! Giriş yapabilirsiniz.');
+      setTimeout(() => router.push('/login'), 1500);
+      return;
     } catch (err: any) {
       const errData = err?.data?.error;
       setErrorMsg(typeof errData === 'string' ? errData : errData?.message || 'Kayıt sırasında bir hata oluştu.');
     }
   };
-
-  const handleResend = async () => {
-    if (!registeredEmail) return;
-    try {
-      await resendVerification({ email: registeredEmail }).unwrap();
-      toast.success('Doğrulama bağlantısı yeniden gönderildi.');
-    } catch {
-      toast.error('Bağlantı gönderilemedi, lütfen tekrar deneyin.');
-    }
-  };
-
-  if (registeredEmail) {
-    return (
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">📧 Mailini Kontrol Et</CardTitle>
-          <CardDescription>
-            <strong>{registeredEmail}</strong> adresine bir doğrulama bağlantısı gönderdik.
-            Hesabını aktifleştirmek için bağlantıya tıkla.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-center space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Mail gelmediyse spam klasörünü kontrol et veya yeniden gönder.
-          </p>
-          <Button variant="outline" onClick={handleResend} disabled={isResending} className="w-full">
-            {isResending ? 'Gönderiliyor...' : 'Doğrulama Bağlantısını Yeniden Gönder'}
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="w-full max-w-md">

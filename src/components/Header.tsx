@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useDispatch } from 'react-redux';
 import { api } from '@/lib/api';
 import { useGetMeQuery } from '@/features/auth/meApi';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import NotificationBell from './NotificationBell';
 import { supabase } from '@/lib/supabaseClient';
 import { disconnectSocket } from '@/lib/socket';
