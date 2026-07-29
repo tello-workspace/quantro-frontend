@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Users, ShieldPlus, X, Plus } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import {
   useListBadgesQuery,

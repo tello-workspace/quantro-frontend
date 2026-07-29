@@ -22,7 +22,7 @@ import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery, useAttachLabelMutation } from '@/features/labels/labelsApi';
 import { useAddDependencyMutation } from '@/features/dependencies/dependenciesApi';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
 import { Bot, GripVerticalIcon } from 'lucide-react';

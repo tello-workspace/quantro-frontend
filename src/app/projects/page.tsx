@@ -7,7 +7,7 @@ import {
 } from '@/features/organizations/organizationsApi';
 import Link from 'next/link';
 import { useState } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

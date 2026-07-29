@@ -15,7 +15,7 @@ import {
   useAcceptInvitationMutation,
   useDeclineInvitationMutation,
 } from '@/features/organizations/organizationsApi';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import type { AppDispatch } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -57,7 +57,7 @@ export default function NotificationBell() {
 
     const handleNew = (notification: { message?: string }) => {
       refresh();
-      if (notification?.message) toast.info(notification.message);
+      if (notification?.message) toast(notification.message);
     };
 
     on('notification:new', handleNew);

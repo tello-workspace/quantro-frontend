@@ -2,8 +2,7 @@ import type { Metadata } from 'next'
 import StoreProvider from '@/lib/StoreProvider'
 import { SocketProvider } from '@/lib/socket'
 import NotificationListener from '@/components/NotificationListener'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+import { Toaster } from 'sonner'
 import './globals.css'
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -48,7 +47,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <NotificationListener />
           </SocketProvider>
         </StoreProvider>
-        <ToastContainer position="top-right" autoClose={3000} theme="colored" />
+        <Toaster
+          position="top-right"
+          closeButton
+          toastOptions={{
+            duration: 4000,
+            classNames: {
+              toast:
+                "group toast group-[.toaster]:bg-card group-[.toaster]:text-card-foreground group-[.toaster]:border-border group-[.toaster]:shadow-soft-md group-[.toaster]:rounded-xl group-[.toaster]:font-sans group-[.toaster]:text-sm",
+              title: "text-foreground font-medium",
+              description: "text-muted-foreground text-xs",
+              actionButton: "bg-primary text-primary-foreground rounded-lg text-xs px-3 py-1 font-medium",
+              cancelButton: "bg-muted text-muted-foreground rounded-lg text-xs px-3 py-1 font-medium",
+              error: "group toast group-[.toaster]:!border-destructive/30 group-[.toaster]:!bg-destructive/5 group-[.toaster]:!text-foreground [&_[data-icon]]:!text-destructive",
+              success: "group toast group-[.toaster]:!border-emerald-500/30 group-[.toaster]:!bg-emerald-500/5 group-[.toaster]:!text-foreground [&_[data-icon]]:!text-emerald-500",
+              warning: "group toast group-[.toaster]:!border-amber-500/30 group-[.toaster]:!bg-amber-500/5 group-[.toaster]:!text-foreground [&_[data-icon]]:!text-amber-500",
+              info: "group toast group-[.toaster]:!border-sky-500/30 group-[.toaster]:!bg-sky-500/5 group-[.toaster]:!text-foreground [&_[data-icon]]:!text-sky-500",
+            },
+          }}
+        />
       </body>
     </html>
   )

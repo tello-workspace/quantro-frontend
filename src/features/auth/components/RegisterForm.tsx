@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRegisterMutation, useResendVerificationMutation } from '../authApi';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

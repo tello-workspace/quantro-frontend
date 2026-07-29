@@ -4,7 +4,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { useSocket } from "@/lib/socket";
 import type { CardPayload, CardMovedPayload, ColumnPayload, OrgEventPayload, ConflictPayload, ConflictResolvedPayload } from "@/lib/socket.tsx";
 import { useDispatch } from "react-redux";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { AppDispatch } from "@/lib/store";
 import { api } from "@/lib/api";
 import { setNotifications, addNotification, markNotificationAsRead, markAllNotificationsAsRead } from "@/features/notifications/notificationsSlice";
@@ -71,32 +71,22 @@ export function useRealtimeNotifications() {
       };
 
       const { type: toastType, icon } = getToastOptions(notification.type);
-      const toastOptions = {
-        position: "top-right" as const,
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "light" as const,
-      };
 
       switch (toastType) {
         case "success":
-          toast.success(`${icon} ${notification.message}`, toastOptions);
+          toast.success(`${icon} ${notification.message}`);
           break;
         case "error":
-          toast.error(`${icon} ${notification.message}`, toastOptions);
+          toast.error(`${icon} ${notification.message}`);
           break;
         case "warning":
-          toast.warn(`${icon} ${notification.message}`, toastOptions);
+          toast.warning(`${icon} ${notification.message}`);
           break;
         case "info":
-          toast.info(`${icon} ${notification.message}`, toastOptions);
+          toast(`${icon} ${notification.message}`);
           break;
         default:
-          toast(`${icon} ${notification.message}`, toastOptions);
+          toast(`${icon} ${notification.message}`);
       }
     };
 

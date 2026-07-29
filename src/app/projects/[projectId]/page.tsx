@@ -11,7 +11,7 @@ import {
   useDeleteProjectMutation,
 } from '@/features/projects/projectsApi';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Bot } from 'lucide-react';
