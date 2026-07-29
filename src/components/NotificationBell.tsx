@@ -56,9 +56,8 @@ export default function NotificationBell() {
   useEffect(() => {
     console.log(`[NotificationBell] useEffect çalıştı — handler'lar register ediliyor`);
 
-    const handleNew = (notification: { message?: string }) => {
+    const handleNew = () => {
       refresh();
-      if (notification?.message) toast(notification.message);
     };
 
     on('notification:new', handleNew);
