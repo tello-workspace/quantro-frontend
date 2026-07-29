@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { useGetMeQuery, useUpdateProfileMutation } from '@/features/auth/meApi';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -35,6 +36,7 @@ export default function ProfilePage() {
   const { data: me, isLoading } = useGetMeQuery();
   const [updateProfile, { isLoading: isSaving }] = useUpdateProfileMutation();
 
+  const router = useRouter();
   const [title, setTitle] = useState('');
   const [bio, setBio] = useState('');
   const [experience, setExperience] = useState('');
@@ -66,6 +68,7 @@ export default function ProfilePage() {
         languages,
       }).unwrap();
       toast.success('Profilin güncellendi.');
+      router.push('/projects');
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
       toast.error(mesaj || 'Profil güncellenemedi.');
