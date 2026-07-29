@@ -72,21 +72,23 @@ export function useRealtimeNotifications() {
 
       const { type: toastType, icon } = getToastOptions(notification.type);
 
+      const cleanMsg = notification.message.replace(/\s*\[orgId:[^\]]+\]/, '');
+
       switch (toastType) {
         case "success":
-          toast.success(`${icon} ${notification.message}`);
+          toast.success(`${icon} ${cleanMsg}`);
           break;
         case "error":
-          toast.error(`${icon} ${notification.message}`);
+          toast.error(`${icon} ${cleanMsg}`);
           break;
         case "warning":
-          toast.warning(`${icon} ${notification.message}`);
+          toast.warning(`${icon} ${cleanMsg}`);
           break;
         case "info":
-          toast(`${icon} ${notification.message}`);
+          toast(`${icon} ${cleanMsg}`);
           break;
         default:
-          toast(`${icon} ${notification.message}`);
+          toast(`${icon} ${cleanMsg}`);
       }
     };
 

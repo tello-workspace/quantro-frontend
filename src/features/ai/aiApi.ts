@@ -54,6 +54,17 @@ export const aiApi = api.injectEndpoints({
       }),
       transformResponse: (response: FillCardResponse) => response.data,
     }),
+    testAiConfiguration: builder.mutation<
+      { success: boolean; message: string },
+      { provider: string; apiKey: string; baseUrl?: string | null; model?: string | null }
+    >({
+      query: (body) => ({
+        url: '/ai/test',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: { success: boolean; data: { success: boolean; message: string } }) => response.data,
+    }),
   }),
 });
 
@@ -61,4 +72,5 @@ export const {
   useSendAiMessageMutation,
   useGetAiInsightsQuery,
   useFillCardWithAiMutation,
+  useTestAiConfigurationMutation,
 } = aiApi;

@@ -6,7 +6,8 @@ import {
   useGetOrganizationByIdQuery,
 } from '@/features/organizations/organizationsApi';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -137,6 +138,7 @@ export default function ProjectsPage() {
 }
 
 function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: number; role: 'ADMIN' | 'MEMBER' }[] }) {
+  const searchParams = useSearchParams();
   const [activeOrgId, setActiveOrgId] = useState(orgs[0]?.id);
   const activeOrg = orgs.find((o) => o.id === activeOrgId) || orgs[0];
 
@@ -149,6 +151,16 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const [showMembers, setShowMembers] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    const queryOrgId = searchParams.get('orgId');
+    if (queryOrgId && orgs.some((o) => o.id === queryOrgId)) {
+      setActiveOrgId(queryOrgId);
+    }
+    if (searchParams.get('showRequests') === 'true') {
+      setShowRequests(true);
+    }
+  }, [searchParams, orgs]);
 
   const isAdmin = activeOrg.role === 'ADMIN';
   // Bekleyen talep sayaci: admin icin is listesi, uye icin kendi takibi

@@ -33,6 +33,13 @@ function timeAgo(dateStr: string): string {
   return `${days} gün önce`;
 }
 
+function parseMessage(message: string) {
+  const orgIdMatch = message.match(/\[orgId:([^\]]+)\]/);
+  const orgId = orgIdMatch ? orgIdMatch[1] : null;
+  const cleanMessage = message.replace(/\s*\[orgId:[^\]]+\]/, '');
+  return { cleanMessage, orgId };
+}
+
 export default function NotificationBell() {
   const router = useRouter();
   const { data: unreadCount = 0 } = useGetUnreadCountQuery();
@@ -113,6 +120,13 @@ export default function NotificationBell() {
       }
     }
 
+    const { orgId } = parseMessage(n.message);
+
+    if (n.type === 'REQUEST_CREATED' && orgId) {
+      router.push(`/projects?orgId=${orgId}&showRequests=true`);
+      return;
+    }
+
     if (n.card) {
       const cardId = n.card.id;
       const projectId = n.card.column?.projectId;
@@ -157,7 +171,7 @@ export default function NotificationBell() {
                 <div className="flex items-start gap-2">
                   {!n.read && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
                   <div className="flex-1">
-                    <p className={n.read ? '' : 'font-medium'}>{n.message}</p>
+                    <p className={n.read ? '' : 'font-medium'}>{parseMessage(n.message).cleanMessage}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(n.createdAt)}</p>
 
                     {n.type === 'ORG_INVITE' && n.invitation?.status === 'PENDING' && (
