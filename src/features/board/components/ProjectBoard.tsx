@@ -1,7 +1,7 @@
 // src/features/board/components/ProjectBoard.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   closestCenter,
   DndContext,
@@ -10,7 +10,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragOverlay
+  DragOverlay,
+  closestCorners,
+  CollisionDetection,
 } from '@dnd-kit/core';
 import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
@@ -23,7 +25,7 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from 'react-toastify';
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot } from 'lucide-react';
+import { Bot, GripVerticalIcon } from 'lucide-react';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 
 interface ProjectBoardProps {
@@ -201,11 +203,28 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     return true;
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    })
-  );
+  const sensor = useSensor(PointerSensor, {
+    activationConstraint: { distance: 5 },
+  });
+
+  // Kolon suruklemesi mi yoksa kart suruklemesi mi?
+  const isColumnGrip = (id: string) => typeof id === 'string' && id.startsWith('col-grip-');
+  const gripToColumnId = (gripId: string) => gripId.replace('col-grip-', '');
+
+  // collision detection: kolon tasiniyorsa sadece col-drop hedeflerine bak,
+  // kart tasiniyorsa normal closestCenter calissin.
+  const collisionDetectionFn: CollisionDetection = useCallback((args) => {
+    const { active, droppableContainers } = args;
+    if (isColumnGrip(active.id as string)) {
+      const filtered = droppableContainers.filter((c) =>
+        String(c.id).startsWith('col-drop-')
+      );
+      return closestCorners({ ...args, droppableContainers: filtered });
+    }
+    return closestCenter(args);
+  }, []);
+
+  const sensors = useSensors(sensor);
 
   useEffect(() => {
     boardService.getBoardData(projectId)
@@ -409,9 +428,54 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
     if (!over || !boardData) return;
 
-    const activeTaskId = active.id as string;
+    const activeIdStr = active.id as string;
     const overId = over.id as string;
-    if (activeTaskId === overId) return;
+    if (activeIdStr === overId) return;
+
+    // --- KOLON SÜRÜKLEME ---
+    if (isColumnGrip(activeIdStr)) {
+      const draggedColId = gripToColumnId(activeIdStr);
+      // over bir kolon mu yoksa kolon drop zone'u mu?
+      const overColId = overId.startsWith('col-drop-') ? overId.replace('col-drop-', '') : boardData.columns[overId] ? overId : null;
+      if (!overColId || draggedColId === overColId) return;
+
+      const colOrder = Object.keys(boardData.columns);
+      const oldIndex = colOrder.indexOf(draggedColId);
+      const newIndex = colOrder.indexOf(overColId);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      // Sıralamayı optimistic güncelle
+      const newOrder = [...colOrder];
+      newOrder.splice(oldIndex, 1);
+      newOrder.splice(newIndex, 0, draggedColId);
+
+      const reorderedColumns: BoardData['columns'] = {};
+      newOrder.forEach((cid, idx) => {
+        reorderedColumns[cid] = { ...boardData.columns[cid] };
+      });
+
+      const prevData = boardData;
+      setBoardData((prev) => {
+        if (!prev) return prev;
+        const rebuilt: BoardData['columns'] = {};
+        newOrder.forEach((cid) => {
+          if (prev.columns[cid]) rebuilt[cid] = { ...prev.columns[cid] };
+        });
+        return { ...prev, columns: rebuilt };
+      });
+
+      try {
+        await boardService.reorderColumns(orgId, projectId, newOrder);
+      } catch (error) {
+        console.error("Sütun sıralaması güncellenemedi, geri alınıyor:", error);
+        setBoardData(prevData);
+      }
+      return;
+    }
+
+    // --- KART SÜRÜKLEME ---
+    const activeTaskId = activeIdStr;
+    if (!boardData.tasks[activeTaskId]) return;
 
     const sourceColumn = Object.values(boardData.columns).find((col) =>
       col.taskIds.includes(activeTaskId)
@@ -644,6 +708,41 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   };
 
+  const handleRenameColumn = useCallback(async (columnId: string, newName: string) => {
+    if (!isAdmin) return;
+    try {
+      await boardService.updateColumn(columnId, { name: newName });
+      setBoardData((prev) => {
+        if (!prev || !prev.columns[columnId]) return prev;
+        return {
+          ...prev,
+          columns: {
+            ...prev.columns,
+            [columnId]: { ...prev.columns[columnId], title: newName },
+          },
+        };
+      });
+    } catch (error: any) {
+      toast.error(error?.message || 'Sütun adı güncellenemedi.');
+    }
+  }, [isAdmin]);
+
+  const handleDeleteColumn = useCallback(async (columnId: string) => {
+    if (!isAdmin) return;
+    try {
+      await boardService.deleteColumn(columnId);
+      setBoardData((prev) => {
+        if (!prev || !prev.columns[columnId]) return prev;
+        const newColumns = { ...prev.columns };
+        delete newColumns[columnId];
+        return { ...prev, columns: newColumns };
+      });
+      toast.success('Sütun silindi.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Sütun silinemedi.');
+    }
+  }, [isAdmin]);
+
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Board yükleniyor...</div>;
   }
@@ -677,7 +776,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       <div className="flex-1 min-h-0 flex gap-4 sm:gap-6 relative overflow-hidden">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={collisionDetectionFn}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
@@ -705,6 +804,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                   isAdmin={!!isAdmin}
                   onAddTask={handleAddTask}
                   onTaskClick={handleTaskClick}
+                  onRenameColumn={isAdmin ? handleRenameColumn : undefined}
+                  onDeleteColumn={isAdmin ? handleDeleteColumn : undefined}
                   conflicts={conflicts}
                 />
               );
@@ -762,6 +863,14 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                   task={boardData.tasks[activeId]}
                   onClick={() => {}}
                 />
+              </div>
+            ) : null}
+            {activeId && isColumnGrip(activeId as string) ? (
+              <div className="w-80 lg:w-[350px] rounded-2xl border-2 border-primary/50 bg-primary/5 p-3 shadow-2xl backdrop-blur-sm cursor-grabbing">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground/70">
+                  <GripVerticalIcon className="h-4 w-4 text-primary" />
+                  {boardData.columns[gripToColumnId(activeId as string)]?.title || 'Sütun'}
+                </div>
               </div>
             ) : null}
           </DragOverlay>
