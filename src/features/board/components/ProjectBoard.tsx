@@ -559,10 +559,39 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   };
 
   const handleAddTask = async (columnId: string, title: string) => {
-    setCreateRequestColumnId(columnId);
-    setInitialTitle(title);
-    setSelectedTaskId('new');
-    setIsModalOpen(true);
+    // Direkt kart oluştur — Trello'daki gibi anında ekle
+    try {
+      const newTask = await boardService.createTask(projectId, columnId, title);
+      if (!newTask) {
+        toast.error('Kart oluşturulamadı.');
+        return;
+      }
+
+      setBoardData((prev) => {
+        if (!prev) return prev;
+        const col = prev.columns[columnId];
+        if (!col) return prev;
+        return {
+          ...prev,
+          tasks: {
+            ...prev.tasks,
+            [newTask.id]: {
+              id: newTask.id,
+              title,
+              columnId,
+              assignees: [],
+              labels: [],
+              blockedBy: [],
+              blocking: [],
+            },
+          },
+          columns: placeCard(prev.columns, newTask.id, columnId),
+        };
+      });
+    } catch (error) {
+      console.error('Kart oluşturma hatası:', error);
+      toast.error('Kart oluşturulamadı.');
+    }
   };
 
   const handleCreateTask = async (
