@@ -146,14 +146,6 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               >
                 {title}
               </h3>
-              {isAdmin && (
-                <button
-                  onClick={() => { setRenameInput(title); setIsRenaming(true); }}
-                  className="shrink-0 text-muted-foreground/30 hover:text-muted-foreground transition-colors cursor-pointer"
-                >
-                  <PencilIcon className="h-3 w-3" />
-                </button>
-              )}
             </div>
           )}
           <Badge
