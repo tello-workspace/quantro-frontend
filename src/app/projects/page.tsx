@@ -66,7 +66,7 @@ export default function ProjectsPage() {
             <LayoutGrid className="size-7" />
           </span>
           <h1 className="mb-3 text-3xl font-bold tracking-tight text-foreground">
-            Tello&apos;ya hoş geldin
+            Quantro&apos;ya hoş geldin
           </h1>
           <p className="mx-auto mb-8 max-w-md text-muted-foreground">
             Başlamak için bir organizasyon oluştur. Ekibini davet edip projelerini

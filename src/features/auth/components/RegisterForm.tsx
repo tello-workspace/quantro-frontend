@@ -57,7 +57,7 @@ export default function RegisterForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Tello&apos;ya Kayıt Ol</CardTitle>
+        <CardTitle className="text-2xl">Quantro&apos;ya Kayıt Ol</CardTitle>
         <CardDescription>Projelerini yönetmeye başlamak için hesap oluştur.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -86,7 +86,7 @@ export default function RegisterForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ornek@tello.com"
+              placeholder="ornek@quantro.com"
             />
           </div>
 

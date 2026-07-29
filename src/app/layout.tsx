@@ -31,7 +31,7 @@ const themeScript = `
 `;
 
 export const metadata: Metadata = {
-  title: 'Tello',
+  title: 'Quantro',
   description: 'Sana konuşan proje panosu — stale kartları, iş yükünü ve darboğazları kendisi tespit eder.',
 }
 

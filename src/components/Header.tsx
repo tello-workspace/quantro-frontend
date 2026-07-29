@@ -51,7 +51,7 @@ export default function Header(){
               <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
                 <LayoutGrid className="size-4" />
               </span>
-              <span className="text-sm font-bold tracking-tight text-foreground">Tello</span>
+              <span className="text-sm font-bold tracking-tight text-foreground">Quantro</span>
             </Link>
 
             <div className="flex items-center gap-1">

@@ -99,7 +99,7 @@ export default function LoginForm() {
           <span className="mx-auto mb-2 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
             <LayoutGrid className="size-5" />
           </span>
-          <CardTitle className="text-xl">Tello&apos;ya giriş yap</CardTitle>
+          <CardTitle className="text-xl">Quantro&apos;ya giriş yap</CardTitle>
           <CardDescription>Projelerini ve görevlerini yönetmeye hemen başla.</CardDescription>
         </CardHeader>
       <CardContent className="pt-4">
@@ -131,7 +131,7 @@ export default function LoginForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ornek@tello.com"
+              placeholder="ornek@quantro.com"
               className="h-10"
               required
             />
