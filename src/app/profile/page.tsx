@@ -251,7 +251,7 @@ export default function ProfilePage() {
                 Özel AI Yapılandırması (AI Configuration)
               </CardTitle>
               <CardDescription>
-                Tello AI özelliklerinde (akıllı chat, kart doldurma vb.) sitenin genel motoru yerine kendinize ait bir yapay zeka modelini ve API anahtarını kullanabilirsiniz.
+                Quantro AI özelliklerinde (akıllı chat, kart doldurma vb.) sitenin genel motoru yerine kendinize ait bir yapay zeka modelini ve API anahtarını kullanabilirsiniz.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
@@ -346,7 +346,7 @@ export default function ProfilePage() {
                 <div>
                   <h4 className="font-semibold mb-0.5">Bilgilendirme</h4>
                   <p>
-                    Kendi API anahtarınızı tanımladığınızda, Tello chat paneli ve AI asistan
+                    Kendi API anahtarınızı tanımladığınızda, Quantro chat paneli ve AI asistan
                     görevleri sizin hesabınız üzerinden ücretlendirilir. Test butonunu
                     kullanarak anahtarınızın geçerliliğini kontrol edebilirsiniz.
                   </p>
