@@ -95,10 +95,10 @@ export default function ProjectsPage() {
                   window.location.reload();
                 } else {
                   const data = await res.json();
-                  alert(data?.error?.message || 'Oluşturulamadı');
+                  toast.error(data?.error?.message || 'Oluşturulamadı');
                 }
               } catch {
-                alert('Bir hata oluştu');
+                toast.error('Bir hata oluştu');
               }
             }} className="max-w-md mx-auto space-y-4">
               <Input

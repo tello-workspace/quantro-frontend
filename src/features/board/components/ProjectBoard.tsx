@@ -496,7 +496,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       destinationColumn.wipLimit &&
       destinationColumn.taskIds.length >= destinationColumn.wipLimit
     ) {
-      alert(`Bu sütun için WIP limiti (${destinationColumn.wipLimit}) doludur!`);
+      toast.warning(`Bu sütun için WIP limiti (${destinationColumn.wipLimit}) doludur!`);
       return;
     }
 
