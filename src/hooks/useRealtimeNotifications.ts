@@ -33,17 +33,13 @@ export function useRealtimeNotifications() {
 
   useEffect(() => {
     if (!isConnected) {
-      console.log(`[RealtimeNotifications] isConnected=false, handler'lar register EDİLMEDİ`);
       return;
     }
 
-    console.log(`[RealtimeNotifications] isConnected=true, handler'lar register ediliyor`);
     cleanup();
 
     // Listen for new notifications
     const handleNewNotification = (notification: NotificationPayload) => {
-      console.log("[RealtimeNotifications] 🔔 notification:new alındı:", notification.type, notification.message);
-
       // Add to Redux store
       dispatch(addNotification(notification));
 

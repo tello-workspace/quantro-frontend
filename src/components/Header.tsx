@@ -42,7 +42,7 @@ export default function Header(){
     };
     return (
         <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
-          <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
             <Link
               href="/projects"
               className="group flex items-center gap-2.5 rounded-lg transition-colors hover:text-primary"

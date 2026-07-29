@@ -221,6 +221,36 @@ export const boardService = {
     if (!res.ok) throw new Error('Görev silinemedi.');
   },
 
+  async updateColumn(columnId: string, data: { name?: string; wipLimit?: number | null }): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/columns/${columnId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await readApiError(res, 'Sütun güncellenemedi.'));
+  },
+
+  async deleteColumn(columnId: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/columns/${columnId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await readApiError(res, 'Sütun silinemedi.'));
+  },
+
+  async reorderColumns(orgId: string, projectId: string, columnIds: string[]): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/organizations/${orgId}/projects/${projectId}/columns/reorder`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ columnIds }),
+    });
+    if (!res.ok) {
+      const errMsg = await readApiError(res, 'Sütunlar yeniden sıralanamadı.');
+      console.error(`[reorderColumns] ${res.status} ${res.statusText}: ${errMsg}`);
+      throw new Error(errMsg);
+    }
+  },
+
   async createColumn(orgId: string, projectId: string, name: string): Promise<Column> {
     const res = await fetch(`${API_BASE_URL}/organizations/${orgId}/projects/${projectId}/columns`, {
       method: 'POST',

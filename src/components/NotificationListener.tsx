@@ -7,9 +7,7 @@ export default function NotificationListener() {
   const { isConnected } = useRealtimeNotifications();
 
   useEffect(() => {
-    if (isConnected) {
-      console.log("🔔 NotificationListener: Socket connected, listening for real-time notifications");
-    }
+    // Socket connected — real-time notifications active
   }, [isConnected]);
 
   return null;

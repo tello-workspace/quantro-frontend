@@ -1,10 +1,10 @@
 // src/features/board/components/BoardColumn.tsx
-import React, { useState } from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import React, { useState, useRef, useEffect } from 'react';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { Task } from '../services/boardService';
-import { PlusIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, GripVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +13,14 @@ interface BoardColumnProps {
   id: string;
   title: string;
   tasks: Task[];
-  // Filtreleme aktifken gerçek (filtresiz) kart sayısı - WIP göstergesi
-  // filtrelenmiş görünüme değil, sütunun gerçek doluluğuna göre hesaplanmalı
   totalCount?: number;
   wipLimit?: number | null;
   canAddTask: boolean;
   isAdmin?: boolean;
   onAddTask: (columnId: string, title: string) => void;
   onTaskClick: (taskId: string) => void;
+  onRenameColumn?: (columnId: string, newName: string) => void;
+  onDeleteColumn?: (columnId: string) => void;
   conflicts?: Record<string, CardConflictInfo>;
 }
 
@@ -34,11 +34,31 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   isAdmin = true,
   onAddTask,
   onTaskClick,
+  onRenameColumn,
+  onDeleteColumn,
   conflicts,
 }) => {
-  const { setNodeRef } = useDroppable({ id });
+  // Card drop zone — main column body
+  const { setNodeRef: cardDropRef, isOver: cardIsOver } = useDroppable({ id });
+  // Column drop zone — separate element in the header area
+  const { setNodeRef: colDropRef, isOver: colIsOver } = useDroppable({ id: `col-drop-${id}` });
+  // Column grip drag handle
+  const { attributes, listeners, setNodeRef: dragRef, isDragging } = useDraggable({
+    id: `col-grip-${id}`,
+  });
+
   const [isAdding, setIsAdding] = useState(false);
   const [titleInput, setTitleInput] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameInput, setRenameInput] = useState(title);
+  const renameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isRenaming && renameRef.current) {
+      renameRef.current.focus();
+      renameRef.current.select();
+    }
+  }, [isRenaming]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,20 +68,94 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
     setIsAdding(false);
   };
 
+  const handleRenameSubmit = () => {
+    const trimmed = renameInput.trim();
+    if (trimmed && trimmed !== title && onRenameColumn) {
+      onRenameColumn(id, trimmed);
+    }
+    setIsRenaming(false);
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleRenameSubmit();
+    } else if (e.key === 'Escape') {
+      setRenameInput(title);
+      setIsRenaming(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (confirm(`"${title}" sütununu ve içindeki tüm kartları silmek istediğinize emin misiniz?`)) {
+      onDeleteColumn?.(id);
+    }
+  };
+
   const realCount = totalCount ?? tasks.length;
   const isLimitExceeded = wipLimit !== undefined && wipLimit !== null && realCount >= wipLimit;
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex w-80 lg:w-[350px] shrink-0 flex-col rounded-2xl border bg-muted/40 p-3 transition-all duration-300 h-full ${
-        isLimitExceeded ? 'border-destructive/40 bg-destructive/5' : 'border-border/70'
-      }`}
-    >
-      {/* Sutun basligi kaydirirken gorunur kalsin */}
-      <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-2 rounded-xl bg-muted/40 px-1 py-1 backdrop-blur-sm">
-        <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
+    <div className="relative shrink-0">
+      {/* Column drop zone — invisible strip between columns */}
+      <div
+        ref={colDropRef}
+        className={`absolute inset-y-0 -left-2 w-4 z-20 transition-colors rounded-lg ${
+          colIsOver ? 'bg-primary/20 ring-2 ring-primary scale-x-125' : ''
+        }`}
+      />
+      <div
+        ref={cardDropRef}
+        className={`flex w-80 lg:w-[350px] flex-col rounded-2xl border bg-muted/40 p-3 transition-all duration-300 h-full ${
+          isDragging ? 'opacity-50 ring-2 ring-primary scale-[0.97]' : ''
+        } ${
+          cardIsOver ? 'bg-accent/30' : ''
+        } ${
+          isLimitExceeded ? 'border-destructive/40 bg-destructive/5' : 'border-border/70'
+        }`}
+      >
+      {/* Sutun basligi — drag handle (sadece admin), inline rename, delete */}
+      <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-1 rounded-xl bg-muted/40 py-1 pl-1 pr-1 backdrop-blur-sm">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {isAdmin && (
+            <span
+              ref={dragRef}
+              {...attributes}
+              {...listeners}
+              className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing transition-colors"
+              title="Sürükleyerek sırala"
+            >
+              <GripVerticalIcon className="h-4 w-4" />
+            </span>
+          )}
+          {isRenaming ? (
+            <Input
+              ref={renameRef}
+              value={renameInput}
+              onChange={(e) => setRenameInput(e.target.value)}
+              onBlur={handleRenameSubmit}
+              onKeyDown={handleRenameKeyDown}
+              className="h-7 min-w-0 max-w-[160px] text-sm font-semibold px-1.5"
+            />
+          ) : (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h3
+                className="truncate text-sm font-semibold text-foreground cursor-pointer hover:text-primary transition-colors"
+                onClick={() => isAdmin && setIsRenaming(true)}
+                title={isAdmin ? 'Adı değiştirmek için tıkla' : title}
+              >
+                {title}
+              </h3>
+              {isAdmin && (
+                <button
+                  onClick={() => { setRenameInput(title); setIsRenaming(true); }}
+                  className="shrink-0 text-muted-foreground/30 hover:text-muted-foreground transition-colors cursor-pointer"
+                >
+                  <PencilIcon className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
           <Badge
             variant={isLimitExceeded ? 'destructive' : 'secondary'}
             className="shrink-0 text-[11px] tabular-nums"
@@ -71,14 +165,25 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               : `${tasks.length}${wipLimit ? ` / ${wipLimit}` : ''}`}
           </Badge>
         </div>
-        {isLimitExceeded && (
-          <span
-            className="shrink-0 text-[11px] font-medium text-destructive"
-            title="Bu sütun WIP limitine ulaştı"
-          >
-            limit doldu
-          </span>
-        )}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {isLimitExceeded && (
+            <span
+              className="text-[11px] font-medium text-destructive mr-1"
+              title="Bu sütun WIP limitine ulaştı"
+            >
+              limit doldu
+            </span>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleDelete}
+              className="flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+              title="Sütunu sil"
+            >
+              <Trash2Icon className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex min-h-[150px] flex-1 flex-col gap-2.5 overflow-y-auto pr-1 no-scrollbar">
@@ -140,6 +245,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
         )}
       </div>
       )}
+    </div>
     </div>
   );
 };

@@ -266,10 +266,6 @@ interface SocketProviderProps {
   children: ReactNode;
 }
 
-function isRealtimeEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_ENABLE_REALTIME !== "false";
-}
-
 function getSocketUrl(): string {
   const configured = process.env.NEXT_PUBLIC_SOCKET_URL;
   if (configured) return configured;
@@ -287,7 +283,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
   // Bekleyen handler'ları socket bağlanınca gerçek socket'a ekle
   const flushPending = useCallback((socket: Socket) => {
     pendingRef.current.forEach((callbacks, event) => {
-      console.log(`[SOCKET] flushPending: "${event}" için ${callbacks.size} handler socket'a ekleniyor`);
       callbacks.forEach((cb) => {
         (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
       });
@@ -295,11 +290,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, []);
 
   const createSocket = useCallback((token: string) => {
-    if (!isRealtimeEnabled()) {
-      setIsConnected(false);
-      return;
-    }
-
     // Socket.io doğrudan HTTP server'a bağlı, /api prefix'i yok
     const socketUrl = getSocketUrl();
     const socket = io(socketUrl, {
@@ -317,46 +307,27 @@ export function SocketProvider({ children }: SocketProviderProps) {
     });
 
     socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
       setIsConnected(true);
       socket.emit("authenticate", token);
-      // Yeniden bağlanınca bekleyen handler'ları tekrar ekle
       flushPending(socket);
     });
 
-    socket.on("disconnect", (reason) => {
-      console.log("❌ Socket disconnected:", reason);
+    socket.on("authenticated", () => {
+      flushPending(socket);
+    });
+
+    socket.on("disconnect", () => {
       setIsConnected(false);
     });
 
-    socket.on("connect_error", (error) => {
-      // Vercel gibi serverless ortamlarda Socket.io sunucusu olmadigi icin
-      // "xhr poll error" normaldir — kullaniciyi rahatsiz etmeden sessizce yönet.
-      if (error.message === "xhr poll error") {
-        console.warn("[SOCKET] Socket.io sunucusu bulunamadi. Realtime özellikler devre disi.");
-      } else {
-        console.warn("[SOCKET] Baglanti hatasi:", error.message);
-      }
+    socket.on("connect_error", () => {
       setIsConnected(false);
-    });
-
-    socket.on("authenticated", (user) => {
-      console.log("🔐 Socket authenticated:", user.name);
-    });
-
-    socket.on("auth_error", (message) => {
-      console.error("🔐 Socket auth error:", message);
     });
 
     socketRef.current = socket;
   }, [flushPending]);
 
   const connect = useCallback(() => {
-    if (!isRealtimeEnabled()) {
-      disconnect();
-      return;
-    }
-
     const token = getToken();
     if (!token) return;
 
@@ -380,11 +351,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, []);
 
   const syncConnection = useCallback(() => {
-    if (!isRealtimeEnabled()) {
-      disconnect();
-      return;
-    }
-
     const token = getToken();
 
     if (!token) {
@@ -399,10 +365,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
     const cb = callback as (...args: never[]) => void;
     const socket = socketRef.current;
     if (socket?.connected) {
-      console.log(`[SOCKET] on("${event}") — socket bağlı, direkt ekleniyor`);
       (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
     } else {
-      console.log(`[SOCKET] on("${event}") — socket BAĞLI DEĞİL (connected: ${socket?.connected}), kuyruğa ekleniyor`);
       if (!pendingRef.current.has(event as string)) {
         pendingRef.current.set(event as string, new Set());
       }
@@ -414,7 +378,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
     const cb = callback as (...args: never[]) => void;
     const socket = socketRef.current;
     if (socket?.connected) {
-      console.log(`[SOCKET] off("${event}") — socket'tan kaldırılıyor`);
       (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
     }
     // Bekleyen kuyruktan da çıkar
@@ -484,7 +447,6 @@ let globalSocket: Socket | null = null;
 
 export function getSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
-  if (!isRealtimeEnabled()) return null;
 
   const token = localStorage.getItem('token');
   if (!token) return null;
