@@ -390,7 +390,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
           }`}
         >
           <Lightbulb className="h-3.5 w-3.5" />
-          İçgörüler
+          Değerlendirme
         </button>
       </div>
 

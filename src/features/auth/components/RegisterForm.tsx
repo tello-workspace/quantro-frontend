@@ -2,8 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRegisterMutation } from '../authApi';
-import { useRouter } from 'next/navigation';
+import { useRegisterMutation, useResendVerificationMutation } from '../authApi';
 import { toast } from 'react-toastify';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -16,9 +15,10 @@ export default function RegisterForm() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const [registerUser, { isLoading }] = useRegisterMutation();
-  const router = useRouter();
+  const [resendVerification, { isLoading: isResending }] = useResendVerificationMutation();
 
   const handleGoogleRegister = async () => {
     if (!supabase) {
@@ -43,13 +43,44 @@ export default function RegisterForm() {
 
     try {
       await registerUser({ name, email, password }).unwrap();
-      toast.success('Kayıt başarıyla tamamlandı! Giriş sayfasına yönlendiriliyorsunuz.');
-      router.push('/login');
+      setRegisteredEmail(email);
     } catch (err: any) {
       const errData = err?.data?.error;
       setErrorMsg(typeof errData === 'string' ? errData : errData?.message || 'Kayıt sırasında bir hata oluştu.');
     }
   };
+
+  const handleResend = async () => {
+    if (!registeredEmail) return;
+    try {
+      await resendVerification({ email: registeredEmail }).unwrap();
+      toast.success('Doğrulama bağlantısı yeniden gönderildi.');
+    } catch {
+      toast.error('Bağlantı gönderilemedi, lütfen tekrar deneyin.');
+    }
+  };
+
+  if (registeredEmail) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">📧 Mailini Kontrol Et</CardTitle>
+          <CardDescription>
+            <strong>{registeredEmail}</strong> adresine bir doğrulama bağlantısı gönderdik.
+            Hesabını aktifleştirmek için bağlantıya tıkla.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Mail gelmediyse spam klasörünü kontrol et veya yeniden gönder.
+          </p>
+          <Button variant="outline" onClick={handleResend} disabled={isResending} className="w-full">
+            {isResending ? 'Gönderiliyor...' : 'Doğrulama Bağlantısını Yeniden Gönder'}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">

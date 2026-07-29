@@ -1,0 +1,25 @@
+# Render Blueprint — Dashboard'da "New +" -> "Blueprint" ile bu repo'yu
+# secince otomatik olusturulur. sync:false olan degiskenler Render panelinde
+# elle girilir.
+services:
+  - type: web
+    name: tello-frontend
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # tello-backend servisinin gercek Render URL'i + /api
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      # tello-backend servisinin URL'i (sonunda /api OLMADAN) — socket.tsx
+      # bunu /api'siz kullaniyor
+      - key: NEXT_PUBLIC_SOCKET_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false

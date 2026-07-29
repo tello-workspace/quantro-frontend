@@ -38,6 +38,10 @@ export const aiApi = api.injectEndpoints({
     getAiInsights: builder.query<string, string>({
       query: (projectId) => `/ai/insights?projectId=${projectId}`,
       transformResponse: (response: InsightsResponse) => response.data.insights,
+      // Bu uc ai:insights limitinde en pahalisi (15/15dk). Sekmeler arasi
+      // hizli gidip gelmek gereksiz yere Gemini'yi ve kendi limitimizi
+      // tuketmesin diye cache suresi varsayilandan (60sn) uzun tutuluyor.
+      keepUnusedDataFor: 300,
     }),
     fillCardWithAi: builder.mutation<
       FillCardResponse['data'],

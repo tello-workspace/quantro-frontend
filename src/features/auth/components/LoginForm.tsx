@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useLoginMutation } from '../authApi';
+import { useLoginMutation, useResendVerificationMutation } from '../authApi';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { supabase } from '@/lib/supabaseClient';
@@ -31,8 +31,10 @@ export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   const [login, { isLoading }] = useLoginMutation();
+  const [resendVerification, { isLoading: isResending }] = useResendVerificationMutation();
   const router = useRouter();
 
   const handleGoogleLogin = async () => {
@@ -50,6 +52,7 @@ export default function LoginForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMsg('');
+    setNeedsVerification(false);
 
     try {
       const response = await login({ email, password }).unwrap();
@@ -67,7 +70,19 @@ export default function LoginForm() {
     } catch (err) {
       const apiError = err as ApiError;
       const errData = apiError?.data?.error;
+      if (errData?.code === 'EMAIL_NOT_VERIFIED') {
+        setNeedsVerification(true);
+      }
       setErrorMsg(typeof errData === 'string' ? errData : errData?.message || 'Giriş yapılırken bir hata oluştu.');
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      await resendVerification({ email }).unwrap();
+      toast.success('Doğrulama bağlantısı yeniden gönderildi.');
+    } catch {
+      toast.error('Bağlantı gönderilemedi, lütfen tekrar deneyin.');
     }
   };
 
@@ -94,6 +109,16 @@ export default function LoginForm() {
             className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
           >
             {errorMsg}
+            {needsVerification && (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={isResending}
+                className="mt-1.5 block font-medium text-primary hover:underline disabled:opacity-50"
+              >
+                {isResending ? 'Gönderiliyor...' : 'Doğrulama bağlantısını yeniden gönder'}
+              </button>
+            )}
           </div>
         )}
 
