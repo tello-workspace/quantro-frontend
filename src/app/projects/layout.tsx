@@ -11,7 +11,6 @@ export default function ProjectsLayout({ children }: { children: React.ReactNode
         if (!token) {
             router.replace('/login');
             return;
-
         }
         setChecked(true);
     }, [router]);
