@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRegisterMutation, useResendVerificationMutation } from '../authApi';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ export default function RegisterForm() {
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const router = useRouter();
 
   const [registerUser, { isLoading }] = useRegisterMutation();
   const [resendVerification, { isLoading: isResending }] = useResendVerificationMutation();
@@ -42,8 +44,13 @@ export default function RegisterForm() {
     }
 
     try {
-      await registerUser({ name, email, password }).unwrap();
-      setRegisteredEmail(email);
+      const res = await registerUser({ name, email, password }).unwrap();
+      if (res.data.verificationRequired) {
+        setRegisteredEmail(email);
+      } else {
+        toast.success('Kayıt başarıyla tamamlandı! Giriş sayfasına yönlendiriliyorsunuz.');
+        router.push('/login');
+      }
     } catch (err: any) {
       const errData = err?.data?.error;
       setErrorMsg(typeof errData === 'string' ? errData : errData?.message || 'Kayıt sırasında bir hata oluştu.');
