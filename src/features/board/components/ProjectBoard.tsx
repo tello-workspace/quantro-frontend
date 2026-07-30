@@ -65,6 +65,7 @@ interface ColumnSocketPayload {
   name: string;
   projectId: string;
   wipLimit: number | null;
+  isDone: boolean;
 }
 
 interface ColumnDeletedPayload {
@@ -344,7 +345,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           ...prev,
           columns: {
             ...prev.columns,
-            [payload.id]: { id: payload.id, title: payload.name, wipLimit: payload.wipLimit ?? null, taskIds: [] },
+            [payload.id]: { id: payload.id, title: payload.name, wipLimit: payload.wipLimit ?? null, isDone: payload.isDone, taskIds: [] },
           },
         };
       });
@@ -703,6 +704,32 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   };
 
+  // Takvimde bir karti baska bir gune surukleyince cagrilir. Panonun kendi
+  // surukleme mantigiyla ayni desen: once optimistik guncelle (surukleme
+  // aninda kartin yeni gunde gorunmesi gecikmesin), API basarisiz olursa
+  // geri al. columnId/position'a dokunulmaz, sadece dueDate degisir.
+  const handleRescheduleTask = async (taskId: string, newDueDate: string) => {
+    const previousTask = boardData?.tasks[taskId];
+    if (!previousTask) return;
+
+    const previousBoardData = boardData;
+    setBoardData((prev) => {
+      if (!prev || !prev.tasks[taskId]) return prev;
+      return {
+        ...prev,
+        tasks: { ...prev.tasks, [taskId]: { ...prev.tasks[taskId], dueDate: newDueDate } },
+      };
+    });
+
+    try {
+      await boardService.updateTask(projectId, { ...previousTask, dueDate: newDueDate });
+    } catch (error) {
+      console.error("Kart tarihi güncellenirken hata:", error);
+      toast.error(error instanceof Error ? error.message : 'Tarih güncellenemedi.');
+      setBoardData(previousBoardData);
+    }
+  };
+
   const handleDeleteTask = async (taskId: string) => {
     try {
       await boardService.deleteTask(projectId, taskId);
@@ -743,6 +770,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               id: newCol.id,
               title: newCol.title,
               wipLimit: newCol.wipLimit,
+              isDone: newCol.isDone,
               taskIds: [],
             },
           },
@@ -807,6 +835,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // yer alir - tarihsizler zaten panoda goruluyor.
   const allTasksFlat = Object.values(boardData.tasks);
   const calendarTasks = hasActiveFilters ? allTasksFlat.filter(matchesFilters) : allTasksFlat;
+  const doneColumnIds = new Set(
+    Object.values(boardData.columns).filter((c) => c.isDone).map((c) => c.id),
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -857,7 +888,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
       <div className="flex-1 min-h-0 flex gap-4 sm:gap-6 relative overflow-hidden">
         {viewMode === 'calendar' ? (
-          <CalendarView tasks={calendarTasks} onTaskClick={handleTaskClick} />
+          <CalendarView
+            tasks={calendarTasks}
+            doneColumnIds={doneColumnIds}
+            onTaskClick={handleTaskClick}
+            onTaskReschedule={handleRescheduleTask}
+          />
         ) : (
         <DndContext
           sensors={sensors}

@@ -124,6 +124,7 @@ export interface Column {
   id: string;
   title: string;
   wipLimit: number | null;
+  isDone: boolean;
   taskIds: string[];
 }
 
@@ -269,11 +270,12 @@ export const boardService = {
     });
     if (!res.ok) throw new Error(await readApiError(res, 'Sütun oluşturulamadı.'));
     const json = await res.json();
-    const raw = extractData<{ id: string; name: string; wipLimit: number | null }>(json);
+    const raw = extractData<{ id: string; name: string; wipLimit: number | null; isDone: boolean }>(json);
     return {
       id: raw.id,
       title: raw.name,
       wipLimit: raw.wipLimit,
+      isDone: raw.isDone,
       taskIds: [],
     };
   },
