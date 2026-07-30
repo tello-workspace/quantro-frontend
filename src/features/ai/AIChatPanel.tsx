@@ -18,6 +18,30 @@ interface Message {
   id: string;
 }
 
+// Bir AI mesajını karakter karakter yazma efektiyle göstermek için hook
+function useTypingEffect(text: string, speed: number = 18) {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!text) { setDisplayed(''); setDone(true); return; }
+    setDisplayed('');
+    setDone(false);
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(interval);
+        setDone(true);
+      }
+    }, speed);
+    return () => clearInterval(interval);
+  }, [text, speed]);
+
+  return { displayed, done };
+}
+
 interface ChartDataPoint {
   label: string;
   value: number;
@@ -28,6 +52,42 @@ interface ChartConfig {
   title: string;
   data: ChartDataPoint[];
 }
+
+// Karakter karakter yazma efekti gösteren alt bileşen
+const AITypingContent: React.FC<{ content: string; isTyping: boolean }> = ({ content, isTyping }) => {
+  const { displayed, done } = useTypingEffect(isTyping ? content : '', 15);
+  const showContent = isTyping && !done ? displayed : content;
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        code({ className, children, ...props }) {
+          const match = /language-chart/.exec(className || '');
+          if (match) {
+            try {
+              const chartData = JSON.parse(String(children));
+              return <InteractiveChart data={chartData} />;
+            } catch (err) {
+              return (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            }
+          }
+          return (
+            <code className={className} {...props}>
+              {children}
+            </code>
+          );
+        },
+      }}
+    >
+      {showContent}
+    </ReactMarkdown>
+  );
+};
 
 const InteractiveChart: React.FC<{ data: ChartConfig }> = ({ data }) => {
   const { type, title, data: points } = data;
@@ -254,6 +314,33 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
 
   const [sendMessage, { isLoading }] = useSendAiMessageMutation();
   const { data: insights, isLoading: insightsLoading } = useGetAiInsightsQuery(projectId, { skip: tab !== 'insights' });
+  const [typingId, setTypingId] = useState<string | null>(null);
+
+  // AI yüklenirken gösterilecek durum metinleri
+  const statusMessages = [
+    'Proje taranıyor...',
+    'Kartlar analiz ediliyor...',
+    'AI yanıt hazırlanıyor...',
+    'Proje panosu inceleniyor...',
+    'Görevler değerlendiriliyor...',
+    'İçgörüler derleniyor...',
+    'Kolondaki kartlar okunuyor...',
+  ];
+  const [statusIdx, setStatusIdx] = useState(0);
+  const [statusFade, setStatusFade] = useState(true);
+
+  // Loading sırasında durum metnini döndür
+  useEffect(() => {
+    if (!isLoading && !importing) return;
+    const interval = setInterval(() => {
+      setStatusFade(false);
+      setTimeout(() => {
+        setStatusIdx((prev) => (prev + 1) % statusMessages.length);
+        setStatusFade(true);
+      }, 400);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isLoading, importing]);
 
   // Load from localStorage on mount or when projectId changes
   useEffect(() => {
@@ -328,10 +415,14 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
 
     try {
       const reply = await sendMessage({ projectId, messages: apiMessages }).unwrap();
+      const replyId = `assistant-${Date.now()}`;
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: reply, id: `assistant-${Date.now()}` },
+        { role: 'assistant', content: reply, id: replyId },
       ]);
+      // Typing efektini başlat
+      setTypingId(replyId);
+      setTimeout(() => setTypingId(null), Math.min(reply.length * 18, 4000));
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -392,10 +483,14 @@ ${text.slice(0, 4000)}`,
       ];
 
       const reply = await sendMessage({ projectId, messages: apiMessages }).unwrap();
+      const replyId = `import-reply-${Date.now()}`;
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: reply, id: `import-reply-${Date.now()}` },
+        { role: 'assistant', content: reply, id: replyId },
       ]);
+      // Typing efektini başlat
+      setTypingId(replyId);
+      setTimeout(() => setTypingId(null), Math.min(reply.length * 18, 4000));
     } catch {
       toast.error('Dosya işlenirken bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
@@ -499,33 +594,7 @@ ${text.slice(0, 4000)}`,
                     }`}
                   >
                     {msg.role === 'assistant' ? (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          code({ className, children, ...props }) {
-                            const match = /language-chart/.exec(className || '');
-                            if (match) {
-                              try {
-                                const chartData = JSON.parse(String(children));
-                                return <InteractiveChart data={chartData} />;
-                              } catch (err) {
-                                return (
-                                  <code className={className} {...props}>
-                                    {children}
-                                  </code>
-                                );
-                              }
-                            }
-                            return (
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            );
-                          }
-                        }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
+                      <AITypingContent content={msg.content} isTyping={msg.id === typingId} />
                     ) : (
                       msg.content
                     )}
@@ -552,8 +621,15 @@ ${text.slice(0, 4000)}`,
                 <Avatar className="h-7 w-7">
                   <AvatarFallback className="bg-primary/10 text-primary text-xs">AI</AvatarFallback>
                 </Avatar>
-                <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-2.5">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="flex flex-col gap-1">
+                  <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-2.5 flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce [animation-delay:0ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce [animation-delay:150ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce [animation-delay:300ms]" />
+                  </div>
+                  <span className={`text-[11px] text-muted-foreground/60 transition-opacity duration-300 px-1 ${statusFade ? 'opacity-100' : 'opacity-30'}`}>
+                    {statusMessages[statusIdx]}
+                  </span>
                 </div>
               </div>
             )}
