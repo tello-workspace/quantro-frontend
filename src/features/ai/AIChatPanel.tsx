@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useSendAiMessageMutation, useGetAiInsightsQuery } from '@/features/ai/aiApi';
-import { X, Send, Loader2, Bot, Lightbulb, MessageSquare, Trash2 } from 'lucide-react';
+import { X, Send, Loader2, Lightbulb, MessageSquare, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useConfirm } from '@/hooks/useConfirm';
+import { toast } from 'sonner';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -248,6 +249,8 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
   const [tab, setTab] = useState<'chat' | 'insights'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
 
   const [sendMessage, { isLoading }] = useSendAiMessageMutation();
   const { data: insights, isLoading: insightsLoading } = useGetAiInsightsQuery(projectId, { skip: tab !== 'insights' });
@@ -341,6 +344,65 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
     }
   };
 
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+
+    // Only allow .txt and .md
+    if (!file.name.endsWith('.txt') && !file.name.endsWith('.md')) {
+      toast.error('Yalnızca .txt ve .md dosyaları destekleniyor.');
+      return;
+    }
+
+    if (file.size > 500_000) {
+      toast.error('Dosya çok büyük. Maksimum 500KB yükleyebilirsiniz.');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const text = await file.text();
+
+      // Switch to chat tab
+      setTab('chat');
+
+      // User message showing what was imported
+      const userMsg: Message = {
+        role: 'user',
+        content: `Toplantı notlarını içe aktar: ${file.name}\n\n\`\`\`\n${text.slice(0, 4000)}\`\`\``,
+        id: `import-${Date.now()}`,
+      };
+      setMessages((prev) => [...prev, userMsg]);
+
+      // Send to AI with create_card instruction
+      const apiMessages = [
+        ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        {
+          role: 'user' as const,
+          content: `Aşağıdaki toplantı notlarını oku ve her bir madde/konu için uygun kolonlara kart oluştur. Kart başlıkları net ve kısa olsun. Gerekli görürsen açıklama ekle.
+Eğer hangi kolona koyacağını kestiremezsen "To Do" kolonuna koy.
+
+DOSYA ADI: ${file.name}
+
+${text.slice(0, 4000)}`,
+        },
+      ];
+
+      const reply = await sendMessage({ projectId, messages: apiMessages }).unwrap();
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: reply, id: `import-reply-${Date.now()}` },
+      ]);
+    } catch {
+      toast.error('Dosya işlenirken bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -370,6 +432,16 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} title="Toplantı notlarını içe aktar" disabled={importing}>
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md"
+            onChange={handleFileImport}
+            className="hidden"
+          />
           <Button variant="ghost" size="icon" onClick={handleClearHistory} title="Sohbet geçmişini temizle">
             <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
           </Button>
