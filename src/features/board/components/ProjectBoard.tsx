@@ -29,6 +29,7 @@ import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi'
 import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap } from 'lucide-react';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 import { AutomationRulesDialog } from '@/features/automations/components/AutomationRulesDialog';
+import { useGetTemplatesQuery, useCreateCardFromTemplateMutation } from '@/features/templates/templateApi';
 
 interface ProjectBoardProps {
   projectId: string;
@@ -138,6 +139,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const members = org?.members ?? [];
 
   const { data: labels = [], refetch: refetchLabels } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
+  const { data: templates = [] } = useGetTemplatesQuery({ orgId, projectId }, { skip: !orgId || !projectId });
+  const [createCardFromTemplate] = useCreateCardFromTemplateMutation();
 
   const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
   const [automationsOpen, setAutomationsOpen] = useState(false);
@@ -619,6 +622,20 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   };
 
+  // Sablondan olusturulan kart CARD_CREATED socket event'ini de tetikliyor
+  // (template.service.ts icinde cardService.createCard cagriliyor) - o event
+  // zaten yukarida "onCardCreated" ile boardData'ya ekleniyor, burada ayrica
+  // local state guncellemeye gerek yok.
+  const handleCreateFromTemplate = async (templateId: string, columnId: string) => {
+    try {
+      await createCardFromTemplate({ templateId, columnId }).unwrap();
+      toast.success('Kart şablondan oluşturuldu.');
+    } catch (err: unknown) {
+      const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
+      toast.error(errData?.message || 'Şablondan kart oluşturulamadı.');
+    }
+  };
+
   const handleCreateTask = async (
     columnId: string,
     payload: {
@@ -942,6 +959,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                   onRenameColumn={isAdmin ? handleRenameColumn : undefined}
                   onDeleteColumn={isAdmin ? handleDeleteColumn : undefined}
                   conflicts={conflicts}
+                  templates={isAdmin ? templates : []}
+                  onCreateFromTemplate={handleCreateFromTemplate}
                 />
               );
             })}

@@ -5,6 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { EyeIcon as EyeIconSolid } from '@heroicons/react/24/solid';
 import { useGetWatchStatusQuery, useWatchCardMutation, useUnwatchCardMutation } from '@/features/watchers/watchApi';
+import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
+import { BookmarkIcon } from '@heroicons/react/24/outline';
 import { Task, TaskLabel, DependencyCard } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
@@ -519,6 +521,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [newLabelColor, setNewLabelColor] = useState(NEW_LABEL_COLORS[0]);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
   const [showDependencyPicker, setShowDependencyPicker] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
 
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId || !isOpen });
   const members = org?.members ?? [];
@@ -535,6 +539,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [removeDependency] = useRemoveDependencyMutation();
   const [fillCardWithAi, { isLoading: isFilling }] = useFillCardWithAiMutation();
   const [createChangeRequest, { isLoading: isRequesting }] = useCreateChangeRequestMutation();
+  const [saveCardAsTemplate, { isLoading: isSavingTemplate }] = useSaveCardAsTemplateMutation();
+
+  const handleSaveAsTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!task || !templateName.trim()) return;
+    try {
+      await saveCardAsTemplate({ cardId: task.id, projectId, name: templateName.trim() }).unwrap();
+      toast.success('Şablon olarak kaydedildi.');
+      setShowSaveTemplate(false);
+      setTemplateName('');
+    } catch (err: unknown) {
+      const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
+      toast.error(errData?.message || 'Şablon kaydedilemedi.');
+    }
+  };
 
   const handleAiFill = async () => {
     if (!task || !task.title?.trim()) return;
@@ -1257,6 +1276,20 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </p>
             </div>
 
+            {taskId !== 'new' && isAdmin && showSaveTemplate && (
+              <form onSubmit={handleSaveAsTemplate} className="flex items-center gap-2 pt-2">
+                <Input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="Şablon adı (örn: Bug Report)"
+                  className="h-8 text-sm"
+                  autoFocus
+                />
+                <Button type="submit" size="sm" disabled={isSavingTemplate || !templateName.trim()}>Kaydet</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setShowSaveTemplate(false)}>İptal</Button>
+              </form>
+            )}
+
             <DialogFooter className="mt-8 pt-4 border-t border-border">
               {taskId !== 'new' && (
                 <Button
@@ -1268,6 +1301,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 >
                   <TrashIcon className="h-4 w-4 mr-1" />
                   {isAdmin ? 'Görevi Sil' : 'Silme Talebi Gönder'}
+                </Button>
+              )}
+              {taskId !== 'new' && isAdmin && !showSaveTemplate && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowSaveTemplate(true)}>
+                  <BookmarkIcon className="h-3.5 w-3.5 mr-1" /> Şablon Olarak Kaydet
                 </Button>
               )}
               <Button type="button" variant="outline" onClick={onClose} disabled={isFilling || isRequesting}>

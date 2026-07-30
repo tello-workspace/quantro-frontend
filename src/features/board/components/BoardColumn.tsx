@@ -4,11 +4,12 @@ import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { Task } from '../services/boardService';
-import { PlusIcon, GripVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import { PlusIcon, GripVerticalIcon, PencilIcon, Trash2Icon, BookmarkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useConfirm } from '@/hooks/useConfirm';
+import type { CardTemplate } from '@/features/templates/templateApi';
 
 interface BoardColumnProps {
   id: string;
@@ -24,6 +25,8 @@ interface BoardColumnProps {
   onRenameColumn?: (columnId: string, newName: string) => void;
   onDeleteColumn?: (columnId: string) => void;
   conflicts?: Record<string, CardConflictInfo>;
+  templates?: CardTemplate[];
+  onCreateFromTemplate?: (templateId: string, columnId: string) => void;
 }
 
 export const BoardColumn: React.FC<BoardColumnProps> = ({
@@ -40,6 +43,8 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   onRenameColumn,
   onDeleteColumn,
   conflicts,
+  templates = [],
+  onCreateFromTemplate,
 }) => {
   // Card drop zone — main column body
   const { setNodeRef: cardDropRef, isOver: cardIsOver } = useDroppable({ id });
@@ -52,6 +57,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
 
   const [isAdding, setIsAdding] = useState(false);
   const [titleInput, setTitleInput] = useState('');
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameInput, setRenameInput] = useState(title);
   const renameRef = useRef<HTMLInputElement>(null);
@@ -239,13 +245,45 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
             </div>
           </form>
         ) : (
-          <button
-            onClick={() => setIsAdding(true)}
-            className="flex w-full cursor-pointer items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
-          >
-            <PlusIcon className="h-4 w-4" />
-            {isAdmin ? 'Yeni kart ekle' : 'Kart talebi gönder'}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsAdding(true)}
+              className="flex flex-1 cursor-pointer items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+            >
+              <PlusIcon className="h-4 w-4" />
+              {isAdmin ? 'Yeni kart ekle' : 'Kart talebi gönder'}
+            </button>
+
+            {isAdmin && templates.length > 0 && (
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setShowTemplatePicker((v) => !v)}
+                  title="Şablondan oluştur"
+                  className="flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+                >
+                  <BookmarkIcon className="h-4 w-4" />
+                </button>
+
+                {showTemplatePicker && (
+                  <div className="absolute bottom-full right-0 z-10 mb-1 w-56 rounded-lg border border-border bg-popover shadow-lg p-1 max-h-48 overflow-y-auto">
+                    {templates.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          onCreateFromTemplate?.(t.id, id);
+                          setShowTemplatePicker(false);
+                        }}
+                        className="w-full text-left px-2 py-1.5 rounded-md text-sm text-foreground hover:bg-muted transition-colors truncate"
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
       )}
