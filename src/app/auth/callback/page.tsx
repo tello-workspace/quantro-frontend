@@ -15,7 +15,6 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const syncSession = async () => {
-      if (!supabase) {
         setErrorMsg('Google ile giriş tamamlanamadı (Supabase eksik).');
         return;
       }
