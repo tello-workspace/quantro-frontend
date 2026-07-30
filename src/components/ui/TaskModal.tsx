@@ -1076,6 +1076,26 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       <option value="URGENT" className="text-foreground bg-popover">Acil</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label htmlFor="storyPoints" className="block text-sm font-medium text-muted-foreground mb-1">
+                      Story Point (Tahmini Efor)
+                    </label>
+                    <Input
+                      type="number"
+                      id="storyPoints"
+                      name="storyPoints"
+                      min={0}
+                      max={999}
+                      value={task.storyPoints ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setTask({ ...task, storyPoints: raw === '' ? null : Number(raw) });
+                      }}
+                      placeholder="Belirtilmemiş"
+                      disabled={isFilling}
+                    />
+                  </div>
                 </div>
 
                 <div>
