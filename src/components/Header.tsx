@@ -116,7 +116,7 @@ export default function Header(){
             </Link>
 
             {/* Global Search Input & Google Suggestions-like Dropdown */}
-            <div ref={containerRef} className="flex-1 max-w-[200px] xs:max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl mx-auto relative">
+            <div ref={containerRef} className="flex-1 max-w-[240px] xs:max-w-xs sm:max-w-xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto relative">
               {activeOrgId ? (
                 <div className="relative">
                   <div className="relative flex items-center">
