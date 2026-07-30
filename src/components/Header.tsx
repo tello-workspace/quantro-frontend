@@ -12,9 +12,15 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LayoutGrid, LogOut, Search } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useGetMyOrganizationsQuery } from '@/features/organizations/organizationsApi';
-import { OrgSearchDialog } from '@/features/organizations/components/OrgSearchDialog';
+import { useState, useEffect, useRef } from 'react';
+import { useGetMyOrganizationsQuery, useLazySearchOrganizationQuery } from '@/features/organizations/organizationsApi';
+
+const PRIORITY_LABEL: Record<string, string> = {
+  LOW: 'Düşük',
+  MEDIUM: 'Orta',
+  HIGH: 'Yüksek',
+  URGENT: 'Acil',
+};
 
 function initials(name: string) {
     return name
@@ -31,11 +37,16 @@ export default function Header(){
     const searchParams = useSearchParams();
     const { data: me } = useGetMeQuery();
     const { data: orgs } = useGetMyOrganizationsQuery();
+    const [trigger, { data: results, isFetching }] = useLazySearchOrganizationQuery();
     
-    const [showSearch, setShowSearch] = useState(false);
+    const [q, setQ] = useState('');
+    const [isFocused, setIsFocused] = useState(false);
 
     const queryOrgId = searchParams?.get('orgId');
     const activeOrgId = queryOrgId || orgs?.[0]?.id;
+
+    const inputRef = useRef<HTMLInputElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const handleLogout = async () => {
         localStorage.removeItem('token');
@@ -49,16 +60,47 @@ export default function Header(){
         router.push('/login');
     };
 
+    // Close on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsFocused(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Global shortcut Ctrl+K / Cmd+K to focus input
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
-                setShowSearch(true);
+                inputRef.current?.focus();
+                setIsFocused(true);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
+
+    // Search query trigger
+    useEffect(() => {
+        const trimmed = q.trim();
+        if (trimmed.length < 2 || !activeOrgId) return;
+
+        const handle = setTimeout(() => {
+            trigger({ orgId: activeOrgId, q: trimmed });
+        }, 300);
+        return () => clearTimeout(handle);
+    }, [q, activeOrgId, trigger]);
+
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Escape') {
+            inputRef.current?.blur();
+            setIsFocused(false);
+        }
+    };
 
     return (
         <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
@@ -73,21 +115,69 @@ export default function Header(){
               <span className="text-sm font-bold tracking-tight text-foreground">Quantro</span>
             </Link>
 
-            {/* Global Search Box */}
-            <div className="flex-1 max-w-sm sm:max-w-md mx-auto">
+            {/* Global Search Input & Google Suggestions-like Dropdown */}
+            <div ref={containerRef} className="flex-1 max-w-[200px] xs:max-w-xs sm:max-w-md md:max-w-lg lg:max-w-2xl mx-auto relative">
               {activeOrgId ? (
-                <button
-                  onClick={() => setShowSearch(true)}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs sm:text-sm text-muted-foreground bg-muted/40 border border-border/80 rounded-xl hover:bg-muted/80 hover:border-primary/30 transition-all cursor-pointer shadow-soft-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Search className="size-3.5 sm:size-4 text-muted-foreground/80" />
-                    <span>Organizasyonda ara...</span>
-                  </span>
-                  <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-0.5 rounded border bg-background px-1.5 font-mono text-[9px] font-medium text-muted-foreground/80">
-                    <span>⌘</span>K
-                  </kbd>
-                </button>
+                <div className="relative">
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-3 size-3.5 sm:size-4 text-muted-foreground/60" />
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={q}
+                      onChange={(e) => {
+                        setQ(e.target.value);
+                        setIsFocused(true);
+                      }}
+                      onFocus={() => setIsFocused(true)}
+                      onKeyDown={handleInputKeyDown}
+                      placeholder="Organizasyonda ara..."
+                      className="w-full pl-9 pr-12 py-1.5 text-xs sm:text-sm bg-muted/45 border border-border/80 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 focus:bg-background transition-all shadow-soft-sm text-foreground"
+                    />
+                    <kbd className="absolute right-3 pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-0.5 rounded border bg-background px-1.5 font-mono text-[9px] font-medium text-muted-foreground/80">
+                      <span>⌘</span>K
+                    </kbd>
+                  </div>
+
+                  {/* Suggestion Dropdown */}
+                  {isFocused && q.trim().length >= 2 && (
+                    <div className="absolute top-full left-0 right-0 mt-1.5 max-h-80 overflow-y-auto bg-popover text-popover-foreground border border-border rounded-xl shadow-soft-xl z-50 p-2 flex flex-col gap-1">
+                      {isFetching && (
+                        <div className="p-3 space-y-2">
+                          <div className="h-10 bg-muted/60 animate-pulse rounded-lg w-full" />
+                          <div className="h-10 bg-muted/60 animate-pulse rounded-lg w-full" />
+                        </div>
+                      )}
+
+                      {!isFetching && results?.length === 0 && (
+                        <p className="p-4 text-center text-xs sm:text-sm text-muted-foreground">Sonuç bulunamadı.</p>
+                      )}
+
+                      {!isFetching &&
+                        results?.map((card) => (
+                          <Link
+                            key={card.id}
+                            href={`/projects/${card.projectId}?orgId=${activeOrgId}&openCard=${card.id}`}
+                            onClick={() => {
+                              setIsFocused(false);
+                              setQ('');
+                            }}
+                            className="flex flex-col gap-1 rounded-lg border border-transparent p-2 text-xs sm:text-sm transition-colors hover:bg-muted hover:border-border"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-foreground line-clamp-1">{card.title}</span>
+                              <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full bg-muted border border-border shrink-0">
+                                {PRIORITY_LABEL[card.priority] ?? card.priority}
+                              </span>
+                            </div>
+                            <span className="text-[10px] sm:text-xs text-muted-foreground">
+                              {card.projectName} · {card.columnName}
+                            </span>
+                          </Link>
+                        ))}
+                    </div>
+                  )}
+                </div>
               ) : null}
             </div>
 
@@ -117,14 +207,6 @@ export default function Header(){
               </Button>
             </div>
           </div>
-
-          {activeOrgId && (
-            <OrgSearchDialog
-              orgId={activeOrgId}
-              open={showSearch}
-              onOpenChange={setShowSearch}
-            />
-          )}
         </header>
     );
 }
