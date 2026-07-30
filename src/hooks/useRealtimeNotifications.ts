@@ -183,9 +183,13 @@ export function useRealtimeBoard(projectId: string) {
 
   const onCardDeleted = useCallback(
     (callback: (cardId: string) => void) => {
-      on("card:deleted", callback);
+      const wrappedCallback = (data: { cardId: string; projectId: string } | string) => {
+        const id = typeof data === "object" && data !== null ? data.cardId : data;
+        callback(id);
+      };
+      on("card:deleted", wrappedCallback as any);
       const unsubscribe = () => {
-        off("card:deleted", callback);
+        off("card:deleted", wrappedCallback as any);
         unsubscribeRef.current = unsubscribeRef.current.filter((fn) => fn !== unsubscribe);
       };
       unsubscribeRef.current.push(unsubscribe);
