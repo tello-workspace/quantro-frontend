@@ -45,10 +45,8 @@ Kurallar:
 
 ## Çalışma Kuralları
 
-- `main` korumalı — doğrudan push yok
-- Branch adı: `feature/TEL-12-kisa-aciklama` (Jira kodu ile)
-- Commit mesajına Jira kodunu ekle: `TEL-12: login formu eklendi`
-- Merge için en az 1 approval gerekli
+Proje artık takım süreci yerine doğrudan `main` üzerinde ilerliyor — Jira kodu,
+branch/PR akışı ve approval şartı kullanılmıyor.
 
 ## Ortam Değişkenleri
 
@@ -57,3 +55,6 @@ Kurallar:
 | Değişken | Açıklama | Örnek |
 |---|---|---|
 | NEXT_PUBLIC_API_URL | Backend API adresi (tarayıcıya açık) | http://localhost:4000/api |
+| NEXT_PUBLIC_SOCKET_URL | Backend Socket.IO adresi (`/api` OLMADAN) | http://localhost:4000 |
+| NEXT_PUBLIC_SUPABASE_URL | Supabase proje URL'i (Google OAuth için) | Project Settings > API |
+| NEXT_PUBLIC_SUPABASE_ANON_KEY | Supabase anon/public key (gizli değil) | Project Settings > API |

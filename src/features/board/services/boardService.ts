@@ -75,7 +75,7 @@ export interface Task {
 // Backend /cards/:id (GET, PATCH) assignees/labels'i nested CardAssignee[]/
 // CardLabel[] olarak dondurur - board endpoint'i ikisini de duz/basitlestirilmis
 // dondurur. Task tipini tek tip tutmak icin burada normalize ediyoruz.
-interface RawCard {
+export interface RawCard {
   id: string;
   title: string;
   description?: string | null;
@@ -90,7 +90,7 @@ interface RawCard {
   blocking?: { blocked: DependencyCard }[];
 }
 
-function normalizeCard(raw: RawCard): Task {
+export function normalizeCard(raw: RawCard): Task {
   return {
     id: raw.id,
     title: raw.title,
@@ -108,6 +108,16 @@ function normalizeCard(raw: RawCard): Task {
     blockedBy: raw.blockedBy?.map((d) => d.blocker) ?? [],
     blocking: raw.blocking?.map((d) => d.blocked) ?? [],
   };
+}
+
+// Fractional indexing: komsu iki kartin position'u arasina yeni bir deger
+// hesaplar (bkz. backend prisma/schema.prisma Card.position yorumu). Tek satir
+// update yeter, kolonun geri kalanini yeniden numaralandirmaya gerek kalmaz.
+export function calculateFractionalPosition(prevPos?: number, nextPos?: number): number {
+  if (prevPos !== undefined && nextPos !== undefined) return (prevPos + nextPos) / 2;
+  if (prevPos !== undefined) return prevPos + 1;
+  if (nextPos !== undefined) return nextPos / 2;
+  return 1;
 }
 
 export interface Column {

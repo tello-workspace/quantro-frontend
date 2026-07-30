@@ -17,7 +17,7 @@ import {
 import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
-import { boardService, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
+import { boardService, calculateFractionalPosition, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery, useAttachLabelMutation } from '@/features/labels/labelsApi';
@@ -515,11 +515,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     const nextPos =
       newIndex < destTaskIds.length - 1 ? boardData.tasks[destTaskIds[newIndex + 1]]?.position : undefined;
 
-    let newPosition: number;
-    if (prevPos !== undefined && nextPos !== undefined) newPosition = (prevPos + nextPos) / 2;
-    else if (prevPos !== undefined) newPosition = prevPos + 1;
-    else if (nextPos !== undefined) newPosition = nextPos / 2;
-    else newPosition = 1;
+    const newPosition = calculateFractionalPosition(prevPos, nextPos);
 
     const previousBoardData = boardData;
 
