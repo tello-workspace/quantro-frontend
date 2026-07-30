@@ -8,7 +8,6 @@ export default function NotificationListener() {
 
   useEffect(() => {
     if (isConnected) {
-      console.log("🔔 NotificationListener: Socket connected, listening for real-time notifications");
     }
   }, [isConnected]);
 

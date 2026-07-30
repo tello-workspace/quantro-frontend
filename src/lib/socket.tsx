@@ -277,13 +277,12 @@ function getSocketUrl(): string {
 export function SocketProvider({ children }: SocketProviderProps) {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  // Aktif olarak dinlenen tüm handler'ların listesi
+  // Aktif olarak dinlenen tum handler'larin listesi
   const listenersRef = useRef<Map<string, Set<(...args: never[]) => void>>>(new Map());
 
-  // Tüm aktif handler'ları socket bağlanınca/yetkilendirilince gerçek socket'a ekler (idempotent)
+  // Tum aktif handler'lari socket baglaninca/yetkilendirilince gercek socket'a ekler (idempotent)
   const syncSocketListeners = useCallback((socket: Socket) => {
     listenersRef.current.forEach((callbacks, event) => {
-      console.log(`[SOCKET] syncSocketListeners: "${event}" için ${callbacks.size} handler socket'a senkronize ediliyor`);
       callbacks.forEach((cb) => {
         (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
         (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
@@ -296,7 +295,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       setIsConnected(false);
       return;
     }
-    // Socket.io doğrudan HTTP server'a bağlı, /api prefix'i yok
+    // Socket.io dogrudan HTTP server'a bagli, /api prefix'i yok
     const socketUrl = getSocketUrl();
     const socket = io(socketUrl, {
       path: "/socket.io",
@@ -313,28 +312,25 @@ export function SocketProvider({ children }: SocketProviderProps) {
     });
 
     socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
       setIsConnected(true);
       socket.emit("authenticate", token);
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("❌ Socket disconnected:", reason);
       setIsConnected(false);
     });
 
     socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error.message);
+      console.error("Socket connection error:", error.message);
       setIsConnected(false);
     });
 
     socket.on("authenticated", (user: any) => {
-      console.log("🔐 Socket authenticated:", user?.name);
       syncSocketListeners(socket);
     });
 
     socket.on("auth_error", (message) => {
-      console.error("🔐 Socket auth error:", message);
+      console.error("Socket auth error:", message);
     });
     socketRef.current = socket;
   }, [syncSocketListeners]);
@@ -390,11 +386,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     const socket = socketRef.current;
     if (socket?.connected) {
-      console.log(`[SOCKET] on("${event}") — socket bağlı, direkt ekleniyor`);
       (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
       (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
-    } else {
-      console.log(`[SOCKET] on("${event}") — socket bağlı değil, listeye eklendi`);
     }
   }, []);
 
@@ -404,7 +397,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     const socket = socketRef.current;
     if (socket?.connected) {
-      console.log(`[SOCKET] off("${event}") — socket'tan kaldırılıyor`);
       (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
     }
   }, []);
