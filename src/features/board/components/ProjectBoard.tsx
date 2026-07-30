@@ -17,6 +17,7 @@ import {
 import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
+import { CalendarView } from './CalendarView';
 import { boardService, calculateFractionalPosition, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
@@ -25,7 +26,7 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays } from 'lucide-react';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 
 interface ProjectBoardProps {
@@ -136,6 +137,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
   const { data: labels = [], refetch: refetchLabels } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
 
+  const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
@@ -800,29 +802,63 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     return <div className="p-8 text-center text-destructive">Veriler yüklenemedi.</div>;
   }
 
+  // Takvim gorunumu icin duz kart listesi: pano ile ayni filtreler gecerli
+  // (arama/oncelik/kisi/etiket), sadece dueDate'i olan kartlar takvimde
+  // yer alir - tarihsizler zaten panoda goruluyor.
+  const allTasksFlat = Object.values(boardData.tasks);
+  const calendarTasks = hasActiveFilters ? allTasksFlat.filter(matchesFilters) : allTasksFlat;
+
   return (
     <div className="flex flex-col h-full min-h-0">
-      <BoardFilters
-        search={search}
-        onSearchChange={setSearch}
-        members={members}
-        labels={labels}
-        selectedPriorities={selectedPriorities}
-        onTogglePriority={togglePriority}
-        selectedAssigneeIds={selectedAssigneeIds}
-        onToggleAssignee={toggleAssignee}
-        selectedLabelIds={selectedLabelIds}
-        onToggleLabel={toggleLabel}
-        hasActiveFilters={hasActiveFilters}
-        onClear={() => {
-          setSearch('');
-          setSelectedPriorities(new Set());
-          setSelectedAssigneeIds(new Set());
-          setSelectedLabelIds(new Set());
-        }}
-      />
+      <div className="flex items-center gap-3 px-4 pt-1">
+        <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-0.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setViewMode('board')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <LayoutGrid className="size-3.5" /> Pano
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('calendar')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'calendar' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <CalendarDays className="size-3.5" /> Takvim
+          </button>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <BoardFilters
+            search={search}
+            onSearchChange={setSearch}
+            members={members}
+            labels={labels}
+            selectedPriorities={selectedPriorities}
+            onTogglePriority={togglePriority}
+            selectedAssigneeIds={selectedAssigneeIds}
+            onToggleAssignee={toggleAssignee}
+            selectedLabelIds={selectedLabelIds}
+            onToggleLabel={toggleLabel}
+            hasActiveFilters={hasActiveFilters}
+            onClear={() => {
+              setSearch('');
+              setSelectedPriorities(new Set());
+              setSelectedAssigneeIds(new Set());
+              setSelectedLabelIds(new Set());
+            }}
+          />
+        </div>
+      </div>
 
       <div className="flex-1 min-h-0 flex gap-4 sm:gap-6 relative overflow-hidden">
+        {viewMode === 'calendar' ? (
+          <CalendarView tasks={calendarTasks} onTaskClick={handleTaskClick} />
+        ) : (
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetectionFn}
@@ -924,6 +960,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             ) : null}
           </DragOverlay>
         </DndContext>
+        )}
 
         {/* AI Chat drawer overlay (desktop) */}
         {isDesktopChatOpen && (
