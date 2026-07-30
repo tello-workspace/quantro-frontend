@@ -61,7 +61,12 @@ function timeAgo(dateStr: string): string {
   return `${days} gün önce`;
 }
 
-const CommentsSection: React.FC<{ cardId: string }> = ({ cardId }) => {
+interface CommentMember {
+  userId: string;
+  user: { id: string; name: string };
+}
+
+const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = ({ cardId, members }) => {
   const confirm = useConfirm();
   const { data: me } = useGetMeQuery();
   const { data: comments = [] } = useGetCommentsQuery(cardId);
@@ -72,6 +77,21 @@ const CommentsSection: React.FC<{ cardId: string }> = ({ cardId }) => {
   const [newText, setNewText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+
+  // @Mention otomatik tamamlama: cursor'u tam takip etmek yerine metnin
+  // SONUNDAKI "@kelime" parcasina bakiyoruz - tipik kullanim (yorumun
+  // ortasina donup mention eklemek nadir) icin yeterli, tam bir editor
+  // kutuphanesi kurmadan basit ve isiyor.
+  const mentionMatch = /@([\wÀ-ÖØ-öø-ÿĞğİıŞşÇçÖöÜü]*)$/.exec(newText);
+  const mentionQuery = mentionMatch?.[1]?.toLowerCase() ?? null;
+  const mentionCandidates =
+    mentionQuery !== null
+      ? members.filter((m) => m.user.name.toLowerCase().includes(mentionQuery)).slice(0, 5)
+      : [];
+
+  const selectMention = (name: string) => {
+    setNewText((t) => t.replace(/@([\wÀ-ÖØ-öø-ÿĞğİıŞşÇçÖöÜü]*)$/, `@${name} `));
+  };
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,17 +195,32 @@ const CommentsSection: React.FC<{ cardId: string }> = ({ cardId }) => {
         ))}
       </div>
 
-      <form onSubmit={handlePost} className="flex gap-2">
+      <form onSubmit={handlePost} className="flex gap-2 relative">
         <Input
           type="text"
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
-          placeholder="Bir yorum yaz..."
+          placeholder="Bir yorum yaz... (@ ile birini etiketle)"
           className="flex-1"
         />
         <Button type="submit" disabled={isPosting || !newText.trim()} size="sm">
           Gönder
         </Button>
+
+        {mentionCandidates.length > 0 && (
+          <div className="absolute bottom-full left-0 mb-1 w-56 rounded-lg border border-border bg-popover shadow-lg p-1 z-10">
+            {mentionCandidates.map((m) => (
+              <button
+                key={m.userId}
+                type="button"
+                onClick={() => selectMention(m.user.name)}
+                className="w-full text-left px-2 py-1.5 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                {m.user.name}
+              </button>
+            ))}
+          </div>
+        )}
       </form>
     </div>
   );
@@ -1175,7 +1210,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               )}
 
               {taskId !== 'new' && (
-                <CommentsSection cardId={task.id} />
+                <CommentsSection cardId={task.id} members={members} />
               )}
 
               <p className="text-xs text-muted-foreground font-mono">
