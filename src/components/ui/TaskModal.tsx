@@ -2,7 +2,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { EyeIcon as EyeIconSolid } from '@heroicons/react/24/solid';
+import { useGetWatchStatusQuery, useWatchCardMutation, useUnwatchCardMutation } from '@/features/watchers/watchApi';
 import { Task, TaskLabel, DependencyCard } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
@@ -233,6 +235,42 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+const WatchToggle: React.FC<{ cardId: string }> = ({ cardId }) => {
+  const { data: status } = useGetWatchStatusQuery(cardId);
+  const [watchCard, { isLoading: isWatching }] = useWatchCardMutation();
+  const [unwatchCard, { isLoading: isUnwatching }] = useUnwatchCardMutation();
+
+  const handleToggle = async () => {
+    try {
+      if (status?.isWatching) {
+        await unwatchCard(cardId).unwrap();
+      } else {
+        await watchCard(cardId).unwrap();
+      }
+    } catch {
+      toast.error('İzleme durumu değiştirilemedi.');
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleToggle}
+      disabled={isWatching || isUnwatching}
+      title={status?.isWatching ? 'Bu kartı izlemeyi bırak' : 'Bu kartı izle - yorum/taşıma olunca bildirim al'}
+      className={`flex items-center gap-1.5 shrink-0 text-xs font-medium py-1 px-2.5 rounded-lg border transition-colors ${
+        status?.isWatching
+          ? 'bg-primary/10 text-primary border-primary/30'
+          : 'text-muted-foreground border-border hover:bg-accent/40'
+      }`}
+    >
+      {status?.isWatching ? <EyeIconSolid className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
+      <span>{status?.isWatching ? 'İzleniyor' : 'İzle'}</span>
+      {!!status?.watcherCount && <span className="opacity-70">({status.watcherCount})</span>}
+    </button>
+  );
+};
 
 const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
   const { data: items = [] } = useGetChecklistQuery(cardId);
@@ -819,6 +857,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     placeholder="Görev Başlığı"
                   />
                 </div>
+                {taskId !== 'new' && <WatchToggle cardId={task.id} />}
                 <Button
                   type="button"
                   variant="outline"
