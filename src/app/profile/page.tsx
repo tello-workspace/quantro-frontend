@@ -315,11 +315,11 @@ export default function ProfilePage() {
                     placeholder={
                       aiProvider === 'google-gemini'
                         ? 'Varsayılan (Google API)'
-                        : 'https://api.openai.com/v1'
+                        : 'https://api.openai.com/v1 veya https://openrouter.ai/api/v1'
                     }
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Boş bırakılırsa sağlayıcının varsayılan adresi kullanılır.
+                    OpenRouter için: <code className="bg-muted px-1 rounded">https://openrouter.ai/api/v1</code> yazın. Boş bırakılırsa sağlayıcının varsayılan adresi kullanılır.
                   </p>
                 </div>
 
