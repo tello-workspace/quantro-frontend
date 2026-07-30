@@ -70,6 +70,10 @@ export interface Task {
   labels?: TaskLabel[];
   blockedBy?: DependencyCard[]; // bu karti bloklayan kartlar
   blocking?: DependencyCard[]; // bu kartin blokladigi kartlar
+  // Sadece board yuklemesinde gelir (checklist item metinleri degil, sadece
+  // sayim) - tam liste TaskModal acilinca checklistApi'den ayrica cekilir.
+  checklistTotal?: number;
+  checklistDone?: number;
 }
 
 // Backend /cards/:id (GET, PATCH) assignees/labels'i nested CardAssignee[]/

@@ -3,7 +3,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../services/boardService';
-import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
@@ -74,7 +74,11 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const days = staleDays(task.lastActivityAt);
+  // Bitmis (Done) kartlar hicbir zaman "bayat" sayilmaz - backend'in gece
+  // taramasi da ayni sekilde column.isDone true olan kartlari atliyor
+  // (bkz. scan.service.ts scanStaleCards). Bitmis bir kartin uzun suredir
+  // hareketsiz olmasi beklenen bir durum, uyari degil.
+  const days = isDoneColumn ? null : staleDays(task.lastActivityAt);
   const isVeryStale = days !== null && days >= VERY_STALE_DAYS;
   const isStale = days !== null && days >= STALE_DAYS;
 
@@ -180,6 +184,19 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
               </span>
             );
           })()}
+
+          {!!task.checklistTotal && (
+            <span
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium text-[10px] ${
+                task.checklistDone === task.checklistTotal
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+              }`}
+            >
+              <CheckCircleIcon className="h-3.5 w-3.5" />
+              <span>{task.checklistDone}/{task.checklistTotal}</span>
+            </span>
+          )}
         </div>
 
         {task.assignees && task.assignees.length > 0 ? (

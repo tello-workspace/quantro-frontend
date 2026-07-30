@@ -921,6 +921,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                   tasks={columnTasks}
                   totalCount={hasActiveFilters ? allColumnTasks.length : undefined}
                   wipLimit={column.wipLimit}
+                  isDone={column.isDone}
                   canAddTask={canAddTask}
                   isAdmin={!!isAdmin}
                   onAddTask={handleAddTask}

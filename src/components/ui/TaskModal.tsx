@@ -26,6 +26,12 @@ import {
   useUploadAttachmentMutation,
   useDeleteAttachmentMutation,
 } from '@/features/attachments/attachmentsApi';
+import {
+  useGetChecklistQuery,
+  useCreateChecklistItemMutation,
+  useUpdateChecklistItemMutation,
+  useDeleteChecklistItemMutation,
+} from '@/features/checklist/checklistApi';
 import { toast } from "sonner";
 import { useConfirm } from '@/hooks/useConfirm';
 import { Button } from '@/components/ui/button';
@@ -192,6 +198,99 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
+  const { data: items = [] } = useGetChecklistQuery(cardId);
+  const [createItem, { isLoading: isAdding }] = useCreateChecklistItemMutation();
+  const [updateItem] = useUpdateChecklistItemMutation();
+  const [deleteItem] = useDeleteChecklistItemMutation();
+  const [newText, setNewText] = useState('');
+
+  const doneCount = items.filter((i) => i.done).length;
+  const progressPct = items.length > 0 ? Math.round((doneCount / items.length) * 100) : 0;
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newText.trim()) return;
+    try {
+      await createItem({ cardId, text: newText.trim() }).unwrap();
+      setNewText('');
+    } catch {
+      toast.error('Madde eklenemedi.');
+    }
+  };
+
+  const handleToggle = async (itemId: string, done: boolean) => {
+    try {
+      await updateItem({ cardId, itemId, done: !done }).unwrap();
+    } catch {
+      toast.error('Madde güncellenemedi.');
+    }
+  };
+
+  const handleDelete = async (itemId: string) => {
+    try {
+      await deleteItem({ cardId, itemId }).unwrap();
+    } catch {
+      toast.error('Madde silinemedi.');
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+        Kontrol Listesi {items.length > 0 && `(${doneCount}/${items.length})`}
+      </label>
+
+      {items.length > 0 && (
+        <div className="mb-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      )}
+
+      <div className="space-y-1 mb-2">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="group flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-muted/50"
+          >
+            <input
+              type="checkbox"
+              checked={item.done}
+              onChange={() => handleToggle(item.id, item.done)}
+              className="rounded-md shrink-0"
+            />
+            <span className={`flex-1 min-w-0 truncate ${item.done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+              {item.text}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleDelete(item.id)}
+              className="shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <form onSubmit={handleAdd} className="flex items-center gap-2">
+        <Input
+          value={newText}
+          onChange={(e) => setNewText(e.target.value)}
+          placeholder="Yeni madde ekle..."
+          className="h-8 text-sm"
+        />
+        <Button type="submit" size="sm" disabled={isAdding || !newText.trim()}>
+          Ekle
+        </Button>
+      </form>
+    </div>
+  );
+};
 
 const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ cardId, isAdmin }) => {
   const confirm = useConfirm();
@@ -1046,6 +1145,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {taskId !== 'new' && (
+                <ChecklistSection cardId={task.id} />
+              )}
 
               {taskId !== 'new' && (
                 <AttachmentsSection cardId={task.id} isAdmin={isAdmin} />

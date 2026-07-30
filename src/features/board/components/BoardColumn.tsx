@@ -16,6 +16,7 @@ interface BoardColumnProps {
   tasks: Task[];
   totalCount?: number;
   wipLimit?: number | null;
+  isDone?: boolean;
   canAddTask: boolean;
   isAdmin?: boolean;
   onAddTask: (columnId: string, title: string) => void;
@@ -31,6 +32,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   tasks,
   totalCount,
   wipLimit,
+  isDone,
   canAddTask,
   isAdmin = true,
   onAddTask,
@@ -194,7 +196,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
             <BoardCard
               key={task.id}
               task={task}
-              isDoneColumn={title.toLowerCase() === 'done' || title.toLowerCase() === 'tamamlandı'}
+              isDoneColumn={isDone ?? (title.toLowerCase() === 'done' || title.toLowerCase() === 'tamamlandı')}
               onClick={() => onTaskClick(task.id)}
               conflict={conflicts?.[task.id]}
             />
