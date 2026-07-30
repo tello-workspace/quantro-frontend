@@ -209,7 +209,7 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex flex-col h-full min-h-0 px-4 pb-4">
+      <div className="flex flex-col h-full min-h-0 w-full flex-1 px-4 pb-4">
         <div className="flex items-center justify-between py-2 shrink-0">
           <h2 className="text-base font-semibold text-foreground capitalize">{monthLabel}</h2>
           <div className="flex items-center gap-1">
