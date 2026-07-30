@@ -28,12 +28,16 @@ const WEEKDAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 const MAX_VISIBLE_PER_DAY = 3;
 const DAY_DROPPABLE_PREFIX = 'cal-day-';
 
+type CalendarMode = 'month' | 'week';
+
 function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function startOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
+// Haftayi Pazartesi'den baslatir (JS getDay(): 0=Pazar..6=Cmt).
+function startOfWeek(d: Date): Date {
+  const weekday = (d.getDay() + 6) % 7;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - weekday);
 }
 
 interface CalendarViewProps {
@@ -67,7 +71,7 @@ function TaskChip({ task, isDone, isOverdue, onClick }: TaskChipProps) {
       type="button"
       onClick={onClick}
       title={task.title}
-      className={`flex items-center gap-1.5 text-left rounded-md px-1.5 py-1 text-[11px] transition-colors truncate cursor-grab active:cursor-grabbing touch-none ${
+      className={`flex items-center gap-1.5 text-left rounded-md px-1.5 py-1 text-[11px] transition-colors truncate cursor-grab active:cursor-grabbing touch-none shrink-0 ${
         isDragging ? 'opacity-30' : ''
       } ${
         isDone
@@ -87,6 +91,7 @@ function TaskChip({ task, isDone, isOverdue, onClick }: TaskChipProps) {
 
 interface DayCellProps {
   date: Date;
+  variant: CalendarMode;
   inMonth: boolean;
   isToday: boolean;
   dayTasks: Task[];
@@ -95,16 +100,21 @@ interface DayCellProps {
   onTaskClick: (taskId: string) => void;
 }
 
-function DayCell({ date, inMonth, isToday, dayTasks, doneColumnIds, todayKey, onTaskClick }: DayCellProps) {
+function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, todayKey, onTaskClick }: DayCellProps) {
   const key = toDateKey(date);
   const { setNodeRef, isOver } = useDroppable({ id: `${DAY_DROPPABLE_PREFIX}${key}` });
+  // Ay gorunumunde 6 satir sabit yukseklige sigmali (fazlasi "+N daha"), hafta
+  // gorunumunde ise gunluk sutun icerige gore asagi dogru buyuyebilir - o
+  // yuzden sadece ay gorunumunde MAX_VISIBLE_PER_DAY ile kesiyoruz.
+  const visibleTasks = variant === 'month' ? dayTasks.slice(0, MAX_VISIBLE_PER_DAY) : dayTasks;
+  const hiddenCount = variant === 'month' ? dayTasks.length - MAX_VISIBLE_PER_DAY : 0;
 
   return (
     <div
       ref={setNodeRef}
-      className={`p-1.5 flex flex-col gap-1 min-h-0 overflow-hidden transition-colors ${
-        isOver ? 'bg-primary/10' : 'bg-background'
-      } ${inMonth ? '' : 'opacity-40'}`}
+      className={`p-1.5 flex flex-col gap-1 transition-colors ${
+        variant === 'month' ? 'min-h-0 overflow-hidden' : 'min-h-[7rem]'
+      } ${isOver ? 'bg-primary/10' : 'bg-background'} ${inMonth ? '' : 'opacity-40'}`}
     >
       <span
         className={
@@ -115,8 +125,8 @@ function DayCell({ date, inMonth, isToday, dayTasks, doneColumnIds, todayKey, on
       >
         {date.getDate()}
       </span>
-      <div className="flex flex-col gap-1 overflow-y-auto min-h-0 no-scrollbar">
-        {dayTasks.slice(0, MAX_VISIBLE_PER_DAY).map((task) => {
+      <div className={`flex flex-col gap-1 ${variant === 'month' ? 'overflow-y-auto min-h-0 no-scrollbar' : ''}`}>
+        {visibleTasks.map((task) => {
           const isDone = doneColumnIds.has(task.columnId);
           const isOverdue = !isDone && key < todayKey;
           return (
@@ -129,10 +139,8 @@ function DayCell({ date, inMonth, isToday, dayTasks, doneColumnIds, todayKey, on
             />
           );
         })}
-        {dayTasks.length > MAX_VISIBLE_PER_DAY && (
-          <span className="text-[10px] text-muted-foreground px-1.5">
-            +{dayTasks.length - MAX_VISIBLE_PER_DAY} daha
-          </span>
+        {hiddenCount > 0 && (
+          <span className="text-[10px] text-muted-foreground px-1.5">+{hiddenCount} daha</span>
         )}
       </div>
     </div>
@@ -145,13 +153,19 @@ function DayCell({ date, inMonth, isToday, dayTasks, doneColumnIds, todayKey, on
 // (saat/timezone olmadan) döndürüyor, bu yüzden gün eşleştirmesi basit bir
 // string karşılaştırması.
 //
+// Ay/Hafta gorunumu: Ay gorunumu 6x7 sabit grid (hucre basina en fazla 3
+// kart + "+N daha"). Hafta gorunumunda tek sira 7 gun var ve her gun sutunu
+// TUM kartlarini gosterip icerige gore asagi buyuyor - sutun cok uzarsa
+// disaridaki konteyner (overflow-y-auto) kayar, sayfa sonsuza kadar uzamaz.
+//
 // Sürükle-bırak: bir kartı başka bir güne bırakınca dueDate'i o güne
 // güncellenir (columnId/position'a dokunulmaz) - panodaki sürükleme
 // deneyiminin takvim karşılığı. Optimistik guncelleme + hata durumunda geri
 // alma parent'taki onTaskReschedule'da yapılır (panonun kendi drag mantığıyla
 // aynı desen).
 export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedule }: CalendarViewProps) {
-  const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
+  const [mode, setMode] = useState<CalendarMode>('month');
+  const [cursor, setCursor] = useState(() => new Date());
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -174,20 +188,51 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
     return map;
   }, [tasks]);
 
-  const days = useMemo(() => {
+  const monthDays = useMemo(() => {
     const year = cursor.getFullYear();
     const month = cursor.getMonth();
     const firstOfMonth = new Date(year, month, 1);
-    // JS getDay(): 0=Pazar..6=Cmt. Haftayı Pazartesi'den başlatmak için kaydırıyoruz.
-    const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
-    const gridStart = new Date(year, month, 1 - firstWeekday);
-
+    const gridStart = startOfWeek(firstOfMonth);
     return Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
   }, [cursor]);
 
+  const weekDays = useMemo(() => {
+    const gridStart = startOfWeek(cursor);
+    return Array.from({ length: 7 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
+  }, [cursor]);
+
+  const days = mode === 'month' ? monthDays : weekDays;
+
   const todayKey = toDateKey(new Date());
-  const monthLabel = cursor.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
   const activeTask = activeTaskId ? tasksById.get(activeTaskId) : undefined;
+
+  const periodLabel = useMemo(() => {
+    if (mode === 'month') {
+      return cursor.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+    }
+    const start = weekDays[0];
+    const end = weekDays[6];
+    const sameMonth = start.getMonth() === end.getMonth();
+    const startLabel = start.toLocaleDateString('tr-TR', { day: 'numeric', month: sameMonth ? undefined : 'short' });
+    const endLabel = end.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${startLabel} – ${endLabel}`;
+  }, [mode, cursor, weekDays]);
+
+  const goPrev = () => {
+    if (mode === 'month') {
+      setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1));
+    } else {
+      setCursor((c) => new Date(c.getFullYear(), c.getMonth(), c.getDate() - 7));
+    }
+  };
+
+  const goNext = () => {
+    if (mode === 'month') {
+      setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1));
+    } else {
+      setCursor((c) => new Date(c.getFullYear(), c.getMonth(), c.getDate() + 7));
+    }
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveTaskId(String(event.active.id));
@@ -210,36 +255,59 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex flex-col h-full min-h-0 w-full flex-1 px-4 pb-4">
-        <div className="flex items-center justify-between py-2 shrink-0">
-          <h2 className="text-base font-semibold text-foreground capitalize">{monthLabel}</h2>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
-              className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Önceki ay"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setCursor(startOfMonth(new Date()))}
-              className="px-2.5 py-1 text-xs font-medium rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Bugün
-            </button>
-            <button
-              type="button"
-              onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}
-              className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Sonraki ay"
-            >
-              <ChevronRight className="size-4" />
-            </button>
+        <div className="flex items-center justify-between py-2 shrink-0 gap-3">
+          <h2 className="text-base font-semibold text-foreground capitalize truncate">{periodLabel}</h2>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setMode('month')}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  mode === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Ay
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('week')}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  mode === 'week' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Hafta
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={goPrev}
+                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={mode === 'month' ? 'Önceki ay' : 'Önceki hafta'}
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCursor(new Date())}
+                className="px-2.5 py-1 text-xs font-medium rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Bugün
+              </button>
+              <button
+                type="button"
+                onClick={goNext}
+                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={mode === 'month' ? 'Sonraki ay' : 'Sonraki hafta'}
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-px bg-border rounded-t-lg overflow-hidden shrink-0">
+        <div className="grid grid-cols-7 gap-px bg-border rounded-t-lg overflow-hidden shrink-0 sticky top-0 z-[1]">
           {WEEKDAY_LABELS.map((label) => (
             <div
               key={label}
@@ -250,23 +318,50 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
           ))}
         </div>
 
-        <div className="grid grid-cols-7 grid-rows-6 gap-px bg-border flex-1 min-h-0 rounded-b-lg overflow-hidden">
-          {days.map((date) => {
-            const key = toDateKey(date);
-            return (
-              <DayCell
-                key={key}
-                date={date}
-                inMonth={date.getMonth() === cursor.getMonth()}
-                isToday={key === todayKey}
-                dayTasks={tasksByDay.get(key) ?? []}
-                doneColumnIds={doneColumnIds}
-                todayKey={todayKey}
-                onTaskClick={onTaskClick}
-              />
-            );
-          })}
-        </div>
+        {mode === 'month' ? (
+          <div className="grid grid-cols-7 grid-rows-6 gap-px bg-border flex-1 min-h-0 rounded-b-lg overflow-hidden">
+            {days.map((date) => {
+              const key = toDateKey(date);
+              return (
+                <DayCell
+                  key={key}
+                  date={date}
+                  variant="month"
+                  inMonth={date.getMonth() === cursor.getMonth()}
+                  isToday={key === todayKey}
+                  dayTasks={tasksByDay.get(key) ?? []}
+                  doneColumnIds={doneColumnIds}
+                  todayKey={todayKey}
+                  onTaskClick={onTaskClick}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          // Hafta gorunumu: gun sutunlari icerige gore asagi buyur, disaridaki
+          // konteyner (flex-1 min-h-0 + overflow-y-auto) tasan kismi kaydirir -
+          // sayfa sonsuza kadar uzamiyor, "en kotu" durumda scroll devreye girer.
+          <div className="flex-1 min-h-0 overflow-y-auto rounded-b-lg border border-t-0 border-border">
+            <div className="grid grid-cols-7 gap-px bg-border">
+              {days.map((date) => {
+                const key = toDateKey(date);
+                return (
+                  <DayCell
+                    key={key}
+                    date={date}
+                    variant="week"
+                    inMonth
+                    isToday={key === todayKey}
+                    dayTasks={tasksByDay.get(key) ?? []}
+                    doneColumnIds={doneColumnIds}
+                    todayKey={todayKey}
+                    onTaskClick={onTaskClick}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <DragOverlay>
