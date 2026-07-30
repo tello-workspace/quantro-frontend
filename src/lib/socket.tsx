@@ -55,7 +55,6 @@ export interface CardPayload {
   columnId: string;
   projectId: string;
   assigneeId?: string;
-  assignee?: { id: string; name: string };
   assignees?: { id: string; name: string }[];
   priority: string;
   dueDate?: string;
@@ -164,7 +163,6 @@ export interface ConflictResolvedPayload {
   filePath: string;
   cardIds: [string, string];
 }
-
 type SocketEventMap = {
   // Auth
   authenticate: (token: string) => void;
@@ -227,7 +225,6 @@ type SocketEventMap = {
   // Git Cakisma Erken Uyari
   "conflict:detected": (data: ConflictPayload) => void;
   "conflict:resolved": (data: ConflictResolvedPayload) => void;
-
   // Custom room events
   "join:project": (projectId: string) => void;
   "leave:project": (projectId: string) => void;
@@ -266,6 +263,9 @@ interface SocketProviderProps {
   children: ReactNode;
 }
 
+function isRealtimeEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ENABLE_REALTIME !== "false";
+}
 function getSocketUrl(): string {
   const configured = process.env.NEXT_PUBLIC_SOCKET_URL;
   if (configured) return configured;
@@ -277,20 +277,25 @@ function getSocketUrl(): string {
 export function SocketProvider({ children }: SocketProviderProps) {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  // Socket bağlanana kadar bekleyen handler'lar
-  const pendingRef = useRef<Map<string, Set<(...args: never[]) => void>>>(new Map());
+  // Aktif olarak dinlenen tum handler'larin listesi
+  const listenersRef = useRef<Map<string, Set<(...args: never[]) => void>>>(new Map());
 
-  // Bekleyen handler'ları socket bağlanınca gerçek socket'a ekle
-  const flushPending = useCallback((socket: Socket) => {
-    pendingRef.current.forEach((callbacks, event) => {
+  // Tum aktif handler'lari socket baglaninca/yetkilendirilince gercek socket'a ekler (idempotent)
+  const syncSocketListeners = useCallback((socket: Socket) => {
+    listenersRef.current.forEach((callbacks, event) => {
       callbacks.forEach((cb) => {
+        (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
         (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
       });
     });
   }, []);
 
   const createSocket = useCallback((token: string) => {
-    // Socket.io doğrudan HTTP server'a bağlı, /api prefix'i yok
+    if (!isRealtimeEnabled()) {
+      setIsConnected(false);
+      return;
+    }
+    // Socket.io dogrudan HTTP server'a bagli, /api prefix'i yok
     const socketUrl = getSocketUrl();
     const socket = io(socketUrl, {
       path: "/socket.io",
@@ -309,25 +314,32 @@ export function SocketProvider({ children }: SocketProviderProps) {
     socket.on("connect", () => {
       setIsConnected(true);
       socket.emit("authenticate", token);
-      flushPending(socket);
     });
 
-    socket.on("authenticated", () => {
-      flushPending(socket);
-    });
-
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
       setIsConnected(false);
     });
 
-    socket.on("connect_error", () => {
+    socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error.message);
       setIsConnected(false);
     });
 
+    socket.on("authenticated", (user: any) => {
+      syncSocketListeners(socket);
+    });
+
+    socket.on("auth_error", (message) => {
+      console.error("Socket auth error:", message);
+    });
     socketRef.current = socket;
-  }, [flushPending]);
+  }, [syncSocketListeners]);
 
   const connect = useCallback(() => {
+    if (!isRealtimeEnabled()) {
+      disconnect();
+      return;
+    }
     const token = getToken();
     if (!token) return;
 
@@ -351,6 +363,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
   }, []);
 
   const syncConnection = useCallback(() => {
+    if (!isRealtimeEnabled()) {
+      disconnect();
+      return;
+    }
     const token = getToken();
 
     if (!token) {
@@ -363,25 +379,26 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
   const on = useCallback(<K extends EventName>(event: K, callback: EventCallback<K>) => {
     const cb = callback as (...args: never[]) => void;
+    if (!listenersRef.current.has(event as string)) {
+      listenersRef.current.set(event as string, new Set());
+    }
+    listenersRef.current.get(event as string)!.add(cb);
+
     const socket = socketRef.current;
     if (socket?.connected) {
+      (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
       (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
-    } else {
-      if (!pendingRef.current.has(event as string)) {
-        pendingRef.current.set(event as string, new Set());
-      }
-      pendingRef.current.get(event as string)!.add(cb);
     }
   }, []);
 
   const off = useCallback(<K extends EventName>(event: K, callback: EventCallback<K>) => {
     const cb = callback as (...args: never[]) => void;
+    listenersRef.current.get(event as string)?.delete(cb);
+
     const socket = socketRef.current;
     if (socket?.connected) {
       (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
     }
-    // Bekleyen kuyruktan da çıkar
-    pendingRef.current.get(event as string)?.delete(cb);
   }, []);
 
   const emit = useCallback(<K extends EventName>(event: K, ...args: Parameters<EventCallback<K>>) => {
@@ -442,7 +459,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
     </SocketContext.Provider>
   );
 }
-
 let globalSocket: Socket | null = null;
 
 export function getSocket(): Socket | null {

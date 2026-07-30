@@ -53,7 +53,6 @@ export default function NotificationBell() {
 
   const refresh = useCallback(
     () => {
-      console.log("[NotificationBell] invalidateTags tag'leri invalidate ediyor");
       dispatch(api.util.invalidateTags(['Notification', 'Project', 'Card']));
     },
     [dispatch],
@@ -61,8 +60,6 @@ export default function NotificationBell() {
 
   // Socket ile canlı bildirim ve güncellemeleri dinle
   useEffect(() => {
-    console.log(`[NotificationBell] useEffect çalıştı — handler'lar register ediliyor`);
-
     const handleNew = () => {
       refresh();
     };
@@ -78,7 +75,6 @@ export default function NotificationBell() {
     on('project:deleted', refresh);
 
     return () => {
-      console.log("[NotificationBell] cleanup — handler'lar kaldırılıyor");
       off('notification:new', handleNew);
       off('notification:read', refresh);
       off('notification:all_read', refresh);

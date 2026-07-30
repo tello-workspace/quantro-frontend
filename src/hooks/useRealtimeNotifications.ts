@@ -71,7 +71,6 @@ export function useRealtimeNotifications() {
       };
 
       const { type: toastType, icon } = getToastOptions(notification.type);
-
       const cleanMsg = notification.message.replace(/\s*\[orgId:[^\]]+\]/, '');
 
       switch (toastType) {
@@ -181,9 +180,13 @@ export function useRealtimeBoard(projectId: string) {
 
   const onCardDeleted = useCallback(
     (callback: (cardId: string) => void) => {
-      on("card:deleted", callback);
+      const wrappedCallback = (data: { cardId: string; projectId: string } | string) => {
+        const id = typeof data === "object" && data !== null ? data.cardId : data;
+        callback(id);
+      };
+      on("card:deleted", wrappedCallback as any);
       const unsubscribe = () => {
-        off("card:deleted", callback);
+        off("card:deleted", wrappedCallback as any);
         unsubscribeRef.current = unsubscribeRef.current.filter((fn) => fn !== unsubscribe);
       };
       unsubscribeRef.current.push(unsubscribe);
@@ -256,7 +259,6 @@ export function useRealtimeBoard(projectId: string) {
     },
     [on, off]
   );
-
   return {
     onCardCreated,
     onCardUpdated,

@@ -324,6 +324,8 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
     'Proje panosu inceleniyor...',
     'Görevler değerlendiriliyor...',
     'İçgörüler derleniyor...',
+    'Hız sınırı aşıldı, tekrar deneniyor...',
+    'Yanıt bekleniyor...',
     'Kolondaki kartlar okunuyor...',
   ];
   const [statusIdx, setStatusIdx] = useState(0);
