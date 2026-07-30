@@ -51,6 +51,10 @@ export default function ProfilePage() {
 
   // AI Configuration States
   const [aiProvider, setAiProvider] = useState('openai');
+  // Backend ham anahtari asla geri dondurmez (bkz. meApi.ts Me.hasAiApiKey) -
+  // bu alan hep bos baslar, kullanici SADECE anahtari degistirmek istediginde
+  // doldurur. Bos kalirsa save'de aiApiKey hic gonderilmez, mevcut kayit
+  // korunur (backend tarafinda "undefined = dokunma" semantigi var).
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiBaseUrl, setAiBaseUrl] = useState('');
   const [aiModel, setAiModel] = useState('');
@@ -66,7 +70,6 @@ export default function ProfilePage() {
     setExpertiseAreas(me.expertiseAreas ?? []);
     setLanguages(me.languages ?? []);
     setAiProvider(me.aiProvider ?? 'openai');
-    setAiApiKey(me.aiApiKey ?? '');
     setAiBaseUrl(me.aiBaseUrl ?? '');
     setAiModel(me.aiModel ?? '');
   }, [me]);
@@ -82,15 +85,29 @@ export default function ProfilePage() {
         expertiseAreas,
         languages,
         aiProvider: aiProvider || null,
-        aiApiKey: aiApiKey.trim() || null,
+        // Kullanici yeni bir anahtar yazmadiysa alani hic gondermiyoruz -
+        // aksi halde her profil kaydinda mevcut anahtar null'a duserdi.
+        ...(aiApiKey.trim() ? { aiApiKey: aiApiKey.trim() } : {}),
         aiBaseUrl: aiBaseUrl.trim() || null,
         aiModel: aiModel.trim() || null,
       }).unwrap();
+      setAiApiKey('');
       toast.success('Profil ve AI yapılandırman güncellendi.');
       router.push('/projects');
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
       toast.error(mesaj || 'Profil güncellenemedi.');
+    }
+  };
+
+  const handleRemoveApiKey = async () => {
+    try {
+      await updateProfile({ aiApiKey: null }).unwrap();
+      setAiApiKey('');
+      toast.success('Kayıtlı API anahtarı kaldırıldı.');
+    } catch (err) {
+      const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+      toast.error(mesaj || 'Anahtar kaldırılamadı.');
     }
   };
 
@@ -286,9 +303,11 @@ export default function ProfilePage() {
                     value={aiApiKey}
                     onChange={(e) => setAiApiKey(e.target.value)}
                     placeholder={
-                      aiProvider === 'google-gemini'
-                        ? 'AIzaSy...'
-                        : 'sk-...'
+                      me?.hasAiApiKey
+                        ? '•••••••••••• (değiştirmek için yeni bir anahtar gir)'
+                        : aiProvider === 'google-gemini'
+                          ? 'AIzaSy...'
+                          : 'sk-...'
                     }
                     className="pr-10"
                   />
@@ -300,9 +319,20 @@ export default function ProfilePage() {
                     {showApiKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  API anahtarınız veritabanımızda güvenli bir şekilde saklanır.
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    API anahtarınız şifreli olarak saklanır, kayıttan sonra tekrar görüntülenemez.
+                  </p>
+                  {me?.hasAiApiKey && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveApiKey}
+                      className="shrink-0 text-xs text-destructive hover:underline"
+                    >
+                      Kayıtlı anahtarı kaldır
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

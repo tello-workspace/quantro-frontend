@@ -13,7 +13,9 @@ export interface Me {
   expertiseAreas: string[];
   languages: string[];
   aiProvider: string | null;
-  aiApiKey: string | null;
+  // Ham anahtar API'den asla donmez (bkz. backend auth.service.ts) - sadece
+  // kayitli olup olmadigi bilgisi gelir.
+  hasAiApiKey: boolean;
   aiBaseUrl: string | null;
   aiModel: string | null;
 }
