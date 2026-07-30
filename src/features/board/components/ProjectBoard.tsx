@@ -26,8 +26,9 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap } from 'lucide-react';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
+import { AutomationRulesDialog } from '@/features/automations/components/AutomationRulesDialog';
 
 interface ProjectBoardProps {
   projectId: string;
@@ -139,6 +140,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const { data: labels = [], refetch: refetchLabels } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
 
   const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
+  const [automationsOpen, setAutomationsOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
@@ -863,6 +865,17 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           </button>
         </div>
 
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setAutomationsOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
+            title="Otomasyon Kuralları"
+          >
+            <Zap className="size-3.5" /> Otomasyonlar
+          </button>
+        )}
+
         <div className="flex-1 min-w-0">
           <BoardFilters
             search={search}
@@ -1073,6 +1086,18 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         onCreateTask={handleCreateTask}
         conflict={selectedTaskId ? conflicts[selectedTaskId] : undefined}
       />
+
+      {isAdmin && (
+        <AutomationRulesDialog
+          orgId={orgId}
+          projectId={projectId}
+          open={automationsOpen}
+          onOpenChange={setAutomationsOpen}
+          columns={Object.values(boardData.columns).map((c) => ({ id: c.id, title: c.title }))}
+          labels={labels}
+          members={members}
+        />
+      )}
     </div>
   );
 };
