@@ -277,14 +277,15 @@ function getSocketUrl(): string {
 export function SocketProvider({ children }: SocketProviderProps) {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  // Socket bağlanana kadar bekleyen handler'lar
-  const pendingRef = useRef<Map<string, Set<(...args: never[]) => void>>>(new Map());
+  // Aktif olarak dinlenen tüm handler'ların listesi
+  const listenersRef = useRef<Map<string, Set<(...args: never[]) => void>>>(new Map());
 
-  // Bekleyen handler'ları socket bağlanınca gerçek socket'a ekle
-  const flushPending = useCallback((socket: Socket) => {
-    pendingRef.current.forEach((callbacks, event) => {
-      console.log(`[SOCKET] flushPending: "${event}" için ${callbacks.size} handler socket'a ekleniyor`);
+  // Tüm aktif handler'ları socket bağlanınca/yetkilendirilince gerçek socket'a ekler (idempotent)
+  const syncSocketListeners = useCallback((socket: Socket) => {
+    listenersRef.current.forEach((callbacks, event) => {
+      console.log(`[SOCKET] syncSocketListeners: "${event}" için ${callbacks.size} handler socket'a senkronize ediliyor`);
       callbacks.forEach((cb) => {
+        (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
         (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
       });
     });
@@ -315,7 +316,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
       console.log("✅ Socket connected:", socket.id);
       setIsConnected(true);
       socket.emit("authenticate", token);
-      flushPending(socket);
     });
 
     socket.on("disconnect", (reason) => {
@@ -330,14 +330,14 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     socket.on("authenticated", (user: any) => {
       console.log("🔐 Socket authenticated:", user?.name);
-      flushPending(socket);
+      syncSocketListeners(socket);
     });
 
     socket.on("auth_error", (message) => {
       console.error("🔐 Socket auth error:", message);
     });
     socketRef.current = socket;
-  }, [flushPending]);
+  }, [syncSocketListeners]);
 
   const connect = useCallback(() => {
     if (!isRealtimeEnabled()) {
@@ -383,28 +383,30 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
   const on = useCallback(<K extends EventName>(event: K, callback: EventCallback<K>) => {
     const cb = callback as (...args: never[]) => void;
+    if (!listenersRef.current.has(event as string)) {
+      listenersRef.current.set(event as string, new Set());
+    }
+    listenersRef.current.get(event as string)!.add(cb);
+
     const socket = socketRef.current;
     if (socket?.connected) {
       console.log(`[SOCKET] on("${event}") — socket bağlı, direkt ekleniyor`);
+      (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
       (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
     } else {
-      console.log(`[SOCKET] on("${event}") — socket BAĞLI DEĞİL (connected: ${socket?.connected}), kuyruğa ekleniyor`);
-      if (!pendingRef.current.has(event as string)) {
-        pendingRef.current.set(event as string, new Set());
-      }
-      pendingRef.current.get(event as string)!.add(cb);
+      console.log(`[SOCKET] on("${event}") — socket bağlı değil, listeye eklendi`);
     }
   }, []);
 
   const off = useCallback(<K extends EventName>(event: K, callback: EventCallback<K>) => {
     const cb = callback as (...args: never[]) => void;
+    listenersRef.current.get(event as string)?.delete(cb);
+
     const socket = socketRef.current;
     if (socket?.connected) {
       console.log(`[SOCKET] off("${event}") — socket'tan kaldırılıyor`);
       (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
     }
-    // Bekleyen kuyruktan da çıkar
-    pendingRef.current.get(event as string)?.delete(cb);
   }, []);
 
   const emit = useCallback(<K extends EventName>(event: K, ...args: Parameters<EventCallback<K>>) => {
