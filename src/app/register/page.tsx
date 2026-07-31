@@ -1,9 +1,13 @@
 import RegisterForm from '@/features/auth/components/RegisterForm';
+import { TextHoverEffect } from '@/components/ui/text-hover-effect';
 import Link from 'next/link';
 
 export default function RegisterPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/20">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/20 px-4">
+      <div className="h-28 w-full max-w-md sm:h-36">
+        <TextHoverEffect text="Quantro" />
+      </div>
       <RegisterForm />
       <p className="mt-4 text-sm text-muted-foreground">
         Zaten hesabın var mı?{' '}
