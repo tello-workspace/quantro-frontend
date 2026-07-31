@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useGetMeQuery, useUpdateProfileMutation } from '@/features/auth/meApi';
 import { useTestAiConfigurationMutation } from '@/features/ai/aiApi';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -397,15 +398,11 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3 flex gap-3 text-xs text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="size-5 shrink-0" />
-                <div>
-                  <h4 className="font-semibold mb-0.5">{t('aiInfoTitle')}</h4>
-                  <p>
-                    {t('aiInfoDesc')}
-                  </p>
-                </div>
-              </div>
+              <Alert variant="warning">
+                <AlertTriangle />
+                <AlertTitle>{t('aiInfoTitle')}</AlertTitle>
+                <AlertDescription>{t('aiInfoDesc')}</AlertDescription>
+              </Alert>
 
               <div className="mt-2 flex items-center justify-between gap-3 border-t pt-4">
                 <Button

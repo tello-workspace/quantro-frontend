@@ -46,6 +46,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { TriangleAlert as TriangleAlertIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -995,10 +997,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </DialogHeader>
 
             {conflict && (
-              <div className="flex items-start gap-2 rounded-lg border border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40 px-3 py-2 text-xs text-orange-800 dark:text-orange-300">
-                <span className="mt-0.5">⚠️</span>
-                <span>
-                  <strong>{t('conflictWarningTitle')}</strong>{' '}
+              <Alert variant="warning">
+                <TriangleAlertIcon />
+                <AlertTitle>{t('conflictWarningTitle')}</AlertTitle>
+                <AlertDescription>
                   {lang === 'en' ? (
                     <>
                       File <code className="font-mono">{conflict.filePath}</code> is currently also being edited by{' '}
@@ -1013,8 +1015,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       çakışma yaşamamak için erken iletişime geçmeniz önerilir.
                     </>
                   )}
-                </span>
-              </div>
+                </AlertDescription>
+              </Alert>
             )}
 
             <div className="space-y-5">
