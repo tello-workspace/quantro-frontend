@@ -48,6 +48,7 @@ export default function ProfilePage() {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [expertiseAreas, setExpertiseAreas] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
+  const [language, setLanguage] = useState('tr');
 
   // AI Configuration States
   const [aiProvider, setAiProvider] = useState('openai');
@@ -69,6 +70,7 @@ export default function ProfilePage() {
     setLinkedinUrl(me.linkedinUrl ?? '');
     setExpertiseAreas(me.expertiseAreas ?? []);
     setLanguages(me.languages ?? []);
+    setLanguage(me.language ?? 'tr');
     setAiProvider(me.aiProvider ?? 'openai');
     setAiBaseUrl(me.aiBaseUrl ?? '');
     setAiModel(me.aiModel ?? '');
@@ -84,6 +86,7 @@ export default function ProfilePage() {
         linkedinUrl: linkedinUrl.trim() || null,
         expertiseAreas,
         languages,
+        language,
         aiProvider: aiProvider || null,
         // Kullanici yeni bir anahtar yazmadiysa alani hic gondermiyoruz -
         // aksi halde her profil kaydinda mevcut anahtar null'a duserdi.
@@ -249,6 +252,21 @@ export default function ProfilePage() {
                   suggestions={LANGUAGE_SUGGESTIONS}
                   placeholder="Örn: TypeScript, Python... (yazıp Enter'a bas)"
                 />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="language">Dil Tercihi (Language Preference)</Label>
+                <select
+                  id="language"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="tr">Türkçe (Turkish)</option>
+                  <option value="en">English (İngilizce)</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  AI asistanının sizinle hangi dilde iletişim kuracağını belirler. (Determines the language the AI assistant will use to communicate with you.)
+                </p>
               </div>
 
               <div className="mt-2 flex justify-end">

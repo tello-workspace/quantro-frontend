@@ -12,6 +12,7 @@ export interface Me {
   linkedinUrl: string | null;
   expertiseAreas: string[];
   languages: string[];
+  language: string;
   aiProvider: string | null;
   // Ham anahtar API'den asla donmez (bkz. backend auth.service.ts) - sadece
   // kayitli olup olmadigi bilgisi gelir.
@@ -28,6 +29,7 @@ export interface UpdateProfileInput {
   linkedinUrl?: string | null;
   expertiseAreas?: string[];
   languages?: string[];
+  language?: string | null;
   aiProvider?: string | null;
   aiApiKey?: string | null;
   aiBaseUrl?: string | null;
