@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useGetMeQuery } from "@/features/auth/meApi";
 
 const translations = {
@@ -622,10 +623,16 @@ export type TranslationKey = keyof typeof translations.tr;
 export function useTranslation() {
   const { data: me } = useGetMeQuery();
   const lang = me?.language === "en" ? "en" : "tr";
-  
-  const t = (key: TranslationKey) => {
-    return translations[lang][key] || translations.tr[key] || key;
-  };
-  
+
+  // t'yi useCallback ile sabitle: her render'da yeni referans üretilirse,
+  // onu dependency olarak alan useEffect'ler (TaskModal vb.) her render'da
+  // tetiklenir ve modal sürekli "yükleniyor" ekranında kalır.
+  const t = useCallback(
+    (key: TranslationKey) => {
+      return translations[lang][key] || translations.tr[key] || key;
+    },
+    [lang],
+  );
+
   return { t, lang };
 }

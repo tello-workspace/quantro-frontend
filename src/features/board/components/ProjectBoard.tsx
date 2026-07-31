@@ -826,6 +826,14 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   };
 
+  // useCallback: inline arrow her render'da yeni referans üretir ve TaskModal'daki
+  // açılış effect'ini sürekli tetikleyerek modalın "yükleniyor" ekranında
+  // takılı kalmasına yol açar.
+  const handleFetchTaskDetails = useCallback(
+    (taskId: string) => boardService.getTaskDetails(projectId, taskId),
+    [projectId],
+  );
+
   const handleRenameColumn = useCallback(async (columnId: string, newName: string) => {
     if (!isAdmin) return;
     try {
@@ -1119,7 +1127,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         orgId={orgId}
         projectId={projectId}
         availableCards={Object.values(boardData.tasks).map((t) => ({ id: t.id, title: t.title }))}
-        fetchTaskDetails={(id) => boardService.getTaskDetails(projectId, id)}
+        fetchTaskDetails={handleFetchTaskDetails}
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
         columnId={createRequestColumnId}

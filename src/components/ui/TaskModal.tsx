@@ -604,6 +604,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           .catch((err) => console.error(t('taskLoadError'), err))
           .finally(() => setLoading(false));
       } else if (taskId === 'new') {
+        setLoading(false);
         setTask({
           id: 'new',
           columnId: columnId || '',
