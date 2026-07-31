@@ -65,6 +65,13 @@ const ACTION_LABEL: Record<AutomationActionType, string> = {
 
 const DAY_OF_WEEK_LABEL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
+const PRIORITY_LABEL: Record<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT', string> = {
+  LOW: 'Düşük',
+  MEDIUM: 'Orta',
+  HIGH: 'Yüksek',
+  URGENT: 'Acil',
+};
+
 export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
   orgId,
   projectId,
@@ -91,6 +98,8 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
   const [actionMessage, setActionMessage] = useState('');
   const [scheduleDayOfWeek, setScheduleDayOfWeek] = useState(''); // '' = her gün
   const [dueSoonDays, setDueSoonDays] = useState('3');
+  const [conditionPriority, setConditionPriority] = useState(''); // '' = filtre yok
+  const [conditionLabelId, setConditionLabelId] = useState(''); // '' = filtre yok
 
   const resetForm = () => {
     setName('');
@@ -103,6 +112,8 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
     setActionMessage('');
     setScheduleDayOfWeek('');
     setDueSoonDays('3');
+    setConditionPriority('');
+    setConditionLabelId('');
     setShowForm(false);
   };
 
@@ -149,6 +160,8 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
           actionType === 'SEND_NOTIFICATION' || actionType === 'CREATE_CARD' ? actionMessage.trim() : null,
         scheduleDayOfWeek: trigger === 'SCHEDULED' && scheduleDayOfWeek !== '' ? Number(scheduleDayOfWeek) : null,
         dueSoonDays: trigger === 'CARD_DUE_SOON' ? Number(dueSoonDays) : null,
+        conditionPriority: conditionPriority ? (conditionPriority as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT') : null,
+        conditionLabelId: conditionLabelId || null,
       }).unwrap();
       toast.success('Otomasyon kuralı oluşturuldu.');
       resetForm();
@@ -239,6 +252,19 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{rule.name}</p>
                   <p className="text-xs text-muted-foreground">{describeTrigger(rule)}</p>
+                  {(rule.conditionPriority || rule.conditionLabelId) && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Koşul:{' '}
+                      {[
+                        rule.conditionPriority ? `öncelik = ${PRIORITY_LABEL[rule.conditionPriority]}` : null,
+                        rule.conditionLabelId
+                          ? `etiket = ${labels.find((l) => l.id === rule.conditionLabelId)?.name ?? '—'}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' VE ')}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">→ {describeAction(rule)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -414,6 +440,34 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
                 placeholder={actionType === 'CREATE_CARD' ? 'Yeni kartın başlığı...' : 'Bildirim mesajı...'}
               />
             )}
+
+            <div className="border-t border-border pt-2">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Koşul (opsiyonel) — ikisi de doluysa ikisi de sağlanmalı
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={conditionPriority}
+                  onChange={(e) => setConditionPriority(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+                >
+                  <option value="" className="bg-popover">Öncelik filtresi yok</option>
+                  {(Object.keys(PRIORITY_LABEL) as (keyof typeof PRIORITY_LABEL)[]).map((p) => (
+                    <option key={p} value={p} className="bg-popover">Sadece {PRIORITY_LABEL[p]}</option>
+                  ))}
+                </select>
+                <select
+                  value={conditionLabelId}
+                  onChange={(e) => setConditionLabelId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+                >
+                  <option value="" className="bg-popover">Etiket filtresi yok</option>
+                  {labels.map((l) => (
+                    <option key={l.id} value={l.id} className="bg-popover">Sadece &quot;{l.name}&quot; etiketliler</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             <div className="flex items-center justify-end gap-2 pt-1">
               <Button type="button" variant="ghost" size="sm" onClick={resetForm}>İptal</Button>

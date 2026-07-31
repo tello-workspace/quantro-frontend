@@ -24,6 +24,8 @@ export interface AutomationRule {
   createdAt: string;
   scheduleDayOfWeek: number | null;
   dueSoonDays: number | null;
+  conditionPriority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | null;
+  conditionLabelId: string | null;
 }
 
 export interface CreateAutomationRuleInput {
@@ -37,6 +39,8 @@ export interface CreateAutomationRuleInput {
   actionMessage?: string | null;
   scheduleDayOfWeek?: number | null;
   dueSoonDays?: number | null;
+  conditionPriority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | null;
+  conditionLabelId?: string | null;
 }
 
 interface ApiEnvelope<T> {
