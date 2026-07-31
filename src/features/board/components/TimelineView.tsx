@@ -19,8 +19,22 @@ const PRIORITY_BAR: Record<Priority, string> = {
   LOW: 'bg-zinc-400',
 };
 
-const VISIBLE_DAYS = 21;
-const DAY_WIDTH = 36; // px
+type Granularity = 'day' | 'week';
+
+// 'day': her gunu genis bir sutunda gosterir, ok tuslari tek tek gun kaydirir.
+// 'week': daha genis bir pencere gosterir, ok tuslari haftalik atlar.
+const GRANULARITY_CONFIG: Record<Granularity, { visibleDays: number; dayWidth: number; navStep: number }> = {
+  day: { visibleDays: 7, dayWidth: 68, navStep: 1 },
+  week: { visibleDays: 21, dayWidth: 36, navStep: 7 },
+};
+
+// Saat/dakika bilgisini atar - gun bazli aritmetigin (fark hesabi, indeks
+// bulma) "su an saat kac" yuzunden bir gun kaymasini onler. Bu olmadan
+// addDays(new Date(), -3) gibi bir baslangic, gunun ilerleyen saatlerinde
+// gercek gunden bir eksik/fazla kolona denk geliyordu.
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
 
 function addDays(date: Date, n: number): Date {
   const d = new Date(date);
@@ -45,11 +59,14 @@ function daysBetween(a: Date, b: Date): number {
 // yerine bloklanmis kartlarda kucuk bir gosterge/tooltip kullanir - karmasik
 // SVG baglanti cizgileri olmadan da "bu kart neyi bekliyor" bilgisini verir.
 export const TimelineView: React.FC<TimelineViewProps> = ({ tasks, columns, onTaskClick }) => {
-  const [cursor, setCursor] = useState(() => addDays(new Date(), -3));
+  const [granularity, setGranularity] = useState<Granularity>('week');
+  const [cursor, setCursor] = useState(() => startOfDay(addDays(new Date(), -3)));
+
+  const { visibleDays, dayWidth, navStep } = GRANULARITY_CONFIG[granularity];
 
   const days = useMemo(
-    () => Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(cursor, i)),
-    [cursor],
+    () => Array.from({ length: visibleDays }, (_, i) => addDays(cursor, i)),
+    [cursor, visibleDays],
   );
 
   const todayKey = toDateKey(new Date());
@@ -87,25 +104,49 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ tasks, columns, onTa
       <div className="flex items-center gap-2 mb-2 shrink-0">
         <button
           type="button"
-          onClick={() => setCursor((c) => addDays(c, -7))}
+          onClick={() => setCursor((c) => addDays(c, -navStep))}
           className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+          aria-label={granularity === 'day' ? 'Önceki gün' : 'Önceki hafta'}
         >
           <ChevronLeft className="size-4" />
         </button>
         <button
           type="button"
-          onClick={() => setCursor((c) => addDays(c, 7))}
+          onClick={() => setCursor((c) => addDays(c, navStep))}
           className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+          aria-label={granularity === 'day' ? 'Sonraki gün' : 'Sonraki hafta'}
         >
           <ChevronRight className="size-4" />
         </button>
         <button
           type="button"
-          onClick={() => setCursor(addDays(new Date(), -3))}
+          onClick={() => setCursor(startOfDay(addDays(new Date(), -3)))}
           className="text-xs px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
         >
           Bugün
         </button>
+
+        <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-0.5 ml-1">
+          <button
+            type="button"
+            onClick={() => setGranularity('day')}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              granularity === 'day' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Gün
+          </button>
+          <button
+            type="button"
+            onClick={() => setGranularity('week')}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              granularity === 'week' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Hafta
+          </button>
+        </div>
+
         {unscheduledCount > 0 && (
           <span className="text-xs text-muted-foreground ml-auto">
             {unscheduledCount} kart tarih içermediği için gösterilmiyor
@@ -114,7 +155,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ tasks, columns, onTa
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto border border-border rounded-lg">
-        <div style={{ minWidth: 200 + days.length * DAY_WIDTH }}>
+        <div style={{ minWidth: 200 + days.length * dayWidth }}>
           {/* Gun basliklari */}
           <div className="flex sticky top-0 z-10 bg-background border-b border-border">
             <div className="w-[200px] shrink-0 px-2 py-1.5 text-xs font-medium text-muted-foreground border-r border-border">
@@ -125,12 +166,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ tasks, columns, onTa
               return (
                 <div
                   key={key}
-                  style={{ width: DAY_WIDTH }}
-                  className={`shrink-0 px-1 py-1.5 text-center text-[10px] border-r border-border/50 ${
+                  style={{ width: dayWidth }}
+                  className={`shrink-0 px-1 py-1.5 text-center border-r border-border/50 ${
                     key === todayKey ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground'
                   }`}
                 >
-                  {day.getDate()}
+                  {granularity === 'day' && (
+                    <div className="text-[10px] leading-tight">
+                      {day.toLocaleDateString('tr-TR', { weekday: 'short' })}
+                    </div>
+                  )}
+                  <div className="text-[11px] leading-tight">{day.getDate()}</div>
                 </div>
               );
             })}
@@ -168,15 +214,25 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ tasks, columns, onTa
                       )}
                       <span className="truncate">{task.title}</span>
                     </button>
-                    <div className="relative flex-1" style={{ height: 32 }}>
+                    {/* Tum gun seridi tiklanabilir - sadece cubugun ustune degil, o
+                        satirdaki herhangi bir gune tiklamak da karti acar. */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onTaskClick(task.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') onTaskClick(task.id);
+                      }}
+                      className="relative flex-1 cursor-pointer"
+                      style={{ height: 32 }}
+                      title={task.title}
+                    >
                       {visible && endOffset >= startOffset && (
-                        <button
-                          type="button"
-                          onClick={() => onTaskClick(task.id)}
-                          className={`absolute top-1.5 h-5 rounded-full ${PRIORITY_BAR[task.priority ?? 'MEDIUM']} opacity-80 hover:opacity-100 transition-opacity`}
+                        <span
+                          className={`absolute top-1.5 h-5 rounded-full ${PRIORITY_BAR[task.priority ?? 'MEDIUM']} opacity-80 pointer-events-none`}
                           style={{
-                            left: startOffset * DAY_WIDTH + 2,
-                            width: Math.max((endOffset - startOffset + 1) * DAY_WIDTH - 4, 8),
+                            left: startOffset * dayWidth + 2,
+                            width: Math.max((endOffset - startOffset + 1) * dayWidth - 4, 8),
                           }}
                           title={`${task.title} (${task.barStart.toLocaleDateString('tr-TR')} - ${task.barEnd.toLocaleDateString('tr-TR')})`}
                         />
