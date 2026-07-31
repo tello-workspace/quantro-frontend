@@ -204,7 +204,7 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
       className={`transition-colors cursor-default ${
         variant === 'month'
           ? 'p-1.5 flex flex-col gap-1 min-h-0 overflow-hidden'
-          : `p-3 flex flex-col gap-2 min-h-[18rem] rounded-xl border ${isToday ? 'border-primary/40' : 'border-border'}`
+          : `p-3 flex flex-col gap-2 h-full min-h-0 rounded-xl border ${isToday ? 'border-primary/40' : 'border-border'}`
       } ${isOver ? 'bg-primary/10' : 'bg-background'} ${inMonth ? '' : 'opacity-40'} ${
         onDayClick ? 'hover:bg-accent/40 cursor-pointer' : ''
       }`}
@@ -235,7 +235,11 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
           {date.getDate()}
         </span>
       )}
-      <div className={`flex flex-col gap-2 ${variant === 'month' ? 'overflow-y-auto min-h-0 no-scrollbar gap-1' : ''}`}>
+      <div
+        className={`flex flex-col gap-2 min-h-0 overflow-y-auto ${
+          variant === 'month' ? 'no-scrollbar gap-1' : 'flex-1 pr-0.5'
+        }`}
+      >
         {visibleTasks.map((task) => {
           const isDone = doneColumnIds.has(task.columnId);
           const isOverdue = !isDone && key < todayKey;
@@ -511,11 +515,14 @@ export function CalendarView({ tasks, columns, doneColumnIds, onTaskClick, onTas
                 })}
               </div>
             ) : (
-              // Hafta gorunumu: gun sutunlari icerige gore asagi buyur, disaridaki
-              // konteyner (flex-1 min-h-0 + overflow-y-auto) tasan kismi kaydirir -
-              // sayfa sonsuza kadar uzamiyor, "en kotu" durumda scroll devreye girer.
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <div className="grid grid-cols-7 gap-3">
+              // Hafta gorunumu: TUM sutunlar sabit (viewport'a esit) yukseklikte -
+              // sayfa/disaridaki konteyner asla scroll olmaz. Cok karti olan tek
+              // bir gun varsa sadece O SUTUN kendi icinde kayar (DayCell'in ic
+              // listesi flex-1 min-h-0 overflow-y-auto), digerleri bos kalir ama
+              // ayni yukseklikte durur - onceden hepsi birlikte uzayip sayfayi
+              // kaydirmaya zorluyordu.
+              <div className="flex-1 min-h-0">
+                <div className="grid grid-cols-7 gap-3 h-full">
                   {days.map((date) => {
                     const key = toDateKey(date);
                     return (
