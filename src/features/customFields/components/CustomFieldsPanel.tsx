@@ -103,7 +103,7 @@ export const CustomFieldsPanel: React.FC<CustomFieldsPanelProps> = ({ orgId, pro
             <ListPlus className="size-4 text-primary" /> Ek Alanlar
           </DialogTitle>
           <DialogDescription>
-            Kartlara projene özel alanlar ekle (Jira'daki Custom Fields).
+            Kartlara projene özel alanlar ekle (Jira&apos;daki Custom Fields).
           </DialogDescription>
         </DialogHeader>
 
