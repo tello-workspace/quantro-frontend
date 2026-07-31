@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LayoutGrid, LogOut, Search, ListChecks } from 'lucide-react';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useState, useEffect, useRef } from 'react';
 import { useGetMyOrganizationsQuery, useLazySearchOrganizationQuery } from '@/features/organizations/organizationsApi';
 
@@ -107,15 +108,18 @@ export default function Header(){
     return (
         <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
           <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
-            <Link
-              href="/projects"
-              className="group flex items-center gap-2.5 rounded-lg transition-colors hover:text-primary shrink-0"
-            >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
-                <LayoutGrid className="size-4" />
-              </span>
-              <span className="text-sm font-bold tracking-tight text-foreground">Quantro</span>
-            </Link>
+            <div className="flex items-center gap-1 shrink-0">
+              <SidebarTrigger />
+              <Link
+                href="/projects"
+                className="group hidden sm:flex items-center gap-2.5 rounded-lg px-1.5 transition-colors hover:text-primary"
+              >
+                <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
+                  <LayoutGrid className="size-4" />
+                </span>
+                <span className="text-sm font-bold tracking-tight text-foreground">Quantro</span>
+              </Link>
+            </div>
 
             {/* Global Search Input & Google Suggestions-like Dropdown */}
             <div ref={containerRef} className="flex-1 max-w-[240px] xs:max-w-xs sm:max-w-xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto relative">
