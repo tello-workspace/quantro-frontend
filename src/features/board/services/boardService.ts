@@ -65,6 +65,7 @@ export interface Task {
   title: string;
   description?: string;
   dueDate?: string;
+  startDate?: string;
   columnId: string;
   position?: number;
   priority?: Priority;
@@ -97,6 +98,7 @@ export interface RawCard {
   title: string;
   description?: string | null;
   dueDate?: string | null;
+  startDate?: string | null;
   columnId: string;
   position?: number;
   priority?: Priority;
@@ -119,6 +121,7 @@ export function normalizeCard(raw: RawCard): Task {
     title: raw.title,
     description: raw.description ?? undefined,
     dueDate: raw.dueDate ?? undefined,
+    startDate: raw.startDate ?? undefined,
     columnId: raw.columnId,
     position: raw.position,
     priority: raw.priority,
@@ -252,6 +255,7 @@ export const boardService = {
       title: task.title,
       description: task.description,
       dueDate: task.dueDate || null,
+      startDate: task.startDate || null,
       columnId: task.columnId,
       // priority eskiden gonderilmiyordu: AI'nin onerdigi (ya da elle
       // secilen) oncelik kaydedilmis gibi gorunup sessizce kayboluyordu

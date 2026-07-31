@@ -1451,6 +1451,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <div className="grid grid-cols-2 gap-4 items-start">
                 <div className="space-y-4">
                   <div>
+                    <label htmlFor="startDate" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                      <CalendarDaysIcon className="h-4 w-4" />
+                      Başlangıç Tarihi
+                    </label>
+                    <Input
+                      type="date"
+                      id="startDate"
+                      name="startDate"
+                      value={task.startDate ? task.startDate.split('T')[0] : ''}
+                      onChange={handleChange}
+                      disabled={isFilling}
+                    />
+                  </div>
+
+                  <div>
                     <label htmlFor="dueDate" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
                       <CalendarDaysIcon className="h-4 w-4" />
                       {t('dueDateLabel')}
