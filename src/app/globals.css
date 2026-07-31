@@ -144,6 +144,26 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Site genelindeki tum ic scroll kutularinin (dialog listeleri, tablo,
+       pano sutunlari) varsayilan scrollbar'i tema renkleriyle ince/sade -
+       html/body kendi kurallariyla (asagida) bunu hala tamamen gizliyor,
+       cunku element selector'leri universal '*' selector'unden daha spesifik. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background-color: var(--border);
+      border-radius: 9999px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background-color: var(--muted-foreground);
+    }
   }
   body {
     @apply bg-background text-foreground;

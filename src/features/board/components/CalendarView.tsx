@@ -19,6 +19,7 @@ import type { Task, Priority, Column } from '../services/boardService';
 import { toDateKey, buildMonthGrid, buildWeekGrid } from '../services/calendarService';
 import { CalendarAgendaView } from './CalendarAgendaView';
 import { useTranslation } from '@/hooks/useTranslation';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const PRIORITY_DOT: Record<Priority, string> = {
   URGENT: 'bg-red-500',
@@ -235,47 +236,58 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
           {date.getDate()}
         </span>
       )}
-      <div
-        className={`flex flex-col gap-2 min-h-0 overflow-y-auto ${
-          variant === 'month' ? 'no-scrollbar gap-1' : 'flex-1 pr-0.5'
-        }`}
-      >
-        {visibleTasks.map((task) => {
-          const isDone = doneColumnIds.has(task.columnId);
-          const isOverdue = !isDone && key < todayKey;
+      {(() => {
+        const taskList = (
+          <div className={`flex flex-col gap-2 ${variant === 'month' ? 'gap-1' : ''}`}>
+            {visibleTasks.map((task) => {
+              const isDone = doneColumnIds.has(task.columnId);
+              const isOverdue = !isDone && key < todayKey;
 
-          if (variant === 'week') {
-            const dueKey = task.dueDate?.slice(0, 10);
-            const startKey = task.startDate?.slice(0, 10);
-            const isMultiDay = !!startKey && !!dueKey && startKey !== dueKey;
-            const rangeLabel = isMultiDay ? `${formatDayMonth(startKey!)} → ${formatDayMonth(dueKey!)}` : null;
-            return (
-              <WeekTaskChip
-                key={task.id}
-                task={task}
-                isDone={isDone}
-                isOverdue={isOverdue}
-                columnTitle={columns[task.columnId]?.title ?? '—'}
-                rangeLabel={rangeLabel}
-                onClick={() => onTaskClick(task.id)}
-              />
-            );
-          }
+              if (variant === 'week') {
+                const dueKey = task.dueDate?.slice(0, 10);
+                const startKey = task.startDate?.slice(0, 10);
+                const isMultiDay = !!startKey && !!dueKey && startKey !== dueKey;
+                const rangeLabel = isMultiDay ? `${formatDayMonth(startKey!)} → ${formatDayMonth(dueKey!)}` : null;
+                return (
+                  <WeekTaskChip
+                    key={task.id}
+                    task={task}
+                    isDone={isDone}
+                    isOverdue={isOverdue}
+                    columnTitle={columns[task.columnId]?.title ?? '—'}
+                    rangeLabel={rangeLabel}
+                    onClick={() => onTaskClick(task.id)}
+                  />
+                );
+              }
 
-          return (
-            <TaskChip
-              key={task.id}
-              task={task}
-              isDone={isDone}
-              isOverdue={isOverdue}
-              onClick={() => onTaskClick(task.id)}
-            />
-          );
-        })}
-        {hiddenCount > 0 && (
-          <span className="text-[10px] text-muted-foreground px-1.5">+{hiddenCount} {t('moreTasks')}</span>
-        )}
-      </div>
+              return (
+                <TaskChip
+                  key={task.id}
+                  task={task}
+                  isDone={isDone}
+                  isOverdue={isOverdue}
+                  onClick={() => onTaskClick(task.id)}
+                />
+              );
+            })}
+            {hiddenCount > 0 && (
+              <span className="text-[10px] text-muted-foreground px-1.5">+{hiddenCount} {t('moreTasks')}</span>
+            )}
+          </div>
+        );
+
+        // Hafta: Base UI ScrollArea ile temaya uygun ince scrollbar (sadece
+        // tasınca gorunur). Ay: hucreler kucuk oldugu icin daha hafif olan
+        // no-scrollbar yeterli (zaten MAX_VISIBLE_PER_DAY ile kesiliyor).
+        return variant === 'week' ? (
+          <ScrollArea className="flex-1 min-h-0" viewportClassName="pr-2">
+            {taskList}
+          </ScrollArea>
+        ) : (
+          <div className="min-h-0 overflow-y-auto no-scrollbar">{taskList}</div>
+        );
+      })()}
     </div>
   );
 }
