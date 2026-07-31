@@ -10,7 +10,7 @@ import NotificationBell from './NotificationBell';
 import { supabase } from '@/lib/supabaseClient';
 import { disconnectSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LayoutGrid, LogOut, Search, ListChecks } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -204,6 +204,7 @@ export default function Header(){
                   className="ml-1 flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted"
                 >
                   <Avatar size="sm">
+                    {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt={me.name} />}
                     <AvatarFallback>{initials(me.name)}</AvatarFallback>
                   </Avatar>
                   <span className="hidden text-xs font-medium text-foreground sm:inline">{me.name}</span>

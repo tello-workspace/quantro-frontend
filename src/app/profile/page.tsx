@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
-import { useGetMeQuery, useUpdateProfileMutation } from '@/features/auth/meApi';
+import { useGetMeQuery, useUpdateProfileMutation, useUploadAvatarMutation, useRemoveAvatarMutation } from '@/features/auth/meApi';
 import { useTestAiConfigurationMutation } from '@/features/ai/aiApi';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -14,7 +14,8 @@ import { Button } from '@/components/ui/button';
 import { MotionButton } from '@/components/ui/motion-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TagInput } from '@/components/ui/TagInput';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Camera } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Eye, EyeOff, Sparkles, Cpu, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -50,6 +51,9 @@ export default function ProfilePage() {
   const { data: me, isLoading } = useGetMeQuery();
   const [updateProfile, { isLoading: isSaving }] = useUpdateProfileMutation();
   const [testAiConfig, { isLoading: isTesting }] = useTestAiConfigurationMutation();
+  const [uploadAvatar, { isLoading: isUploadingAvatar }] = useUploadAvatarMutation();
+  const [removeAvatar] = useRemoveAvatarMutation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
   const [title, setTitle] = useState('');
@@ -112,6 +116,33 @@ export default function ProfilePage() {
     }
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // ayni dosyayi tekrar secince onChange tekrar tetiklensin
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t('avatarTooLarge'));
+      return;
+    }
+
+    try {
+      await uploadAvatar(file).unwrap();
+      toast.success(t('profileSuccess'));
+    } catch (err) {
+      const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+      toast.error(mesaj || t('avatarUploadError'));
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    try {
+      await removeAvatar().unwrap();
+    } catch {
+      toast.error(t('avatarRemoveError'));
+    }
+  };
+
   const handleRemoveApiKey = async () => {
     try {
       await updateProfile({ aiApiKey: null }).unwrap();
@@ -159,12 +190,44 @@ export default function ProfilePage() {
   return (
     <main className="mx-auto max-w-3xl p-4 sm:p-6">
       <div className="mb-6 flex items-center gap-4">
-        <Avatar size="lg">
-          <AvatarFallback>{initials(me.name)}</AvatarFallback>
-        </Avatar>
+        <div className="relative group/avatar-upload">
+          <Avatar size="lg">
+            {me.avatarUrl && <AvatarImage src={me.avatarUrl} alt={me.name} />}
+            <AvatarFallback>{initials(me.name)}</AvatarFallback>
+          </Avatar>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingAvatar}
+            title={t('changeAvatar')}
+            className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover/avatar-upload:opacity-100 disabled:opacity-100"
+          >
+            {isUploadingAvatar ? (
+              <span className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <Camera className="size-4" />
+            )}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="hidden"
+            onChange={handleAvatarChange}
+          />
+        </div>
         <div>
           <h1 className="text-lg font-bold text-foreground">{me.name}</h1>
           <p className="text-sm text-muted-foreground">{me.email}</p>
+          {me.avatarUrl && (
+            <button
+              type="button"
+              onClick={handleRemoveAvatar}
+              className="text-xs text-destructive hover:underline mt-0.5"
+            >
+              {t('removeAvatar')}
+            </button>
+          )}
         </div>
       </div>
 

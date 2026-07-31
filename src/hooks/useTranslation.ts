@@ -24,6 +24,11 @@ const translations = {
     // Profile
     profileInfo: "Profil Bilgileri",
     profileDesc: "Profilinizi ve organizasyondaki yetkinliklerinizi yönetin.",
+    changeAvatar: "Fotoğrafı değiştir",
+    removeAvatar: "Fotoğrafı kaldır",
+    avatarTooLarge: "Görsel en fazla 5MB olabilir.",
+    avatarUploadError: "Profil fotoğrafı yüklenemedi.",
+    avatarRemoveError: "Profil fotoğrafı kaldırılamadı.",
     title: "Unvan / Rol",
     titlePlaceholder: "Örn: Senior Backend Developer",
     experience: "Deneyim",
@@ -331,6 +336,11 @@ const translations = {
     // Profile
     profileInfo: "Profile Information",
     profileDesc: "Manage your profile and competencies in the organization.",
+    changeAvatar: "Change photo",
+    removeAvatar: "Remove photo",
+    avatarTooLarge: "Image can be at most 5MB.",
+    avatarUploadError: "Could not upload profile photo.",
+    avatarRemoveError: "Could not remove profile photo.",
     title: "Title / Role",
     titlePlaceholder: "e.g., Senior Backend Developer",
     experience: "Experience",

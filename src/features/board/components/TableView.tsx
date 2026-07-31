@@ -22,6 +22,15 @@ const PRIORITY_COLOR: Record<Priority, string> = {
   HIGH: 'text-orange-500',
   URGENT: 'text-red-500',
 };
+// Satir arka planinda hafif oncelik tonu - acil/yuksek oncelikli kartlar
+// tabloyu tarayan goze aralarindan sivrilsin diye (dusuk/orta icin fark
+// gozle secilecek kadar guclu degil, sadece acil/yuksek vurgulanir).
+const PRIORITY_ROW_BG: Record<Priority, string> = {
+  LOW: '',
+  MEDIUM: '',
+  HIGH: 'bg-orange-500/5 hover:bg-orange-500/10',
+  URGENT: 'bg-red-500/5 hover:bg-red-500/10',
+};
 
 // Jira/Trello'daki "List/Table" gorunumu: pano gibi surukle-birak degil,
 // tum kartlari tek bir siralanabilir tabloda gosterir - buyuk backlog'larda
@@ -106,7 +115,9 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
             <tr
               key={task.id}
               onClick={() => onTaskClick(task.id)}
-              className="border-b border-border/60 hover:bg-accent/40 cursor-pointer transition-colors"
+              className={`border-b border-border/60 cursor-pointer transition-colors ${
+                PRIORITY_ROW_BG[task.priority ?? 'MEDIUM'] || 'hover:bg-accent/40'
+              }`}
             >
               <td className="py-2 px-2 text-foreground max-w-xs truncate">{task.title}</td>
               <td className="py-2 px-2 text-muted-foreground">{columns[task.columnId]?.title ?? '—'}</td>

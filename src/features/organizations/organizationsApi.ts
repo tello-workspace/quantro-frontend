@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 interface OrgMember {
   userId: string;
   role: 'ADMIN' | 'MEMBER';
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; avatarUrl?: string | null };
 }
 interface OrgDetail {
   id:string;

@@ -5,6 +5,7 @@ export interface Me {
   name: string;
   email: string;
   createdAt: string;
+  avatarUrl: string | null;
   title: string | null;
   bio: string | null;
   experience: string | null;
@@ -57,7 +58,21 @@ export const meApi = api.injectEndpoints({
       transformResponse: (response: ApiEnvelope<Me>) => response.data,
       invalidatesTags: ['Me'],
     }),
+    uploadAvatar: builder.mutation<{ id: string; avatarUrl: string | null }, File>({
+      query: (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return { url: '/me/avatar', method: 'POST', body: formData };
+      },
+      transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
+      invalidatesTags: ['Me'],
+    }),
+    removeAvatar: builder.mutation<{ id: string; avatarUrl: string | null }, void>({
+      query: () => ({ url: '/me/avatar', method: 'DELETE' }),
+      transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
+      invalidatesTags: ['Me'],
+    }),
   }),
 });
 
-export const { useGetMeQuery, useUpdateProfileMutation } = meApi;
+export const { useGetMeQuery, useUpdateProfileMutation, useUploadAvatarMutation, useRemoveAvatarMutation } = meApi;
