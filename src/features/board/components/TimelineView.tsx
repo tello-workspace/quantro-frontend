@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Link as LinkIcon } from 'lucide-react';
 import type { Task, Column, Priority } from '../services/boardService';
-import { toDateKey } from '../services/calendarService';
+import { toDateKey, buildWeekGrid } from '../services/calendarService';
 
 interface TimelineViewProps {
   tasks: Task[];
@@ -12,29 +12,14 @@ interface TimelineViewProps {
   onTaskClick: (taskId: string) => void;
 }
 
-const PRIORITY_BAR: Record<Priority, string> = {
-  URGENT: 'bg-red-500',
-  HIGH: 'bg-orange-500',
-  MEDIUM: 'bg-blue-500',
-  LOW: 'bg-zinc-400',
+const PRIORITY_BORDER: Record<Priority, string> = {
+  URGENT: 'border-l-red-500',
+  HIGH: 'border-l-orange-500',
+  MEDIUM: 'border-l-blue-500',
+  LOW: 'border-l-zinc-400',
 };
 
-type Granularity = 'day' | 'week';
-
-// 'day': her gunu genis bir sutunda gosterir, ok tuslari tek tek gun kaydirir.
-// 'week': daha genis bir pencere gosterir, ok tuslari haftalik atlar.
-const GRANULARITY_CONFIG: Record<Granularity, { visibleDays: number; dayWidth: number; navStep: number }> = {
-  day: { visibleDays: 7, dayWidth: 68, navStep: 1 },
-  week: { visibleDays: 21, dayWidth: 36, navStep: 7 },
-};
-
-// Saat/dakika bilgisini atar - gun bazli aritmetigin (fark hesabi, indeks
-// bulma) "su an saat kac" yuzunden bir gun kaymasini onler. Bu olmadan
-// addDays(new Date(), -3) gibi bir baslangic, gunun ilerleyen saatlerinde
-// gercek gunden bir eksik/fazla kolona denk geliyordu.
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
+const PRIORITY_ORDER: Record<Priority, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
 function addDays(date: Date, n: number): Date {
   const d = new Date(date);
@@ -49,26 +34,16 @@ function parseLocalDate(dateStr: string): Date {
   return new Date(y, (m ?? 1) - 1, d ?? 1);
 }
 
-function daysBetween(a: Date, b: Date): number {
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
-  return Math.round((b.getTime() - a.getTime()) / MS_PER_DAY);
-}
-
-// Kartlari zaman ekseninde gosteren basit bir Gantt gorunumu (Asana/ClickUp'taki
-// Timeline'dan esinlenildi). Tam bir Gantt'tan farkli olarak bagimlilik oklari
-// yerine bloklanmis kartlarda kucuk bir gosterge/tooltip kullanir - karmasik
-// SVG baglanti cizgileri olmadan da "bu kart neyi bekliyor" bilgisini verir.
+// Gantt cubuklari/koordinat hesabi kafa karistirici bulundugu icin (Asana'nin
+// Timeline'i yerine) daha basit bir "gun sutunu" duzenine gecildi: her gun
+// kendi dikey sutunu, o araliga denk gelen kartlar altinda kucuk kartlar
+// halinde listeleniyor. Bir kart birden fazla gune (baslangic->bitis) denk
+// geliyorsa, ARALIKTAKI HER SUTUNDA belirir - konum/genislik matematigi
+// yerine "hangi sutunlarda goruldugu" tek basina sureyi anlatir.
 export const TimelineView: React.FC<TimelineViewProps> = ({ tasks, columns, onTaskClick }) => {
-  const [granularity, setGranularity] = useState<Granularity>('week');
-  const [cursor, setCursor] = useState(() => startOfDay(addDays(new Date(), -3)));
+  const [cursor, setCursor] = useState(() => new Date());
 
-  const { visibleDays, dayWidth, navStep } = GRANULARITY_CONFIG[granularity];
-
-  const days = useMemo(
-    () => Array.from({ length: visibleDays }, (_, i) => addDays(cursor, i)),
-    [cursor, visibleDays],
-  );
-
+  const days = useMemo(() => buildWeekGrid(cursor), [cursor]);
   const todayKey = toDateKey(new Date());
 
   const { scheduledTasks, unscheduledCount } = useMemo(() => {
@@ -86,67 +61,49 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ tasks, columns, onTa
     return { scheduledTasks: scheduled, unscheduledCount: unscheduled };
   }, [tasks]);
 
-  const grouped = useMemo(() => {
+  // Her gun sutunu icin: o araliga (barStart..barEnd) denk gelen kartlar,
+  // once oncelige gore siralanmis.
+  const tasksByDay = useMemo(() => {
     const map = new Map<string, typeof scheduledTasks>();
-    for (const task of scheduledTasks) {
-      const list = map.get(task.columnId) ?? [];
-      list.push(task);
-      map.set(task.columnId, list);
+    for (const day of days) {
+      const key = toDateKey(day);
+      const dayTasks = scheduledTasks
+        .filter((t) => t.barStart <= day && t.barEnd >= day)
+        .sort((a, b) => PRIORITY_ORDER[a.priority ?? 'MEDIUM'] - PRIORITY_ORDER[b.priority ?? 'MEDIUM']);
+      map.set(key, dayTasks);
     }
     return map;
-  }, [scheduledTasks]);
+  }, [days, scheduledTasks]);
 
-  const rangeStart = days[0];
-  const rangeEnd = days[days.length - 1];
+  const weekLabel = `${days[0].toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} – ${days[6].toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}`;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col px-4 pb-4 overflow-hidden">
       <div className="flex items-center gap-2 mb-2 shrink-0">
         <button
           type="button"
-          onClick={() => setCursor((c) => addDays(c, -navStep))}
+          onClick={() => setCursor((c) => addDays(c, -7))}
           className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-          aria-label={granularity === 'day' ? 'Önceki gün' : 'Önceki hafta'}
+          aria-label="Önceki hafta"
         >
           <ChevronLeft className="size-4" />
         </button>
         <button
           type="button"
-          onClick={() => setCursor((c) => addDays(c, navStep))}
+          onClick={() => setCursor((c) => addDays(c, 7))}
           className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-          aria-label={granularity === 'day' ? 'Sonraki gün' : 'Sonraki hafta'}
+          aria-label="Sonraki hafta"
         >
           <ChevronRight className="size-4" />
         </button>
         <button
           type="button"
-          onClick={() => setCursor(startOfDay(addDays(new Date(), -3)))}
+          onClick={() => setCursor(new Date())}
           className="text-xs px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
         >
           Bugün
         </button>
-
-        <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-0.5 ml-1">
-          <button
-            type="button"
-            onClick={() => setGranularity('day')}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-              granularity === 'day' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Gün
-          </button>
-          <button
-            type="button"
-            onClick={() => setGranularity('week')}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-              granularity === 'week' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Hafta
-          </button>
-        </div>
-
+        <span className="text-sm font-medium text-foreground ml-1">{weekLabel}</span>
         {unscheduledCount > 0 && (
           <span className="text-xs text-muted-foreground ml-auto">
             {unscheduledCount} kart tarih içermediği için gösterilmiyor
@@ -154,101 +111,73 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ tasks, columns, onTa
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto border border-border rounded-lg">
-        <div style={{ minWidth: 200 + days.length * dayWidth }}>
-          {/* Gun basliklari */}
-          <div className="flex sticky top-0 z-10 bg-background border-b border-border">
-            <div className="w-[200px] shrink-0 px-2 py-1.5 text-xs font-medium text-muted-foreground border-r border-border">
-              Kart
-            </div>
-            {days.map((day) => {
-              const key = toDateKey(day);
-              return (
+      <div className="flex-1 min-h-0 overflow-auto">
+        <div className="grid grid-cols-7 gap-2 min-w-[840px] h-full">
+          {days.map((day) => {
+            const key = toDateKey(day);
+            const dayTasks = tasksByDay.get(key) ?? [];
+            const isToday = key === todayKey;
+
+            return (
+              <div
+                key={key}
+                className={`flex flex-col rounded-lg border ${
+                  isToday ? 'border-primary/50 bg-primary/5' : 'border-border bg-muted/20'
+                }`}
+              >
                 <div
-                  key={key}
-                  style={{ width: dayWidth }}
-                  className={`shrink-0 px-1 py-1.5 text-center border-r border-border/50 ${
-                    key === todayKey ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground'
+                  className={`px-2 py-1.5 text-center border-b ${
+                    isToday ? 'border-primary/30' : 'border-border'
                   }`}
                 >
-                  {granularity === 'day' && (
-                    <div className="text-[10px] leading-tight">
-                      {day.toLocaleDateString('tr-TR', { weekday: 'short' })}
-                    </div>
-                  )}
-                  <div className="text-[11px] leading-tight">{day.getDate()}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {day.toLocaleDateString('tr-TR', { weekday: 'short' })}
+                  </div>
+                  <div className={`text-sm font-semibold ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                    {day.getDate()}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
 
-          {/* Sutun bazli gruplar */}
-          {Array.from(grouped.entries()).map(([columnId, colTasks]) => (
-            <div key={columnId}>
-              <div className="flex bg-muted/40 border-b border-border">
-                <div className="px-2 py-1 text-xs font-medium text-foreground">
-                  {columns[columnId]?.title ?? '—'} ({colTasks.length})
+                <div className="flex-1 min-h-0 overflow-y-auto p-1.5 space-y-1.5">
+                  {dayTasks.map((task) => {
+                    const isMultiDay = task.barStart.getTime() !== task.barEnd.getTime();
+                    const blockedByOpen = (task.blockedBy ?? []).filter(
+                      (b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS',
+                    );
+
+                    return (
+                      <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => onTaskClick(task.id)}
+                        className={`w-full text-left rounded-md border-l-4 bg-background border border-border/60 px-2 py-1.5 shadow-sm hover:shadow transition-shadow ${
+                          PRIORITY_BORDER[task.priority ?? 'MEDIUM']
+                        }`}
+                      >
+                        <div className="flex items-start gap-1">
+                          {blockedByOpen.length > 0 && (
+                            <LinkIcon
+                              className="size-3 text-amber-500 shrink-0 mt-0.5"
+                              aria-label={`Bekliyor: ${blockedByOpen.map((b) => b.title).join(', ')}`}
+                            />
+                          )}
+                          <span className="text-xs text-foreground line-clamp-2">{task.title}</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                          {columns[task.columnId]?.title ?? '—'}
+                          {isMultiDay &&
+                            ` · ${task.barStart.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} → ${task.barEnd.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}`}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {dayTasks.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground/60 text-center py-2">—</p>
+                  )}
                 </div>
               </div>
-              {colTasks.map((task) => {
-                const blockedByOpen = (task.blockedBy ?? []).filter(
-                  (b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS',
-                );
-                const startOffset = Math.max(daysBetween(rangeStart, task.barStart), 0);
-                const endOffset = Math.min(daysBetween(rangeStart, task.barEnd), days.length - 1);
-                const visible = task.barEnd >= rangeStart && task.barStart <= rangeEnd;
-
-                return (
-                  <div key={task.id} className="flex border-b border-border/50 hover:bg-accent/30">
-                    <button
-                      type="button"
-                      onClick={() => onTaskClick(task.id)}
-                      className="w-[200px] shrink-0 px-2 py-2 text-left text-xs text-foreground truncate flex items-center gap-1"
-                      title={task.title}
-                    >
-                      {blockedByOpen.length > 0 && (
-                        <LinkIcon
-                          className="size-3 text-amber-500 shrink-0"
-                          aria-label={`Bekliyor: ${blockedByOpen.map((b) => b.title).join(', ')}`}
-                        />
-                      )}
-                      <span className="truncate">{task.title}</span>
-                    </button>
-                    {/* Tum gun seridi tiklanabilir - sadece cubugun ustune degil, o
-                        satirdaki herhangi bir gune tiklamak da karti acar. */}
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => onTaskClick(task.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') onTaskClick(task.id);
-                      }}
-                      className="relative flex-1 cursor-pointer"
-                      style={{ height: 32 }}
-                      title={task.title}
-                    >
-                      {visible && endOffset >= startOffset && (
-                        <span
-                          className={`absolute top-1.5 h-5 rounded-full ${PRIORITY_BAR[task.priority ?? 'MEDIUM']} opacity-80 pointer-events-none`}
-                          style={{
-                            left: startOffset * dayWidth + 2,
-                            width: Math.max((endOffset - startOffset + 1) * dayWidth - 4, 8),
-                          }}
-                          title={`${task.title} (${task.barStart.toLocaleDateString('tr-TR')} - ${task.barEnd.toLocaleDateString('tr-TR')})`}
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-
-          {grouped.size === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Başlangıç veya teslim tarihi olan kart yok.
-            </p>
-          )}
+            );
+          })}
         </div>
       </div>
     </div>
