@@ -6,6 +6,7 @@ import { Task } from '../services/boardService';
 import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export interface CardConflictInfo {
   filePath: string;
@@ -31,13 +32,6 @@ const PRIORITY_BAR: Record<string, string> = {
   LOW: 'bg-muted-foreground/40',
 };
 
-const PRIORITY_LABEL: Record<string, string> = {
-  URGENT: 'Acil',
-  HIGH: 'Yüksek',
-  MEDIUM: 'Orta',
-  LOW: 'Düşük',
-};
-
 const MAX_VISIBLE_ASSIGNEES = 3;
 const STALE_DAYS = 7;
 const VERY_STALE_DAYS = 14;
@@ -48,17 +42,19 @@ function staleDays(lastActivityAt?: string): number | null {
   return diffMs / (24 * 60 * 60 * 1000);
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, lang: string): string {
   try {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
-    return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+    const locale = lang === 'en' ? 'en-US' : 'tr-TR';
+    return date.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
   } catch {
     return dateStr;
   }
 }
 
 export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColumn = false, conflict }) => {
+  const { t, lang } = useTranslation();
   const {
     attributes,
     listeners,
@@ -82,6 +78,9 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
   const isVeryStale = days !== null && days >= VERY_STALE_DAYS;
   const isStale = days !== null && days >= STALE_DAYS;
 
+  const priorityKey = task.priority ? `priority${task.priority.charAt(0).toUpperCase()}${task.priority.slice(1).toLowerCase()}` : '';
+  const priorityLabel = priorityKey ? t(priorityKey as any) : '';
+
   return (
     <div
       ref={setNodeRef}
@@ -91,10 +90,10 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
       onClick={onClick}
       title={
         [
-          task.priority ? `Öncelik: ${PRIORITY_LABEL[task.priority]}` : null,
-          isStale ? `${Math.floor(days!)} gündür hareketsiz` : null,
+          task.priority ? `${t('priorityLabel')}: ${priorityLabel}` : null,
+          isStale ? `${Math.floor(days!)} ${t('daysInactive')}` : null,
           conflict
-            ? `⚠️ Çakışma riski: ${conflict.filePath} dosyası, "${conflict.otherCardTitle}" kartında ${conflict.otherUserName} tarafından da düzenleniyor`
+            ? `${t('conflictRiskTitle')} ${conflict.filePath} ${t('conflictRiskDesc')}`
             : null,
         ]
           .filter(Boolean)
@@ -151,7 +150,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
       {isStale && (
         <span className="mb-1 inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
           <ClockIcon className="h-3 w-3" />
-          {Math.floor(days!)} gündür hareketsiz
+          {Math.floor(days!)} {t('daysInactive')}
         </span>
       )}
 
@@ -180,7 +179,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
                     : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
               }`}>
                 <CalendarDaysIcon className="h-3.5 w-3.5" />
-                <span>{formatDate(task.dueDate)}</span>
+                <span>{formatDate(task.dueDate, lang)}</span>
               </span>
             );
           })()}

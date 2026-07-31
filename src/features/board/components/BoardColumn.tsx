@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useConfirm } from '@/hooks/useConfirm';
 import type { CardTemplate } from '@/features/templates/templateApi';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface BoardColumnProps {
   id: string;
@@ -46,6 +47,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   templates = [],
   onCreateFromTemplate,
 }) => {
+  const { t } = useTranslation();
   // Card drop zone — main column body
   const { setNodeRef: cardDropRef, isOver: cardIsOver } = useDroppable({ id });
   // Column drop zone — separate element in the header area
@@ -99,10 +101,10 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
 
   const handleDelete = async () => {
     const ok = await confirm({
-      title: 'Sütunu Sil',
-      description: `"${title}" sütununu ve içindeki tüm kartları silmek istediğinize emin misiniz?`,
-      confirmText: 'Sil',
-      cancelText: 'İptal',
+      title: t('deleteColumnTitle'),
+      description: t('deleteColumnDesc'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       variant: 'destructive',
     });
     if (ok) {
@@ -141,7 +143,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               {...attributes}
               {...listeners}
               className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing transition-colors"
-              title="Sürükleyerek sırala"
+              title={t('dragToReorder')}
             >
               <GripVerticalIcon className="h-4 w-4" />
             </span>
@@ -160,7 +162,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               <h3
                 className="truncate text-sm font-semibold text-foreground cursor-pointer hover:text-primary transition-colors"
                 onClick={() => isAdmin && setIsRenaming(true)}
-                title={isAdmin ? 'Adı değiştirmek için tıkla' : title}
+                title={isAdmin ? t('clickToRename') : title}
               >
                 {title}
               </h3>
@@ -179,16 +181,16 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
           {isLimitExceeded && (
             <span
               className="text-[11px] font-medium text-destructive mr-1"
-              title="Bu sütun WIP limitine ulaştı"
+              title={t('wipLimitExceeded')}
             >
-              limit doldu
+              {t('wipLimitFull')}
             </span>
           )}
           {isAdmin && (
             <button
               onClick={handleDelete}
               className="flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-              title="Sütunu sil"
+              title={t('deleteColumn')}
             >
               <Trash2Icon className="h-3.5 w-3.5" />
             </button>
@@ -212,7 +214,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
         {tasks.length === 0 && (
           <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border/70 px-3 py-6 text-center">
             <p className="text-xs text-muted-foreground">
-              Bu sütun boş{canAddTask ? ' — aşağıdan kart ekleyebilirsin' : ''}
+              {canAddTask ? t('emptyColumnDesc') : t('emptyColumnDescNoAdd')}
             </p>
           </div>
         )}
@@ -227,7 +229,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               autoFocus
               value={titleInput}
               onChange={(e) => setTitleInput(e.target.value)}
-              placeholder={isAdmin ? 'Görev başlığı yazın...' : 'Talep edilecek görev başlığı...'}
+              placeholder={isAdmin ? t('taskTitlePlaceholder') : t('taskRequestTitlePlaceholder')}
               className="text-sm"
             />
             <div className="flex justify-end gap-2">
@@ -237,10 +239,10 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
                 size="sm"
                 onClick={() => setIsAdding(false)}
               >
-                İptal
+                {t('cancel')}
               </Button>
               <Button type="submit" size="sm">
-                {isAdmin ? 'Ekle' : 'Talep Gönder'}
+                {isAdmin ? t('add') : t('sendRequestBtn')}
               </Button>
             </div>
           </form>
@@ -251,14 +253,14 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               className="flex flex-1 cursor-pointer items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
             >
               <PlusIcon className="h-4 w-4" />
-              {isAdmin ? 'Yeni kart ekle' : 'Kart talebi gönder'}
+              {isAdmin ? t('addCardBtn') : t('addCardRequestBtn')}
             </button>
 
             {isAdmin && templates.length > 0 && (
               <div className="relative shrink-0">
                 <button
                   onClick={() => setShowTemplatePicker((v) => !v)}
-                  title="Şablondan oluştur"
+                  title={t('createFromTemplate')}
                   className="flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
                 >
                   <BookmarkIcon className="h-4 w-4" />

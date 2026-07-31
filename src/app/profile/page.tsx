@@ -114,16 +114,16 @@ export default function ProfilePage() {
     try {
       await updateProfile({ aiApiKey: null }).unwrap();
       setAiApiKey('');
-      toast.success('Kayıtlı API anahtarı kaldırıldı.');
+      toast.success(t('aiApiKeyRemoved'));
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-      toast.error(mesaj || 'Anahtar kaldırılamadı.');
+      toast.error(mesaj || t('aiApiKeyRemoveError'));
     }
   };
 
   const handleTestConnection = async () => {
     if (!aiApiKey.trim()) {
-      toast.error('Bağlantı testi için bir API Anahtarı girmelisiniz.');
+      toast.error(t('aiTestPlaceholderRequire'));
       return;
     }
     try {
@@ -135,13 +135,13 @@ export default function ProfilePage() {
       }).unwrap();
 
       if (result.success) {
-        toast.success(result.message || 'Bağlantı testi başarılı!');
+        toast.success(result.message || t('aiTestSuccess'));
       } else {
-        toast.error('Bağlantı testi başarısız: ' + (result.message || 'Bilinmeyen hata'));
+        toast.error(t('aiTestError') + (result.message || 'Bilinmeyen hata'));
       }
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-      toast.error(mesaj || 'AI bağlantısı test edilirken hata oluştu.');
+      toast.error(mesaj || t('aiTestGenericError'));
     }
   };
 
@@ -245,7 +245,7 @@ export default function ProfilePage() {
                   value={expertiseAreas}
                   onChange={setExpertiseAreas}
                   suggestions={EXPERTISE_SUGGESTIONS}
-                  placeholder="Örn: Backend, DevOps... (yazıp Enter'a bas)"
+                  placeholder={t('tagInputExpertisePlaceholder')}
                 />
               </div>
 
@@ -255,7 +255,7 @@ export default function ProfilePage() {
                   value={languages}
                   onChange={setLanguages}
                   suggestions={LANGUAGE_SUGGESTIONS}
-                  placeholder="Örn: TypeScript, Python... (yazıp Enter'a bas)"
+                  placeholder={t('tagInputLanguagesPlaceholder')}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -270,7 +270,7 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  AI asistanının sizinle hangi dilde iletişim kuracağını belirler. (Determines the language the AI assistant will use to communicate with you.)
+                  {t('languagePreferenceDesc')}
                 </p>
               </div>
 
@@ -330,7 +330,7 @@ export default function ProfilePage() {
                     onChange={(e) => setAiApiKey(e.target.value)}
                     placeholder={
                       me?.hasAiApiKey
-                        ? '•••••••••••• (değiştirmek için yeni bir anahtar gir)'
+                        ? t('aiApiKeyPlaceholderExisting')
                         : aiProvider === 'google-gemini'
                           ? 'AIzaSy...'
                           : 'sk-...'
@@ -347,7 +347,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs text-muted-foreground">
-                    API anahtarınız şifreli olarak saklanır, kayıttan sonra tekrar görüntülenemez.
+                    {t('aiApiKeyHelp')}
                   </p>
                   {me?.hasAiApiKey && (
                     <button
@@ -355,7 +355,7 @@ export default function ProfilePage() {
                       onClick={handleRemoveApiKey}
                       className="shrink-0 text-xs text-destructive hover:underline"
                     >
-                      Kayıtlı anahtarı kaldır
+                      {t('removeSavedApiKey')}
                     </button>
                   )}
                 </div>
@@ -363,24 +363,24 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="aiBaseUrl">Özel Endpoint URL (Base URL)</Label>
+                  <Label htmlFor="aiBaseUrl">{t('customBaseUrl')}</Label>
                   <Input
                     id="aiBaseUrl"
                     value={aiBaseUrl}
                     onChange={(e) => setAiBaseUrl(e.target.value)}
                     placeholder={
                       aiProvider === 'google-gemini'
-                        ? 'Varsayılan (Google API)'
-                        : 'https://api.openai.com/v1 veya https://openrouter.ai/api/v1'
+                        ? t('customBaseUrlDefaultGemini')
+                        : t('customBaseUrlPlaceholder')
                     }
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    OpenRouter için: <code className="bg-muted px-1 rounded">https://openrouter.ai/api/v1</code> yazın. Boş bırakılırsa sağlayıcının varsayılan adresi kullanılır.
+                    {t('customBaseUrlHelp')}
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="aiModel">Model Adı (Model Name)</Label>
+                  <Label htmlFor="aiModel">{t('aiModelLabel')}</Label>
                   <Input
                     id="aiModel"
                     value={aiModel}
@@ -392,7 +392,7 @@ export default function ProfilePage() {
                     }
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Kullanmak istediğiniz tam model kodunu girin.
+                    {t('aiModelHelp')}
                   </p>
                 </div>
               </div>
@@ -400,11 +400,9 @@ export default function ProfilePage() {
               <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3 flex gap-3 text-xs text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="size-5 shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-0.5">Bilgilendirme</h4>
+                  <h4 className="font-semibold mb-0.5">{t('aiInfoTitle')}</h4>
                   <p>
-                    Kendi API anahtarınızı tanımladığınızda, Quantro chat paneli ve AI asistan
-                    görevleri sizin hesabınız üzerinden ücretlendirilir. Test butonunu
-                    kullanarak anahtarınızın geçerliliğini kontrol edebilirsiniz.
+                    {t('aiInfoDesc')}
                   </p>
                 </div>
               </div>
@@ -416,11 +414,11 @@ export default function ProfilePage() {
                   onClick={handleTestConnection}
                   disabled={isTesting}
                 >
-                  {isTesting ? 'Test Ediliyor...' : 'Bağlantıyı Test Et'}
+                  {isTesting ? t('aiTestingBtn') : t('aiTestBtn')}
                 </Button>
 
                 <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                  {isSaving ? t('saving') : t('save')}
                 </Button>
               </div>
             </CardContent>
