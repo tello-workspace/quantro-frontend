@@ -382,7 +382,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
     if (!listenersRef.current.has(event as string)) {
       listenersRef.current.set(event as string, new Set());
     }
+    const sizeBefore = listenersRef.current.get(event as string)!.size;
     listenersRef.current.get(event as string)!.add(cb);
+    const sizeAfter = listenersRef.current.get(event as string)!.size;
+    console.log(`[SOCKET CLIENT ON] Event: ${event}, Set size: ${sizeAfter} (was ${sizeBefore})`);
 
     const socket = socketRef.current;
     if (socket?.connected) {
@@ -393,7 +396,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
   const off = useCallback(<K extends EventName>(event: K, callback: EventCallback<K>) => {
     const cb = callback as (...args: never[]) => void;
+    const sizeBefore = listenersRef.current.get(event as string)?.size ?? 0;
     listenersRef.current.get(event as string)?.delete(cb);
+    const sizeAfter = listenersRef.current.get(event as string)?.size ?? 0;
+    console.log(`[SOCKET CLIENT OFF] Event: ${event}, Set size: ${sizeAfter} (was ${sizeBefore})`);
 
     const socket = socketRef.current;
     if (socket?.connected) {

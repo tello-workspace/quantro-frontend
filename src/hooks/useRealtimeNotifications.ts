@@ -40,6 +40,7 @@ export function useRealtimeNotifications() {
 
     // Listen for new notifications
     const handleNewNotification = (notification: NotificationPayload) => {
+      console.log("[SOCKET DEBUG] Received notification:", notification.id, notification.type, notification.message);
       // Add to Redux store
       dispatch(addNotification(notification));
 

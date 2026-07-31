@@ -15,6 +15,14 @@ import { TagInput } from '@/components/ui/TagInput';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Eye, EyeOff, Sparkles, Cpu, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const EXPERTISE_SUGGESTIONS = [
   'Backend', 'Frontend', 'Full Stack', 'DevOps', 'UI/UX', 'Mobil', 'QA/Test',
@@ -36,6 +44,7 @@ function initials(name: string) {
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const { data: me, isLoading } = useGetMeQuery();
   const [updateProfile, { isLoading: isSaving }] = useUpdateProfileMutation();
   const [testAiConfig, { isLoading: isTesting }] = useTestAiConfigurationMutation();
@@ -95,11 +104,9 @@ export default function ProfilePage() {
         aiModel: aiModel.trim() || null,
       }).unwrap();
       setAiApiKey('');
-      toast.success('Profil ve AI yapılandırman güncellendi.');
-      router.push('/projects');
-    } catch (err) {
-      const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-      toast.error(mesaj || 'Profil güncellenemedi.');
+      toast.success(t('profileSuccess'));
+    } catch (err: any) {
+      toast.error(err?.data?.error?.message || t('profileError'));
     }
   };
 
@@ -161,53 +168,51 @@ export default function ProfilePage() {
 
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="mb-6 grid w-full grid-cols-2">
-          <TabsTrigger value="profile">Profil Bilgileri</TabsTrigger>
+          <TabsTrigger value="profile">{t('profileInfo')}</TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center gap-1.5">
-            <Sparkles className="size-4 text-primary" /> AI Yapılandırması
+            <Sparkles className="size-4 text-primary" /> {t('aiSettings')}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
           <Card>
             <CardHeader>
-              <CardTitle>Profil Bilgileri</CardTitle>
+              <CardTitle>{t('profileInfo')}</CardTitle>
               <CardDescription>
-                Bu bilgiler proje panolarında AI&apos;ın görev atarken en uygun kişiyi
-                önerebilmesi için kullanılır — uzmanlık alanların ve bildiğin diller ne kadar
-                güncel olursa, &quot;AI ile Doldur&quot; ve otomatik atama önerileri o kadar isabetli olur.
+                {t('profileDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="title">Unvan / Rol</Label>
+                  <Label htmlFor="title">{t('title')}</Label>
                   <Input
                     id="title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Örn: Senior Backend Developer"
+                    placeholder={t('titlePlaceholder')}
                     maxLength={100}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="experience">Deneyim</Label>
+                  <Label htmlFor="experience">{t('experience')}</Label>
                   <Input
                     id="experience"
                     value={experience}
                     onChange={(e) => setExperience(e.target.value)}
-                    placeholder="Örn: 2 yıl 3 ay, 6 ay, Yeni başladım"
+                    placeholder={t('experiencePlaceholder')}
                     maxLength={50}
                   />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="bio">Kısa biyografi</Label>
+                <Label htmlFor="bio">{t('bio')}</Label>
                 <Textarea
                   id="bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Kendini kısaca tanıt..."
+                  placeholder={t('bioPlaceholder')}
                   maxLength={1000}
                   rows={3}
                 />
@@ -215,7 +220,7 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="githubUrl">GitHub linki</Label>
+                  <Label htmlFor="githubUrl">{t('githubPlaceholder')}</Label>
                   <Input
                     id="githubUrl"
                     value={githubUrl}
@@ -224,7 +229,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="linkedinUrl">LinkedIn linki</Label>
+                  <Label htmlFor="linkedinUrl">{t('linkedinPlaceholder')}</Label>
                   <Input
                     id="linkedinUrl"
                     value={linkedinUrl}
@@ -235,7 +240,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label>Uzmanlık alanları</Label>
+                <Label>{t('expertiseAreas')}</Label>
                 <TagInput
                   value={expertiseAreas}
                   onChange={setExpertiseAreas}
@@ -245,7 +250,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label>Bildiği diller</Label>
+                <Label>{t('languages')}</Label>
                 <TagInput
                   value={languages}
                   onChange={setLanguages}
@@ -254,16 +259,16 @@ export default function ProfilePage() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="language">Dil Tercihi (Language Preference)</Label>
-                <select
-                  id="language"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="tr">Türkçe (Turkish)</option>
-                  <option value="en">English (İngilizce)</option>
-                </select>
+                <Label>{t('languagePreference')}</Label>
+                <Select value={language} onValueChange={(val) => { if (val) setLanguage(val); }}>
+                  <SelectTrigger className="w-full h-10 border border-input rounded-lg px-3 bg-background text-sm flex items-center justify-between">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tr">Türkçe (Turkish)</SelectItem>
+                    <SelectItem value="en">English (İngilizce)</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
                   AI asistanının sizinle hangi dilde iletişim kuracağını belirler. (Determines the language the AI assistant will use to communicate with you.)
                 </p>
@@ -271,7 +276,7 @@ export default function ProfilePage() {
 
               <div className="mt-2 flex justify-end">
                 <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                  {isSaving ? t('saving') : t('save')}
                 </Button>
               </div>
             </CardContent>
@@ -283,37 +288,40 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="size-5 text-primary" />
-                Özel AI Yapılandırması (AI Configuration)
+                {t('aiSettings')}
               </CardTitle>
               <CardDescription>
-                Quantro AI özelliklerinde (akıllı chat, kart doldurma vb.) sitenin genel motoru yerine kendinize ait bir yapay zeka modelini ve API anahtarını kullanabilirsiniz.
+                {t('aiSettingsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="aiProvider">AI Sağlayıcı (Provider)</Label>
-                <select
-                  id="aiProvider"
+                <Label htmlFor="aiProvider">{t('aiProvider')}</Label>
+                <Select
                   value={aiProvider}
-                  onChange={(e) => {
-                    const prov = e.target.value;
-                    setAiProvider(prov);
-                    // Default values reset placeholders
-                    if (prov === 'google-gemini') {
-                      if (!aiModel) setAiModel('gemini-flash-latest');
-                    } else if (prov === 'openai') {
-                      if (!aiModel) setAiModel('gpt-4o-mini');
+                  onValueChange={(prov) => {
+                    if (prov) {
+                      setAiProvider(prov);
+                      if (prov === 'google-gemini') {
+                        if (!aiModel) setAiModel('gemini-flash-latest');
+                      } else if (prov === 'openai') {
+                        if (!aiModel) setAiModel('gpt-4o-mini');
+                      }
                     }
                   }}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="openai">OpenAI API / Uyumlu Custom Endpoint</option>
-                  <option value="google-gemini">Google Gemini API</option>
-                </select>
+                  <SelectTrigger className="w-full h-10 border border-input rounded-lg px-3 bg-background text-sm flex items-center justify-between">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai">OpenAI API / Custom Endpoint</SelectItem>
+                    <SelectItem value="google-gemini">Google Gemini API</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="aiApiKey">API Anahtarı (API Key)</Label>
+                <Label htmlFor="aiApiKey">{t('aiApiKey')}</Label>
                 <div className="relative">
                   <Input
                     id="aiApiKey"

@@ -21,8 +21,10 @@ import { OrgChatPanel } from '@/features/chat/OrgChatPanel';
 import { OrgMembersDialog } from '@/features/organizations/components/OrgMembersDialog';
 import { OrgSettingsDialog } from '@/features/organizations/components/OrgSettingsDialog';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function ProjectsPage() {
+  const { t } = useTranslation();
   const { data: orgs, isLoading, error } = useGetMyOrganizationsQuery();
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [orgName, setOrgName] = useState('');
@@ -47,10 +49,10 @@ export default function ProjectsPage() {
       <main className="mx-auto max-w-5xl p-4 sm:p-6">
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
           <p className="text-sm font-medium text-destructive">
-            Organizasyonlar yüklenirken hata oluştu.
+            {t('orgLoadError')}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Sayfayı yenilemeyi dene; sorun sürerse oturumun düşmüş olabilir.
+            {t('orgLoadErrorDesc')}
           </p>
         </div>
       </main>
@@ -65,11 +67,10 @@ export default function ProjectsPage() {
             <LayoutGrid className="size-7" />
           </span>
           <h1 className="mb-3 text-3xl font-bold tracking-tight text-foreground">
-            Quantro&apos;ya hoş geldin
+            {t('welcome')}
           </h1>
           <p className="mx-auto mb-8 max-w-md text-muted-foreground">
-            Başlamak için bir organizasyon oluştur. Ekibini davet edip projelerini
-            aynı pano üzerinden yürütebilirsin.
+            {t('welcomeDesc')}
           </p>
 
           {showCreateOrg ? (
@@ -95,33 +96,33 @@ export default function ProjectsPage() {
                   window.location.reload();
                 } else {
                   const data = await res.json();
-                  toast.error(data?.error?.message || 'Oluşturulamadı');
+                  toast.error(data?.error?.message || t('orgCreateError'));
                 }
               } catch {
-                toast.error('Bir hata oluştu');
+                toast.error(t('genericError'));
               }
             }} className="max-w-md mx-auto space-y-4">
               <Input
                 type="text"
-                placeholder="Organizasyon adı"
+                placeholder={t('orgName')}
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
                 required
               />
               <Input
                 type="text"
-                placeholder="Açıklama (opsiyonel)"
+                placeholder={t('descriptionOpt')}
                 value={orgDesc}
                 onChange={(e) => setOrgDesc(e.target.value)}
               />
-              <Button type="submit" className="w-full">Oluştur</Button>
+              <Button type="submit" className="w-full">{t('create')}</Button>
               <Button type="button" variant="ghost" onClick={() => setShowCreateOrg(false)} className="w-full">
-                İptal
+                {t('cancel')}
               </Button>
             </form>
           ) : (
             <Button onClick={() => setShowCreateOrg(true)} size="lg">
-              + Organizasyon Oluştur
+              + {t('createOrg')}
             </Button>
           )}
         </div>
@@ -137,6 +138,7 @@ export default function ProjectsPage() {
 }
 
 function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: number; role: 'ADMIN' | 'MEMBER' }[] }) {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const [activeOrgId, setActiveOrgId] = useState(orgs[0]?.id);
   const activeOrg = orgs.find((o) => o.id === activeOrgId) || orgs[0];
@@ -172,13 +174,13 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
     setInviteMsg('');
     try {
       await addMember({ orgId: activeOrg.id, email: inviteEmail }).unwrap();
-      toast.success('Davetiye gönderildi!');
-      setInviteMsg('Davet edildi!');
+      toast.success(t('inviteSuccess'));
+      setInviteMsg(t('invited'));
       setInviteEmail('');
       setTimeout(() => setShowInvite(false), 1200);
     } catch (err: any) {
       const errData = err?.data?.error;
-      setInviteMsg(typeof errData === 'string' ? errData : errData?.message || 'Davet edilemedi.');
+      setInviteMsg(typeof errData === 'string' ? errData : errData?.message || t('inviteError'));
     }
   };
 
@@ -189,11 +191,11 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">{activeOrg.name}</h1>
           <Badge variant={activeOrg.role === 'ADMIN' ? 'default' : 'secondary'}>
-            {activeOrg.role === 'ADMIN' ? 'Admin' : 'Üye'}
+            {activeOrg.role === 'ADMIN' ? t('roleAdmin') : t('roleMember')}
           </Badge>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Bu organizasyondaki projeler ve ekip.
+          {t('orgDescription')}
         </p>
       </div>
 
@@ -220,15 +222,15 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
         <div className="ml-auto flex flex-wrap gap-2">
           <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowMembers(true)}>
             <Users className="size-3.5" />
-            Üyeler
+            {t('members')}
           </Button>
           <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowChat(true)}>
             <MessagesSquare className="size-3.5" />
-            Sohbet
+            {t('chat')}
           </Button>
           <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowRequests(true)}>
             <Inbox className="size-3.5" />
-            {isAdmin ? 'Talepler' : 'Taleplerim'}
+            {isAdmin ? t('requests') : t('myRequests')}
             {bekleyenTalepler.length > 0 && (
               <Badge variant={isAdmin ? 'default' : 'secondary'} className="ml-1 tabular-nums">
                 {bekleyenTalepler.length}
@@ -238,13 +240,13 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
           {isAdmin && (
             <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowInvite((v) => !v)}>
               <Plus className="size-3.5" />
-              Üye Davet Et
+              {t('inviteMember')}
             </Button>
           )}
           {isAdmin && (
             <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowOrgSettings(true)}>
               <Settings className="size-3.5" />
-              Ayarlar
+              {t('settings')}
             </Button>
           )}
           {/* Proje olusturma admin'e ozel; uye talep akisini kullanir */}
@@ -252,7 +254,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
             <Link href={`/projects/new?orgId=${activeOrg.id}`}>
               <Button size="sm" className="cursor-pointer">
                 <Plus className="size-3.5" />
-                Yeni Proje
+                {t('newProject')}
               </Button>
             </Link>
           )}
@@ -264,7 +266,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
           <div className="flex-1">
             <Input
               type="email"
-              placeholder="Davet edilecek kullanıcının email'i"
+              placeholder={t('invitePlaceholder')}
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               required
@@ -272,7 +274,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
             {inviteMsg && <p className="mt-1 text-xs text-muted-foreground">{inviteMsg}</p>}
           </div>
           <Button type="submit" disabled={isInviting} size="sm">
-            {isInviting ? '...' : 'Davet Et'}
+            {isInviting ? '...' : t('inviteBtn')}
           </Button>
         </form>
       )}
@@ -297,7 +299,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
 
       <Dialog open={showChat} onOpenChange={setShowChat}>
         <DialogContent className="sm:max-w-lg w-full p-0">
-          <DialogTitle className="sr-only">Organizasyon Sohbeti</DialogTitle>
+          <DialogTitle className="sr-only">{t('orgChat')}</DialogTitle>
           <div className="h-[70vh]">
             <OrgChatPanel orgId={activeOrg.id} orgName={activeOrg.name} />
           </div>
@@ -308,6 +310,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
 }
 
 function ProjectList({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
   const { data: projects, isLoading, error } = useGetProjectsQuery({ orgId });
 
   // Duz "Yukleniyor..." yazisi yerine iskelet: yukleme sirasinda sayfa
@@ -329,9 +332,9 @@ function ProjectList({ orgId }: { orgId: string }) {
   if (error) {
     return (
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
-        <p className="text-sm font-medium text-destructive">Projeler yüklenemedi.</p>
+        <p className="text-sm font-medium text-destructive">{t('projectsLoadError')}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Bağlantını kontrol edip sayfayı yenilemeyi dene.
+          {t('networkRefreshDesc')}
         </p>
       </div>
     );
@@ -343,10 +346,9 @@ function ProjectList({ orgId }: { orgId: string }) {
         <span className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
           <FolderPlus className="size-6" />
         </span>
-        <h3 className="text-base font-semibold text-foreground">Henüz proje yok</h3>
+        <h3 className="text-base font-semibold text-foreground">{t('noProject')}</h3>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Üstteki &quot;Yeni Proje&quot; düğmesiyle ilk projeni oluştur, kartları
-          sürükleyerek takibe başla.
+          {t('noProjectDesc')}
         </p>
       </div>
     );
@@ -367,12 +369,12 @@ function ProjectList({ orgId }: { orgId: string }) {
               {project.description ? (
                 <CardDescription className="line-clamp-2">{project.description}</CardDescription>
               ) : (
-                <CardDescription className="italic opacity-70">Açıklama eklenmemiş</CardDescription>
+                <CardDescription className="italic opacity-70">{t('noDescription')}</CardDescription>
               )}
             </CardHeader>
             <CardContent>
               <Badge variant="secondary" className="tabular-nums">
-                {project._count?.columns ?? 0} sütun
+                {project._count?.columns ?? 0} {t('columnCount')}
               </Badge>
             </CardContent>
           </Card>

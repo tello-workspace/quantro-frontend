@@ -11,6 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useConfirm } from '@/hooks/useConfirm';
 import { toast } from 'sonner';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -303,6 +304,7 @@ interface AIChatPanelProps {
 }
 
 export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName, onClose, isMobile }) => {
+  const { t, lang } = useTranslation();
   const confirm = useConfirm();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -317,7 +319,17 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
   const [typingId, setTypingId] = useState<string | null>(null);
 
   // AI yüklenirken gösterilecek durum metinleri
-  const statusMessages = [
+  const statusMessages = lang === 'en' ? [
+    'Scanning project...',
+    'Analyzing cards...',
+    'Preparing AI response...',
+    'Inspecting project board...',
+    'Evaluating tasks...',
+    'Compiling insights...',
+    'Rate limit exceeded, retrying...',
+    'Waiting for response...',
+    'Reading cards in columns...',
+  ] : [
     'Proje taranıyor...',
     'Kartlar analiz ediliyor...',
     'AI yanıt hazırlanıyor...',
@@ -342,7 +354,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
       }, 400);
     }, 3000);
     return () => clearInterval(interval);
-  }, [isLoading, importing]);
+  }, [isLoading, importing, statusMessages.length]);
 
   // Load from localStorage on mount or when projectId changes
   useEffect(() => {
@@ -362,11 +374,11 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
     setMessages([
       {
         role: 'assistant',
-        content: `Merhaba! 👋 Proje hakkında sorularınızı cevaplayabilirim. Örneğin:\n\n- "Bu projede neler yapılıyor?"\n- "Kartları nasıl daha iyi organize edebilirim?"\n- "Takım üyelerinin iş yükü nasıl?"`,
+        content: t('welcomeMessage'),
         id: 'welcome',
       },
     ]);
-  }, [projectId]);
+  }, [projectId, t]);
 
   // Save to localStorage when messages change
   useEffect(() => {
@@ -377,16 +389,16 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
 
   const handleClearHistory = async () => {
     const ok = await confirm({
-      title: 'Geçmişi Temizle',
-      description: 'Sohbet geçmişini temizlemek istediğinizden emin misiniz?',
-      confirmText: 'Temizle',
-      cancelText: 'İptal',
+      title: t('clearHistory'),
+      description: t('clearConfirm'),
+      confirmText: t('clear'),
+      cancelText: t('cancel'),
       variant: 'destructive',
     });
     if (ok) {
       const welcomeMsg: Message = {
         role: 'assistant',
-        content: `Merhaba! 👋 Proje hakkında sorularınızı cevaplayabilirim. Örneğin:\n\n- "Bu projede neler yapılıyor?"\n- "Kartları nasıl daha iyi organize edebilirim?"\n- "Takım üyelerinin iş yükü nasıl?"`,
+        content: t('welcomeMessage'),
         id: 'welcome',
       };
       setMessages([welcomeMsg]);
@@ -430,7 +442,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
         ...prev,
         {
           role: 'assistant',
-          content: '⚠️ Mesaj gönderilirken bir hata oluştu. Lütfen tekrar deneyin.',
+          content: '⚠️ ' + t('messageSendError'),
           id: `error-${Date.now()}`,
         },
       ]);
@@ -446,12 +458,12 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
 
     // Only allow .txt and .md
     if (!file.name.endsWith('.txt') && !file.name.endsWith('.md')) {
-      toast.error('Yalnızca .txt ve .md dosyaları destekleniyor.');
+      toast.error(t('fileFormatError'));
       return;
     }
 
     if (file.size > 500_000) {
-      toast.error('Dosya çok büyük. Maksimum 500KB yükleyebilirsiniz.');
+      toast.error(t('fileSizeError'));
       return;
     }
 
@@ -465,7 +477,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
       // User message showing what was imported
       const userMsg: Message = {
         role: 'user',
-        content: `Toplantı notlarını içe aktar: ${file.name}\n\n\`\`\`\n${text.slice(0, 4000)}\`\`\``,
+        content: `${t('importNotesPrefix')}: ${file.name}\n\n\`\`\`\n${text.slice(0, 4000)}\`\`\``,
         id: `import-${Date.now()}`,
       };
       setMessages((prev) => [...prev, userMsg]);
@@ -475,7 +487,12 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
         ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
         {
           role: 'user' as const,
-          content: `Aşağıdaki toplantı notlarını oku ve her bir madde/konu için uygun kolonlara kart oluştur. Kart başlıkları net ve kısa olsun. Gerekli görürsen açıklama ekle.
+          content: lang === 'en' ? `Read the following meeting notes and create cards in the appropriate columns for each item/topic. Card titles should be clear and concise. Add descriptions if necessary.
+If you cannot decide which column to place it in, put it in the "To Do" column.
+
+FILE NAME: ${file.name}
+
+${text.slice(0, 4000)}` : `Aşağıdaki toplantı notlarını oku ve her bir madde/konu için uygun kolonlara kart oluştur. Kart başlıkları net ve kısa olsun. Gerekli görürsen açıklama ekle.
 Eğer hangi kolona koyacağını kestiremezsen "To Do" kolonuna koy.
 
 DOSYA ADI: ${file.name}
@@ -494,7 +511,7 @@ ${text.slice(0, 4000)}`,
       setTypingId(replyId);
       setTimeout(() => setTypingId(null), Math.min(reply.length * 18, 4000));
     } catch {
-      toast.error('Dosya işlenirken bir hata oluştu. Lütfen tekrar deneyin.');
+      toast.error(t('fileProcessingError'));
     } finally {
       setImporting(false);
     }
@@ -522,14 +539,14 @@ ${text.slice(0, 4000)}`,
             <AvatarFallback className="bg-primary/10 text-primary text-xs">AI</AvatarFallback>
           </Avatar>
           <div>
-            <h3 className="text-sm font-semibold">AI Asistan</h3>
+            <h3 className="text-sm font-semibold">{t('aiChatTitle')}</h3>
             {projectName && (
               <p className="text-xs text-muted-foreground truncate max-w-[180px]">{projectName}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} title="Toplantı notlarını içe aktar" disabled={importing}>
+          <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} title={t('importMeetingNotes')} disabled={importing}>
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />}
           </Button>
           <input
@@ -539,11 +556,11 @@ ${text.slice(0, 4000)}`,
             onChange={handleFileImport}
             className="hidden"
           />
-          <Button variant="ghost" size="icon" onClick={handleClearHistory} title="Sohbet geçmişini temizle">
+          <Button variant="ghost" size="icon" onClick={handleClearHistory} title={t('clearHistoryTitle')}>
             <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
           </Button>
           {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose} title="Kapat">
+            <Button variant="ghost" size="icon" onClick={onClose} title={t('close')}>
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -559,7 +576,7 @@ ${text.slice(0, 4000)}`,
           }`}
         >
           <MessageSquare className="h-3.5 w-3.5" />
-          Sohbet
+          {t('chat')}
         </button>
         <button
           onClick={() => setTab('insights')}
@@ -568,7 +585,7 @@ ${text.slice(0, 4000)}`,
           }`}
         >
           <Lightbulb className="h-3.5 w-3.5" />
-          Değerlendirme
+          {t('evaluation')}
         </button>
       </div>
 
@@ -605,9 +622,9 @@ ${text.slice(0, 4000)}`,
                     <button
                       onClick={() => handleCopy(msg.content)}
                       className="absolute -bottom-4 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground hover:text-foreground bg-background px-1 rounded border"
-                      title="Kopyala"
+                      title={t('copy')}
                     >
-                      Kopyala
+                      {t('copy')}
                     </button>
                   )}
                 </div>
@@ -647,7 +664,7 @@ ${text.slice(0, 4000)}`,
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Mesajınızı yazın..."
+                placeholder={t('aiChatPlaceholder')}
                 disabled={isLoading}
                 className="flex-1 rounded-full"
               />
@@ -656,7 +673,7 @@ ${text.slice(0, 4000)}`,
                 disabled={isLoading || !input.trim()}
                 size="icon"
                 className="rounded-full shrink-0"
-                title="Gönder"
+                title={t('send')}
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -666,7 +683,7 @@ ${text.slice(0, 4000)}`,
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-1.5 text-center whitespace-normal break-words">
-              AI cevapları yönlendirme amaçlıdır, aksiyon almadan önce doğrulayın.
+              {t('aiDisclaimer')}
             </p>
           </div>
         </>
@@ -676,14 +693,14 @@ ${text.slice(0, 4000)}`,
           {insightsLoading ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin" />
-              <p className="text-sm">Proje analiz ediliyor...</p>
+              <p className="text-sm">{t('aiAnalyzing')}</p>
             </div>
           ) : insights ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-2">
                 <Badge variant="secondary" className="gap-1">
                   <Lightbulb className="h-3 w-3" />
-                  AI Analizi
+                  {t('aiAnalysis')}
                 </Badge>
               </div>
               <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed prose prose-sm dark:prose-invert">
@@ -719,8 +736,8 @@ ${text.slice(0, 4000)}`,
           ) : (
             <div className="text-center py-12 text-sm text-muted-foreground">
               <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>AI yapılandırılmamış veya içgörü alınamadı.</p>
-              <p className="text-xs mt-1">.env dosyasında AI_API_KEY ayarlayın.</p>
+              <p>{t('aiNotConfigured')}</p>
+              <p className="text-xs mt-1">{t('aiConfigureDesc')}</p>
             </div>
           )}
         </div>

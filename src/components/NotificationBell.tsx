@@ -21,16 +21,17 @@ import type { AppDispatch } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useTranslation } from '@/hooks/useTranslation';
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: any): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'az önce';
-  if (mins < 60) return `${mins} dk önce`;
+  if (mins < 1) return t('justNow');
+  if (mins < 60) return `${mins} ${t('minsAgo')}`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} sa önce`;
+  if (hours < 24) return `${hours} ${t('hoursAgo')}`;
   const days = Math.floor(hours / 24);
-  return `${days} gün önce`;
+  return `${days} ${t('daysAgo')}`;
 }
 
 function parseMessage(message: string) {
@@ -41,6 +42,7 @@ function parseMessage(message: string) {
 }
 
 export default function NotificationBell() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { data: unreadCount = 0 } = useGetUnreadCountQuery();
   const { data: notifications = [] } = useGetNotificationsQuery();
@@ -91,9 +93,9 @@ export default function NotificationBell() {
     e.stopPropagation();
     try {
       await acceptInvitation(invitationId).unwrap();
-      toast.success('Davet kabul edildi!');
+      toast.success(t('inviteAccepted'));
     } catch {
-      toast.error('Davet kabul edilemedi.');
+      toast.error(t('inviteAcceptError'));
     }
   };
 
@@ -101,9 +103,9 @@ export default function NotificationBell() {
     e.stopPropagation();
     try {
       await declineInvitation(invitationId).unwrap();
-      toast.success('Davet reddedildi.');
+      toast.success(t('inviteDeclined'));
     } catch {
-      toast.error('Davet reddedilemedi.');
+      toast.error(t('inviteDeclineError'));
     }
   };
 
@@ -149,11 +151,11 @@ export default function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-80 p-0 max-h-96 overflow-y-auto">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <span className="text-sm font-semibold text-foreground">Bildirimler</span>
+          <span className="text-sm font-semibold text-foreground">{t('notifications')}</span>
         </div>
 
         {notifications.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground text-center">Henüz bildirim yok.</p>
+          <p className="px-4 py-6 text-sm text-muted-foreground text-center">{t('noNotifications')}</p>
         ) : (
           <ul>
             {notifications.map((n) => (
@@ -168,23 +170,23 @@ export default function NotificationBell() {
                   {!n.read && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
                   <div className="flex-1">
                     <p className={n.read ? '' : 'font-medium'}>{parseMessage(n.message).cleanMessage}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(n.createdAt)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(n.createdAt, t)}</p>
 
                     {n.type === 'ORG_INVITE' && n.invitation?.status === 'PENDING' && (
                       <div className="flex gap-2 mt-2">
                         <Button size="xs" onClick={(e) => handleAccept(e, n.invitation!.id)}>
-                          Kabul Et
+                          {t('accept')}
                         </Button>
                         <Button size="xs" variant="outline" onClick={(e) => handleDecline(e, n.invitation!.id)}>
-                          Reddet
+                          {t('decline')}
                         </Button>
                       </div>
                     )}
                     {n.type === 'ORG_INVITE' && n.invitation?.status === 'ACCEPTED' && (
-                      <Badge className="mt-1" variant="default">Kabul edildi</Badge>
+                      <Badge className="mt-1" variant="default">{t('accepted')}</Badge>
                     )}
                     {n.type === 'ORG_INVITE' && n.invitation?.status === 'DECLINED' && (
-                      <Badge className="mt-1" variant="secondary">Reddedildi</Badge>
+                      <Badge className="mt-1" variant="secondary">{t('declined')}</Badge>
                     )}
                   </div>
                 </div>
