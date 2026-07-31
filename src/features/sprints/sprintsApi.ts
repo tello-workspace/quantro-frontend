@@ -28,6 +28,17 @@ export interface SprintBurndown {
   series: SprintBurndownPoint[];
 }
 
+export interface SprintRolloverSummary {
+  rolledOverCount: number;
+  backlogCount: number;
+  nextSprintId: string | null;
+  nextSprintName: string | null;
+}
+
+export interface UpdateSprintResult extends Sprint {
+  rollover: SprintRolloverSummary | null;
+}
+
 interface ApiEnvelope<T> {
   success: boolean;
   data: T;
@@ -53,7 +64,7 @@ export const sprintsApi = api.injectEndpoints({
       invalidatesTags: (_result, _error, { projectId }) => [{ type: 'Project', id: `sprints-${projectId}` }],
     }),
     updateSprint: builder.mutation<
-      Sprint,
+      UpdateSprintResult,
       { sprintId: string; projectId: string; status?: SprintStatus; name?: string; goal?: string | null }
     >({
       query: ({ sprintId, projectId: _projectId, ...body }) => ({
@@ -61,7 +72,7 @@ export const sprintsApi = api.injectEndpoints({
         method: 'PATCH',
         body,
       }),
-      transformResponse: (response: ApiEnvelope<Sprint>) => response.data,
+      transformResponse: (response: ApiEnvelope<UpdateSprintResult>) => response.data,
       invalidatesTags: (_result, _error, { projectId }) => [{ type: 'Project', id: `sprints-${projectId}` }],
     }),
     deleteSprint: builder.mutation<void, { sprintId: string; projectId: string }>({

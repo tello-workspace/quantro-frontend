@@ -96,7 +96,20 @@ export const SprintPanel: React.FC<SprintPanelProps> = ({ orgId, projectId, isAd
 
   const handleComplete = async (sprintId: string) => {
     try {
-      await updateSprint({ sprintId, projectId, status: 'COMPLETED' }).unwrap();
+      const result = await updateSprint({ sprintId, projectId, status: 'COMPLETED' }).unwrap();
+      const r = result.rollover;
+      if (r && (r.rolledOverCount > 0 || r.backlogCount > 0)) {
+        const parts: string[] = [];
+        if (r.rolledOverCount > 0) {
+          parts.push(`${r.rolledOverCount} kart "${r.nextSprintName}" sprintine taşındı`);
+        }
+        if (r.backlogCount > 0) {
+          parts.push(`${r.backlogCount} kart backlog'a alındı`);
+        }
+        toast.success(`Sprint tamamlandı: ${parts.join(', ')}.`);
+      } else {
+        toast.success('Sprint tamamlandı.');
+      }
     } catch {
       toast.error('Sprint tamamlanamadı.');
     }
