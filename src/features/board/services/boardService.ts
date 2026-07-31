@@ -160,12 +160,25 @@ export const boardService = {
     }
   },
 
-  async createTask(projectId: string, columnId: string, title: string): Promise<Task | null> {
+  // options.dueDate: takvimden "boş güne tıklayınca kart oluştur" akışı kartın
+  // o güne oturması için dueDate'i daha oluşturma anında gönderir. Backend
+  // route'u (POST /projects/:id/tasks) dueDate'i zaten kabul ediyor; burada
+  // sadece iletiyoruz.
+  async createTask(
+    projectId: string,
+    columnId: string,
+    title: string,
+    options?: { dueDate?: string },
+  ): Promise<Task | null> {
     try {
       const res = await fetch(`${API_BASE_URL}/projects/${projectId}/tasks`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ columnId, title }),
+        body: JSON.stringify({
+          columnId,
+          title,
+          ...(options?.dueDate && { dueDate: options.dueDate }),
+        }),
       });
       if (!res.ok) throw new Error('Kart oluşturulamadı.');
       const json = await res.json();

@@ -494,6 +494,9 @@ interface TaskModalProps {
   availableCards?: DependencyCard[];
   columnId?: string | null;
   initialTitle?: string;
+  // Takvimden boş güne tıklayınca gelen "YYYY-MM-DD" — yeni kartın Son Teslim
+  // Tarihi bu değerle önceden doldurulur.
+  initialDueDate?: string;
   onCreateTask?: (columnId: string, payload: any) => Promise<void>;
   conflict?: TaskModalConflictInfo;
 }
@@ -510,6 +513,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   availableCards = [],
   columnId,
   initialTitle,
+  initialDueDate,
   onCreateTask,
   conflict,
 }) => {
@@ -605,7 +609,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           title: initialTitle || '',
           description: '',
           priority: 'MEDIUM',
-          dueDate: '',
+          dueDate: initialDueDate || '',
           assignees: [],
           labels: [],
           blockedBy: [],
@@ -616,7 +620,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     } else {
       setTask(null);
     }
-  }, [taskId, isOpen, fetchTaskDetails, columnId, initialTitle]);
+  }, [taskId, isOpen, fetchTaskDetails, columnId, initialTitle, initialDueDate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (!task) return;

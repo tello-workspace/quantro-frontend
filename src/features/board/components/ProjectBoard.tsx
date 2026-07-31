@@ -148,6 +148,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
   const [initialTitle, setInitialTitle] = useState('');
+  // Takvimden boş güne tıklanınca yeni kartın önceden dolu geleceği tarih
+  const [initialDueDate, setInitialDueDate] = useState('');
 
   const [search, setSearch] = useState('');
   const [isDesktopChatOpen, setIsDesktopChatOpen] = useState(false);
@@ -649,7 +651,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   ) => {
     try {
-      const newTask = await boardService.createTask(projectId, columnId, payload.title);
+      // Takvimden gelen dueDate (boş güne tıklama) daha oluşturma anında
+      // gönderilir — kart o günde görünür, ayrı update gerekmez.
+      const newTask = await boardService.createTask(projectId, columnId, payload.title, {
+        dueDate: payload.dueDate ?? undefined,
+      });
       if (!newTask) return;
 
       const updatedFields: any = {
@@ -688,6 +694,18 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
   const handleTaskClick = (taskId: string) => {
     setSelectedTaskId(taskId);
+    setIsModalOpen(true);
+  };
+
+  // Takvimde boş bir güne tıklanınca o tarih önceden dolu "yeni kart" formunu
+  // açar. Hedef kolon ilk kolon; kullanıcı TaskModal'da değiştirebilir.
+  const handleDayClick = (date: string) => {
+    const firstColumn = Object.values(boardData?.columns ?? {})[0];
+    if (!firstColumn) return;
+    setCreateRequestColumnId(firstColumn.id);
+    setInitialTitle('');
+    setInitialDueDate(date);
+    setSelectedTaskId('new');
     setIsModalOpen(true);
   };
 
@@ -923,6 +941,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             doneColumnIds={doneColumnIds}
             onTaskClick={handleTaskClick}
             onTaskReschedule={handleRescheduleTask}
+            onDayClick={handleDayClick}
           />
         ) : (
         <DndContext
@@ -1092,6 +1111,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           setSelectedTaskId(null);
           setCreateRequestColumnId(null);
           setInitialTitle('');
+          setInitialDueDate('');
         }}
         taskId={selectedTaskId}
         orgId={orgId}
@@ -1102,6 +1122,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         onDeleteTask={handleDeleteTask}
         columnId={createRequestColumnId}
         initialTitle={initialTitle}
+        initialDueDate={initialDueDate}
         onCreateTask={handleCreateTask}
         conflict={selectedTaskId ? conflicts[selectedTaskId] : undefined}
       />

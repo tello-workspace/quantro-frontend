@@ -14,8 +14,9 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, List } from 'lucide-react';
 import type { Task, Priority } from '../services/boardService';
+import { CalendarAgendaView } from './CalendarAgendaView';
 
 const PRIORITY_DOT: Record<Priority, string> = {
   URGENT: 'bg-red-500',
@@ -28,7 +29,7 @@ const WEEKDAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 const MAX_VISIBLE_PER_DAY = 3;
 const DAY_DROPPABLE_PREFIX = 'cal-day-';
 
-type CalendarMode = 'month' | 'week';
+type CalendarMode = 'month' | 'week' | 'agenda';
 
 function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -45,6 +46,9 @@ interface CalendarViewProps {
   doneColumnIds: Set<string>;
   onTaskClick: (taskId: string) => void;
   onTaskReschedule: (taskId: string, newDueDate: string) => void;
+  // Takvimde boş bir güne tıklanınca çağrılır (arg: "YYYY-MM-DD").
+  // Yeni kart formunu o tarih dolu açmak için parent'a bildirir.
+  onDayClick?: (date: string) => void;
 }
 
 interface TaskChipProps {
@@ -69,7 +73,12 @@ function TaskChip({ task, isDone, isOverdue, onClick }: TaskChipProps) {
       {...listeners}
       {...attributes}
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        // Çipe tıklamak gün hücresinin onDayClick'ini tetiklememeli —
+        // kartı açmak istiyoruz, o güne yeni kart eklemek değil.
+        e.stopPropagation();
+        onClick();
+      }}
       title={task.title}
       className={`flex items-center gap-1.5 text-left rounded-md px-1.5 py-1 text-[11px] transition-colors truncate cursor-grab active:cursor-grabbing touch-none shrink-0 ${
         isDragging ? 'opacity-30' : ''
@@ -98,9 +107,10 @@ interface DayCellProps {
   doneColumnIds: Set<string>;
   todayKey: string;
   onTaskClick: (taskId: string) => void;
+  onDayClick?: (date: string) => void;
 }
 
-function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, todayKey, onTaskClick }: DayCellProps) {
+function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, todayKey, onTaskClick, onDayClick }: DayCellProps) {
   const key = toDateKey(date);
   const { setNodeRef, isOver } = useDroppable({ id: `${DAY_DROPPABLE_PREFIX}${key}` });
   // Ay gorunumunde 6 satir sabit yukseklige sigmali (fazlasi "+N daha"), hafta
@@ -112,9 +122,14 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
   return (
     <div
       ref={setNodeRef}
-      className={`p-1.5 flex flex-col gap-1 transition-colors ${
+      onClick={() => onDayClick?.(key)}
+      role={onDayClick ? 'button' : undefined}
+      aria-label={onDayClick ? `${date.getDate()} gününe kart ekle` : undefined}
+      className={`p-1.5 flex flex-col gap-1 transition-colors cursor-default ${
         variant === 'month' ? 'min-h-0 overflow-hidden' : 'min-h-[7rem]'
-      } ${isOver ? 'bg-primary/10' : 'bg-background'} ${inMonth ? '' : 'opacity-40'}`}
+      } ${isOver ? 'bg-primary/10' : 'bg-background'} ${inMonth ? '' : 'opacity-40'} ${
+        onDayClick ? 'hover:bg-accent/40 cursor-pointer' : ''
+      }`}
     >
       <span
         className={
@@ -163,7 +178,7 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
 // deneyiminin takvim karşılığı. Optimistik guncelleme + hata durumunda geri
 // alma parent'taki onTaskReschedule'da yapılır (panonun kendi drag mantığıyla
 // aynı desen).
-export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedule }: CalendarViewProps) {
+export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedule, onDayClick }: CalendarViewProps) {
   const [mode, setMode] = useState<CalendarMode>('month');
   const [cursor, setCursor] = useState(() => new Date());
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -207,6 +222,7 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
   const activeTask = activeTaskId ? tasksById.get(activeTaskId) : undefined;
 
   const periodLabel = useMemo(() => {
+    if (mode === 'agenda') return 'Liste';
     if (mode === 'month') {
       return cursor.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
     }
@@ -277,90 +293,114 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
               >
                 Hafta
               </button>
+              <button
+                type="button"
+                onClick={() => setMode('agenda')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  mode === 'agenda' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <List className="size-3.5" />
+                Liste
+              </button>
             </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={goPrev}
-                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={mode === 'month' ? 'Önceki ay' : 'Önceki hafta'}
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setCursor(new Date())}
-                className="px-2.5 py-1 text-xs font-medium rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Bugün
-              </button>
-              <button
-                type="button"
-                onClick={goNext}
-                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={mode === 'month' ? 'Sonraki ay' : 'Sonraki hafta'}
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
+            {mode !== 'agenda' && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={goPrev}
+                  className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={mode === 'month' ? 'Önceki ay' : 'Önceki hafta'}
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCursor(new Date())}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Bugün
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={mode === 'month' ? 'Sonraki ay' : 'Sonraki hafta'}
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-px bg-border rounded-t-lg overflow-hidden shrink-0 sticky top-0 z-[1]">
-          {WEEKDAY_LABELS.map((label) => (
-            <div
-              key={label}
-              className="bg-muted/50 py-1.5 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-wide"
-            >
-              {label}
-            </div>
-          ))}
-        </div>
-
-        {mode === 'month' ? (
-          <div className="grid grid-cols-7 grid-rows-6 gap-px bg-border flex-1 min-h-0 rounded-b-lg overflow-hidden">
-            {days.map((date) => {
-              const key = toDateKey(date);
-              return (
-                <DayCell
-                  key={key}
-                  date={date}
-                  variant="month"
-                  inMonth={date.getMonth() === cursor.getMonth()}
-                  isToday={key === todayKey}
-                  dayTasks={tasksByDay.get(key) ?? []}
-                  doneColumnIds={doneColumnIds}
-                  todayKey={todayKey}
-                  onTaskClick={onTaskClick}
-                />
-              );
-            })}
-          </div>
+        {mode === 'agenda' ? (
+          <CalendarAgendaView
+            tasks={tasks}
+            doneColumnIds={doneColumnIds}
+            onTaskClick={onTaskClick}
+          />
         ) : (
-          // Hafta gorunumu: gun sutunlari icerige gore asagi buyur, disaridaki
-          // konteyner (flex-1 min-h-0 + overflow-y-auto) tasan kismi kaydirir -
-          // sayfa sonsuza kadar uzamiyor, "en kotu" durumda scroll devreye girer.
-          <div className="flex-1 min-h-0 overflow-y-auto rounded-b-lg border border-t-0 border-border">
-            <div className="grid grid-cols-7 gap-px bg-border">
-              {days.map((date) => {
-                const key = toDateKey(date);
-                return (
-                  <DayCell
-                    key={key}
-                    date={date}
-                    variant="week"
-                    inMonth
-                    isToday={key === todayKey}
-                    dayTasks={tasksByDay.get(key) ?? []}
-                    doneColumnIds={doneColumnIds}
-                    todayKey={todayKey}
-                    onTaskClick={onTaskClick}
-                  />
-                );
-              })}
+          <>
+            <div className="grid grid-cols-7 gap-px bg-border rounded-t-lg overflow-hidden shrink-0 sticky top-0 z-[1]">
+              {WEEKDAY_LABELS.map((label) => (
+                <div
+                  key={label}
+                  className="bg-muted/50 py-1.5 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-wide"
+                >
+                  {label}
+                </div>
+              ))}
             </div>
-          </div>
+
+            {mode === 'month' ? (
+              <div className="grid grid-cols-7 grid-rows-6 gap-px bg-border flex-1 min-h-0 rounded-b-lg overflow-hidden">
+                {days.map((date) => {
+                  const key = toDateKey(date);
+                  return (
+                    <DayCell
+                      key={key}
+                      date={date}
+                      variant="month"
+                      inMonth={date.getMonth() === cursor.getMonth()}
+                      isToday={key === todayKey}
+                      dayTasks={tasksByDay.get(key) ?? []}
+                      doneColumnIds={doneColumnIds}
+                      todayKey={todayKey}
+                      onTaskClick={onTaskClick}
+                      onDayClick={onDayClick}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              // Hafta gorunumu: gun sutunlari icerige gore asagi buyur, disaridaki
+              // konteyner (flex-1 min-h-0 + overflow-y-auto) tasan kismi kaydirir -
+              // sayfa sonsuza kadar uzamiyor, "en kotu" durumda scroll devreye girer.
+              <div className="flex-1 min-h-0 overflow-y-auto rounded-b-lg border border-t-0 border-border">
+                <div className="grid grid-cols-7 gap-px bg-border">
+                  {days.map((date) => {
+                    const key = toDateKey(date);
+                    return (
+                      <DayCell
+                        key={key}
+                        date={date}
+                        variant="week"
+                        inMonth
+                        isToday={key === todayKey}
+                        dayTasks={tasksByDay.get(key) ?? []}
+                        doneColumnIds={doneColumnIds}
+                        todayKey={todayKey}
+                        onTaskClick={onTaskClick}
+                        onDayClick={onDayClick}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
