@@ -5,6 +5,7 @@ import { useDispatch } from 'react-redux';
 import { api } from '@/lib/api';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import { toast } from "sonner";
+import { useTranslation } from '@/hooks/useTranslation';
 import NotificationBell from './NotificationBell';
 import { supabase } from '@/lib/supabaseClient';
 import { disconnectSocket } from '@/lib/socket';
@@ -32,6 +33,7 @@ function initials(name: string) {
 }
 
 export default function Header(){
+    const { t } = useTranslation();
     const router = useRouter();
     const dispatch = useDispatch();
     const searchParams = useSearchParams();
@@ -131,7 +133,7 @@ export default function Header(){
                       }}
                       onFocus={() => setIsFocused(true)}
                       onKeyDown={handleInputKeyDown}
-                      placeholder="Organizasyonda ara..."
+                      placeholder={t('searchPlaceholder')}
                       className="w-full pl-9 pr-12 py-1.5 text-xs sm:text-sm bg-muted/45 border border-border/80 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 focus:bg-background transition-all shadow-soft-sm text-foreground"
                     />
                     <kbd className="absolute right-3 pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-0.5 rounded border bg-background px-1.5 font-mono text-[9px] font-medium text-muted-foreground/80">
@@ -150,7 +152,7 @@ export default function Header(){
                       )}
 
                       {!isFetching && results?.length === 0 && (
-                        <p className="p-4 text-center text-xs sm:text-sm text-muted-foreground">Sonuç bulunamadı.</p>
+                        <p className="p-4 text-center text-xs sm:text-sm text-muted-foreground">{t('noResults')}</p>
                       )}
 
                       {!isFetching &&
@@ -194,7 +196,7 @@ export default function Header(){
               {me && (
                 <Link
                   href="/profile"
-                  title="Profilim"
+                  title={t('myProfile')}
                   className="ml-1 flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted"
                 >
                   <Avatar size="sm">
@@ -210,7 +212,7 @@ export default function Header(){
                 className="cursor-pointer text-muted-foreground transition-colors hover:text-destructive"
               >
                 <LogOut className="size-4" />
-                <span className="hidden sm:inline">Çıkış yap</span>
+                <span className="hidden sm:inline">{t('logout')}</span>
               </Button>
             </div>
           </div>

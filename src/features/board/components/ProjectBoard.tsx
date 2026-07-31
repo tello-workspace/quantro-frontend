@@ -33,6 +33,7 @@ import { SprintPanel } from '@/features/sprints/components/SprintPanel';
 import { CustomFieldsPanel } from '@/features/customFields/components/CustomFieldsPanel';
 import { TableView } from './TableView';
 import { useGetTemplatesQuery, useCreateCardFromTemplateMutation } from '@/features/templates/templateApi';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ProjectBoardProps {
   projectId: string;
@@ -122,6 +123,7 @@ function removeCard(columns: BoardData['columns'], cardId: string): BoardData['c
 }
 
 export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId }) => {
+  const { t } = useTranslation();
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -153,6 +155,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
   const [initialTitle, setInitialTitle] = useState('');
+  // Takvimden boş güne tıklanınca yeni kartın önceden dolu geleceği tarih
+  const [initialDueDate, setInitialDueDate] = useState('');
 
   const [search, setSearch] = useState('');
   const [isDesktopChatOpen, setIsDesktopChatOpen] = useState(false);
@@ -654,7 +658,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   ) => {
     try {
-      const newTask = await boardService.createTask(projectId, columnId, payload.title);
+      // Takvimden gelen dueDate (boş güne tıklama) daha oluşturma anında
+      // gönderilir — kart o günde görünür, ayrı update gerekmez.
+      const newTask = await boardService.createTask(projectId, columnId, payload.title, {
+        dueDate: payload.dueDate ?? undefined,
+      });
       if (!newTask) return;
 
       const updatedFields: any = {
@@ -693,6 +701,18 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
   const handleTaskClick = (taskId: string) => {
     setSelectedTaskId(taskId);
+    setIsModalOpen(true);
+  };
+
+  // Takvimde boş bir güne tıklanınca o tarih önceden dolu "yeni kart" formunu
+  // açar. Hedef kolon ilk kolon; kullanıcı TaskModal'da değiştirebilir.
+  const handleDayClick = (date: string) => {
+    const firstColumn = Object.values(boardData?.columns ?? {})[0];
+    if (!firstColumn) return;
+    setCreateRequestColumnId(firstColumn.id);
+    setInitialTitle('');
+    setInitialDueDate(date);
+    setSelectedTaskId('new');
     setIsModalOpen(true);
   };
 
@@ -801,15 +821,23 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         };
       });
       
-      toast.success('Yeni sütun başarıyla eklendi');
+      toast.success(t('columnAddedSuccess'));
       setIsAddingColumn(false);
       setNewColumnName('');
     } catch (error: any) {
-      toast.error(error?.message || 'Sütun eklenemedi');
+      toast.error(error?.message || t('columnAddError'));
     } finally {
       setIsCreatingColumn(false);
     }
   };
+
+  // useCallback: inline arrow her render'da yeni referans üretir ve TaskModal'daki
+  // açılış effect'ini sürekli tetikleyerek modalın "yükleniyor" ekranında
+  // takılı kalmasına yol açar.
+  const handleFetchTaskDetails = useCallback(
+    (taskId: string) => boardService.getTaskDetails(projectId, taskId),
+    [projectId],
+  );
 
   const handleRenameColumn = useCallback(async (columnId: string, newName: string) => {
     if (!isAdmin) return;
@@ -826,9 +854,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         };
       });
     } catch (error: any) {
-      toast.error(error?.message || 'Sütun adı güncellenemedi.');
+      toast.error(error?.message || t('columnRenameError'));
     }
-  }, [isAdmin]);
+  }, [isAdmin, t]);
 
   const handleDeleteColumn = useCallback(async (columnId: string) => {
     if (!isAdmin) return;
@@ -840,18 +868,18 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         delete newColumns[columnId];
         return { ...prev, columns: newColumns };
       });
-      toast.success('Sütun silindi.');
+      toast.success(t('columnDeletedSuccess'));
     } catch (error: any) {
-      toast.error(error?.message || 'Sütun silinemedi.');
+      toast.error(error?.message || t('columnDeleteError'));
     }
-  }, [isAdmin]);
+  }, [isAdmin, t]);
 
   if (loading) {
-    return <div className="p-8 text-center text-muted-foreground">Board yükleniyor...</div>;
+    return <div className="p-8 text-center text-muted-foreground">{t('boardLoading')}</div>;
   }
 
   if (!boardData) {
-    return <div className="p-8 text-center text-destructive">Veriler yüklenemedi.</div>;
+    return <div className="p-8 text-center text-destructive">{t('boardLoadError')}</div>;
   }
 
   // Takvim gorunumu icin duz kart listesi: pano ile ayni filtreler gecerli
@@ -874,7 +902,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               viewMode === 'board' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <LayoutGrid className="size-3.5" /> Pano
+            <LayoutGrid className="size-3.5" /> {t('boardView')}
           </button>
           <button
             type="button"
@@ -883,7 +911,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               viewMode === 'calendar' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <CalendarDays className="size-3.5" /> Takvim
+            <CalendarDays className="size-3.5" /> {t('calendarView')}
           </button>
           <button
             type="button"
@@ -910,9 +938,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             type="button"
             onClick={() => setAutomationsOpen(true)}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
-            title="Otomasyon Kuralları"
+            title={t('automationRules')}
           >
-            <Zap className="size-3.5" /> Otomasyonlar
+            <Zap className="size-3.5" /> {t('automations')}
           </button>
         )}
 
@@ -963,6 +991,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             doneColumnIds={doneColumnIds}
             onTaskClick={handleTaskClick}
             onTaskReschedule={handleRescheduleTask}
+            onDayClick={handleDayClick}
           />
         ) : (
         <DndContext
@@ -1013,7 +1042,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                       type="text"
                       value={newColumnName}
                       onChange={(e) => setNewColumnName(e.target.value)}
-                      placeholder="Sütun başlığı girin..."
+                      placeholder={t('enterColumnTitle')}
                       className="w-full text-sm bg-transparent outline-none border-b border-muted-foreground/30 focus:border-primary px-1 py-1 text-foreground"
                       autoFocus
                       required
@@ -1024,7 +1053,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                         disabled={isCreatingColumn}
                         className="px-3 py-1 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50"
                       >
-                        {isCreatingColumn ? 'Ekleniyor...' : 'Sütun Ekle'}
+                        {isCreatingColumn ? t('addingColumn') : t('newColumnAdd')}
                       </button>
                       <button
                         type="button"
@@ -1034,7 +1063,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                         }}
                         className="px-3 py-1 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-xs font-semibold transition-all active:scale-95"
                       >
-                        İptal
+                        {t('cancel')}
                       </button>
                     </div>
                   </form>
@@ -1044,7 +1073,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                     className="w-full h-12 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-accent/40 text-muted-foreground hover:text-foreground transition-all duration-300 font-medium text-sm group cursor-pointer"
                   >
                     <span className="text-lg group-hover:scale-110 transition-transform">+</span>
-                    <span>Yeni Sütun Ekle</span>
+                    <span>{t('addNewColumn')}</span>
                   </button>
                 )}
               </div>
@@ -1089,7 +1118,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           <button
             onClick={() => setIsDesktopChatOpen(true)}
             className="hidden sm:flex fixed bottom-6 right-6 z-40 items-center justify-center rounded-full bg-primary hover:bg-primary/95 text-primary-foreground shadow-2xl transition-all duration-300 w-14 h-14 hover:scale-110 active:scale-95 animate-pop-in cursor-pointer hover:shadow-primary/30 hover:shadow-lg"
-            title="AI Asistanı Aç"
+            title={t('aiAssistantOpen')}
           >
             <Bot className="h-6 w-6" />
           </button>
@@ -1132,16 +1161,18 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           setSelectedTaskId(null);
           setCreateRequestColumnId(null);
           setInitialTitle('');
+          setInitialDueDate('');
         }}
         taskId={selectedTaskId}
         orgId={orgId}
         projectId={projectId}
         availableCards={Object.values(boardData.tasks).map((t) => ({ id: t.id, title: t.title }))}
-        fetchTaskDetails={(id) => boardService.getTaskDetails(projectId, id)}
+        fetchTaskDetails={handleFetchTaskDetails}
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
         columnId={createRequestColumnId}
         initialTitle={initialTitle}
+        initialDueDate={initialDueDate}
         onCreateTask={handleCreateTask}
         conflict={selectedTaskId ? conflicts[selectedTaskId] : undefined}
       />

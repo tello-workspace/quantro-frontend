@@ -54,6 +54,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const NEW_LABEL_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
 
@@ -64,15 +65,15 @@ const RELATION_TYPE_LABELS: Record<DependencyRelationType, string> = {
   CLONES: 'Klonu',
 };
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: any): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'az önce';
-  if (mins < 60) return `${mins} dk önce`;
+  if (mins < 1) return t('justNow');
+  if (mins < 60) return `${mins} ${t('minsAgo')}`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} sa önce`;
+  if (hours < 24) return `${hours} ${t('hoursAgo')}`;
   const days = Math.floor(hours / 24);
-  return `${days} gün önce`;
+  return `${days} ${t('daysAgo')}`;
 }
 
 interface CommentMember {
@@ -82,6 +83,7 @@ interface CommentMember {
 
 const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = ({ cardId, members }) => {
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const { data: me } = useGetMeQuery();
   const { data: comments = [] } = useGetCommentsQuery(cardId);
   const [createComment, { isLoading: isPosting }] = useCreateCommentMutation();
@@ -111,7 +113,7 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
       await createComment({ cardId, text: newText.trim() }).unwrap();
       setNewText('');
     } catch {
-      toast.error('Yorum eklenemedi.');
+      toast.error(t('commentPostError'));
     }
   };
 
@@ -126,41 +128,41 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
       await updateComment({ commentId, cardId, text: editText.trim() }).unwrap();
       setEditingId(null);
     } catch {
-      toast.error('Yorum güncellenemedi.');
+      toast.error(t('commentUpdateError'));
     }
   };
 
   const handleDelete = async (commentId: string) => {
     const ok = await confirm({
-      title: 'Yorumu Sil',
-      description: 'Bu yorumu silmek istediğinizden emin misiniz?',
-      confirmText: 'Sil',
-      cancelText: 'İptal',
+      title: t('deleteCommentTitle'),
+      description: t('deleteCommentDesc'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       variant: 'destructive',
     });
     if (!ok) return;
     try {
       await deleteComment({ commentId, cardId }).unwrap();
     } catch {
-      toast.error('Yorum silinemedi.');
+      toast.error(t('commentDeleteError'));
     }
   };
 
   return (
     <div>
       <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-        Yorumlar {comments.length > 0 && `(${comments.length})`}
+        {t('commentsCountLabel')} {comments.length > 0 && `(${comments.length})`}
       </label>
 
       <div className="space-y-3 max-h-56 overflow-y-auto mb-3 pr-1">
         {comments.length === 0 && (
-          <p className="text-xs text-muted-foreground">Henüz yorum yok.</p>
+          <p className="text-xs text-muted-foreground">{t('noComments')}</p>
         )}
         {comments.map((c) => (
           <div key={c.id} className="text-sm">
             <div className="flex items-center gap-2">
               <span className="font-medium text-foreground text-xs">{c.author.name}</span>
-              <span className="text-xs text-muted-foreground">{timeAgo(c.createdAt)}</span>
+              <span className="text-xs text-muted-foreground">{timeAgo(c.createdAt, t)}</span>
             </div>
 
             {editingId === c.id ? (
@@ -172,10 +174,10 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
                 />
                 <div className="flex gap-2">
                   <Button size="xs" onClick={() => handleSaveEdit(c.id)}>
-                    Kaydet
+                    {t('save')}
                   </Button>
                   <Button size="xs" variant="ghost" onClick={() => setEditingId(null)}>
-                    İptal
+                    {t('cancel')}
                   </Button>
                 </div>
               </div>
@@ -189,14 +191,14 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
                       onClick={() => startEditing(c.id, c.text)}
                       className="text-xs text-muted-foreground hover:text-foreground"
                     >
-                      Düzenle
+                      {t('edit')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(c.id)}
                       className="text-xs text-muted-foreground hover:text-destructive"
                     >
-                      Sil
+                      {t('delete')}
                     </button>
                   </div>
                 )}
@@ -211,11 +213,11 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
           type="text"
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
-          placeholder="Bir yorum yaz... (@ ile birini etiketle)"
+          placeholder={t('commentInputPlaceholder')}
           className="flex-1"
         />
         <Button type="submit" disabled={isPosting || !newText.trim()} size="sm">
-          Gönder
+          {t('commentPostBtn')}
         </Button>
 
         {mentionCandidates.length > 0 && (
@@ -246,6 +248,7 @@ function formatFileSize(bytes: number): string {
 }
 
 const WatchToggle: React.FC<{ cardId: string }> = ({ cardId }) => {
+  const { t } = useTranslation();
   const { data: status } = useGetWatchStatusQuery(cardId);
   const [watchCard, { isLoading: isWatching }] = useWatchCardMutation();
   const [unwatchCard, { isLoading: isUnwatching }] = useUnwatchCardMutation();
@@ -258,7 +261,7 @@ const WatchToggle: React.FC<{ cardId: string }> = ({ cardId }) => {
         await watchCard(cardId).unwrap();
       }
     } catch {
-      toast.error('İzleme durumu değiştirilemedi.');
+      toast.error(t('watchToggleError'));
     }
   };
 
@@ -267,7 +270,7 @@ const WatchToggle: React.FC<{ cardId: string }> = ({ cardId }) => {
       type="button"
       onClick={handleToggle}
       disabled={isWatching || isUnwatching}
-      title={status?.isWatching ? 'Bu kartı izlemeyi bırak' : 'Bu kartı izle - yorum/taşıma olunca bildirim al'}
+      title={status?.isWatching ? t('watchCardTitleUnwatch') : t('watchCardTitleWatch')}
       className={`flex items-center gap-1.5 shrink-0 text-xs font-medium py-1 px-2.5 rounded-lg border transition-colors ${
         status?.isWatching
           ? 'bg-primary/10 text-primary border-primary/30'
@@ -275,13 +278,14 @@ const WatchToggle: React.FC<{ cardId: string }> = ({ cardId }) => {
       }`}
     >
       {status?.isWatching ? <EyeIconSolid className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
-      <span>{status?.isWatching ? 'İzleniyor' : 'İzle'}</span>
+      <span>{status?.isWatching ? t('watching') : t('watch')}</span>
       {!!status?.watcherCount && <span className="opacity-70">({status.watcherCount})</span>}
     </button>
   );
 };
 
 const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
+  const { t } = useTranslation();
   const { data: items = [] } = useGetChecklistQuery(cardId);
   const [createItem, { isLoading: isAdding }] = useCreateChecklistItemMutation();
   const [updateItem] = useUpdateChecklistItemMutation();
@@ -298,7 +302,7 @@ const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
       await createItem({ cardId, text: newText.trim() }).unwrap();
       setNewText('');
     } catch {
-      toast.error('Madde eklenemedi.');
+      toast.error(t('checklistAddError'));
     }
   };
 
@@ -306,7 +310,7 @@ const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
     try {
       await updateItem({ cardId, itemId, done: !done }).unwrap();
     } catch {
-      toast.error('Madde güncellenemedi.');
+      toast.error(t('checklistUpdateError'));
     }
   };
 
@@ -314,14 +318,14 @@ const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
     try {
       await deleteItem({ cardId, itemId }).unwrap();
     } catch {
-      toast.error('Madde silinemedi.');
+      toast.error(t('checklistDeleteError'));
     }
   };
 
   return (
     <div>
       <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-        Kontrol Listesi {items.length > 0 && `(${doneCount}/${items.length})`}
+        {t('checklistCountLabel')} {items.length > 0 && `(${doneCount}/${items.length})`}
       </label>
 
       {items.length > 0 && (
@@ -363,11 +367,11 @@ const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
         <Input
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
-          placeholder="Yeni madde ekle..."
+          placeholder={t('checklistInputPlaceholder')}
           className="h-8 text-sm"
         />
         <Button type="submit" size="sm" disabled={isAdding || !newText.trim()}>
-          Ekle
+          {t('add')}
         </Button>
       </form>
     </div>
@@ -376,6 +380,7 @@ const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
 
 const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ cardId, isAdmin }) => {
   const confirm = useConfirm();
+  const { t } = useTranslation();
   const { data: me } = useGetMeQuery();
   const { data: attachments = [] } = useGetAttachmentsQuery(cardId);
   const [uploadAttachment, { isLoading: isUploading }] = useUploadAttachmentMutation();
@@ -388,7 +393,7 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
     if (!file) return;
 
     if (file.size > MAX_ATTACHMENT_SIZE) {
-      toast.error('Dosya en fazla 10MB olabilir.');
+      toast.error(t('attachmentLimitError'));
       return;
     }
 
@@ -396,16 +401,16 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
       await uploadAttachment({ cardId, file }).unwrap();
     } catch (err: unknown) {
       const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
-      toast.error(errData?.message || 'Dosya yüklenemedi.');
+      toast.error(errData?.message || t('attachmentUploadError'));
     }
   };
 
   const handleDelete = async (attachmentId: string) => {
     const ok = await confirm({
-      title: 'Eki Sil',
-      description: 'Bu eki silmek istediğinizden emin misiniz?',
-      confirmText: 'Sil',
-      cancelText: 'İptal',
+      title: t('deleteAttachmentTitle'),
+      description: t('deleteAttachmentDesc'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       variant: 'destructive',
     });
     if (!ok) return;
@@ -413,19 +418,19 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
       await deleteAttachment({ cardId, attachmentId }).unwrap();
     } catch (err: unknown) {
       const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
-      toast.error(errData?.message || 'Ek silinemedi.');
+      toast.error(errData?.message || t('attachmentDeleteError'));
     }
   };
 
   return (
     <div>
       <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-        Ekler {attachments.length > 0 && `(${attachments.length})`}
+        {t('attachmentsCountLabel')} {attachments.length > 0 && `(${attachments.length})`}
       </label>
 
       <div className="space-y-2 mb-3">
         {attachments.length === 0 && (
-          <p className="text-xs text-muted-foreground">Henüz ek dosya yok.</p>
+          <p className="text-xs text-muted-foreground">{t('noAttachments')}</p>
         )}
         {attachments.map((a) => (
           <div
@@ -437,7 +442,7 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
               <div className="min-w-0">
                 <p className="truncate font-medium text-foreground">{a.fileName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatFileSize(a.fileSize)} · {a.uploader.name} · {timeAgo(a.createdAt)}
+                  {formatFileSize(a.fileSize)} · {a.uploader.name} · {timeAgo(a.createdAt, t)}
                 </p>
               </div>
             </div>
@@ -447,7 +452,7 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
                   href={a.downloadUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="İndir"
+                  title={t('download')}
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4" />
@@ -457,7 +462,7 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
                 <button
                   type="button"
                   onClick={() => handleDelete(a.id)}
-                  title="Sil"
+                  title={t('delete')}
                   className="text-muted-foreground hover:text-destructive"
                 >
                   <TrashIcon className="h-4 w-4" />
@@ -477,7 +482,7 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
         onClick={() => fileInputRef.current?.click()}
       >
         <PaperClipIcon className="h-4 w-4" />
-        {isUploading ? 'Yükleniyor...' : 'Dosya Ekle'}
+        {isUploading ? t('uploading') : t('addFileBtn')}
       </Button>
     </div>
   );
@@ -501,6 +506,7 @@ interface TaskModalProps {
   availableCards?: DependencyCard[];
   columnId?: string | null;
   initialTitle?: string;
+  initialDueDate?: string;
   onCreateTask?: (columnId: string, payload: any) => Promise<void>;
   conflict?: TaskModalConflictInfo;
 }
@@ -517,10 +523,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   availableCards = [],
   columnId,
   initialTitle,
+  initialDueDate,
   onCreateTask,
   conflict,
 }) => {
   const confirm = useConfirm();
+  const { t, lang } = useTranslation();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
@@ -563,12 +571,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     if (!task || !templateName.trim()) return;
     try {
       await saveCardAsTemplate({ cardId: task.id, projectId, name: templateName.trim() }).unwrap();
-      toast.success('Şablon olarak kaydedildi.');
+      toast.success(t('saveTemplateSuccess'));
       setShowSaveTemplate(false);
       setTemplateName('');
     } catch (err: unknown) {
       const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
-      toast.error(errData?.message || 'Şablon kaydedilemedi.');
+      toast.error(errData?.message || t('saveTemplateError'));
     }
   };
 
@@ -601,9 +609,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         ...task,
         ...updatedFields,
       });
-      toast.success('AI doldurma başarılı!');
+      toast.success(t('aiFillSuccess'));
     } catch {
-      toast.error('AI ile doldurma başarısız oldu.');
+      toast.error(t('aiFillError'));
     }
   };
 
@@ -613,16 +621,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         setLoading(true);
         fetchTaskDetails(taskId)
           .then((data) => setTask(data))
-          .catch((err) => console.error('Görev detayları yüklenemedi:', err))
+          .catch((err) => console.error(t('taskLoadError'), err))
           .finally(() => setLoading(false));
       } else if (taskId === 'new') {
+        setLoading(false);
         setTask({
           id: 'new',
           columnId: columnId || '',
           title: initialTitle || '',
           description: '',
           priority: 'MEDIUM',
-          dueDate: '',
+          dueDate: initialDueDate || '',
           assignees: [],
           labels: [],
           blockedBy: [],
@@ -633,7 +642,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     } else {
       setTask(null);
     }
-  }, [taskId, isOpen, fetchTaskDetails, columnId, initialTitle]);
+  }, [taskId, isOpen, fetchTaskDetails, columnId, initialTitle, initialDueDate, t]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     if (!task) return;
@@ -680,11 +689,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               },
             },
           }).unwrap();
-          toast.success('Kart ekleme talebi başarıyla oluşturuldu ve admin onayına gönderildi.');
+          toast.success(lang === 'en' ? 'Card creation request successfully created and sent for admin approval.' : 'Kart ekleme talebi başarıyla oluşturuldu ve admin onayına gönderildi.');
           onClose();
         } catch (err) {
           const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-          toast.error(mesaj || 'Talep oluşturulamadı.');
+          toast.error(mesaj || (lang === 'en' ? 'Request could not be created.' : 'Talep oluşturulamadı.'));
         }
         return;
       }
@@ -701,16 +710,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             blockerIds: task.blockedBy?.map((b) => b.id) ?? [],
           });
           onClose();
-        } catch (err) {
-          toast.error('Kart oluşturulamadı.');
+        } catch {
+          toast.error(lang === 'en' ? 'Card could not be created.' : 'Kart oluşturulamadı.');
         }
       }
       return;
     }
 
-    // Admin dogrudan kaydeder. Uye kart icerigini dogrudan degistiremedigi
-    // icin ayni veriyi degisiklik talebi olarak gonderir; admin onaylayinca
-    // sistem uygular, reddederse bu veri kullanilmaz.
     if (!isAdmin) {
       try {
         await createChangeRequest({
@@ -727,11 +733,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             },
           },
         }).unwrap();
-        toast.success('Değişiklik talebin adminlere gönderildi.');
+        toast.success(lang === 'en' ? 'Your change request has been sent to admins.' : 'Değişiklik talebin adminlere gönderildi.');
         onClose();
       } catch (err) {
         const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-        toast.error(mesaj || 'Talep gönderilemedi.');
+        toast.error(mesaj || t('deleteRequestError'));
       }
       return;
     }
@@ -752,7 +758,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setTask({ ...task, labels: [...(task.labels ?? []), label] });
       setShowLabelPicker(false);
     } catch {
-      toast.error('Etiket eklenemedi.');
+      toast.error(lang === 'en' ? 'Could not add label.' : 'Etiket eklenemedi.');
     }
   };
 
@@ -766,7 +772,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       await detachLabel({ cardId: task.id, labelId, projectId }).unwrap();
       setTask({ ...task, labels: (task.labels ?? []).filter((l) => l.id !== labelId) });
     } catch {
-      toast.error('Etiket kaldırılamadı.');
+      toast.error(lang === 'en' ? 'Could not remove label.' : 'Etiket kaldırılamadı.');
     }
   };
 
@@ -789,7 +795,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       await handleAttachLabel(label);
       setNewLabelName('');
     } catch {
-      toast.error('Etiket oluşturulamadı.');
+      toast.error(lang === 'en' ? 'Could not create label.' : 'Etiket oluşturulamadı.');
     }
   };
 
@@ -816,7 +822,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setShowDependencyPicker(false);
     } catch (err) {
       const apiError = err as { data?: { error?: { message?: string } } };
-      toast.error(apiError?.data?.error?.message || 'Bağımlılık eklenemedi.');
+      toast.error(apiError?.data?.error?.message || t('dependencyAddError'));
     }
   };
 
@@ -834,7 +840,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       const refreshed = await fetchTaskDetails(task.id);
       setTask(refreshed);
     } catch {
-      toast.error('Bağımlılık kaldırılamadı.');
+      toast.error(t('dependencyRemoveError'));
     }
   };
 
@@ -896,10 +902,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
     if (!isAdmin) {
       const ok = await confirm({
-        title: 'Silme Talebi',
-        description: 'Bu kartın silinmesi için admin onayı istenecek. Devam edilsin mi?',
-        confirmText: 'Devam Et',
-        cancelText: 'İptal',
+        title: t('deleteRequestTitle'),
+        description: t('deleteRequestDesc'),
+        confirmText: lang === 'en' ? 'Continue' : 'Devam Et',
+        cancelText: t('cancel'),
       });
       if (!ok) return;
       try {
@@ -907,20 +913,20 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           orgId,
           body: { type: 'CARD_DELETE', targetCardId: task.id },
         }).unwrap();
-        toast.success('Silme talebin adminlere gönderildi.');
+        toast.success(t('deleteRequestSuccess'));
         onClose();
       } catch (err) {
         const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-        toast.error(mesaj || 'Talep gönderilemedi.');
+        toast.error(mesaj || t('deleteRequestError'));
       }
       return;
     }
 
     const ok = await confirm({
-      title: 'Görevi Sil',
-      description: 'Bu görevi silmek istediğinizden emin misiniz?',
-      confirmText: 'Sil',
-      cancelText: 'İptal',
+      title: t('deleteTaskTitle'),
+      description: t('deleteTaskDesc'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       variant: 'destructive',
     });
     if (ok) {
@@ -929,11 +935,23 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
+  const removeLabelAria = (labelName: string) => {
+    return lang === 'en' ? `Remove label ${labelName}` : `${labelName} etiketini kaldır`;
+  };
+
+  const removeDependencyAria = (title: string) => {
+    return lang === 'en' ? `Remove dependency ${title}` : `${title} bağımlılığını kaldır`;
+  };
+
+  const removeAssigneeAria = (name: string) => {
+    return lang === 'en' ? `Remove assignment for ${name}` : `${name} atamasını kaldır`;
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
-          <div className="text-center py-10 text-muted-foreground">Yükleniyor...</div>
+          <div className="text-center py-10 text-muted-foreground">{t('loading')}</div>
         ) : task ? (
           <>
             <DialogHeader>
@@ -946,7 +964,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     onChange={handleChange}
                     disabled={isFilling}
                     className="w-full text-lg font-semibold bg-transparent focus:outline-none focus:ring-1 focus:ring-ring rounded-md px-1 -mx-1 text-foreground"
-                    placeholder="Görev Başlığı"
+                    placeholder={t('taskTitleLabel')}
                   />
                 </div>
                 {taskId !== 'new' && <WatchToggle cardId={task.id} />}
@@ -964,12 +982,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      <span>AI Dolduruyor...</span>
+                      <span>{t('aiFilling')}</span>
                     </>
                   ) : (
                     <>
                       <SparklesIcon className="h-3.5 w-3.5" />
-                      <span>AI ile Doldur</span>
+                      <span>{t('aiFillBtn')}</span>
                     </>
                   )}
                 </Button>
@@ -980,10 +998,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <div className="flex items-start gap-2 rounded-lg border border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40 px-3 py-2 text-xs text-orange-800 dark:text-orange-300">
                 <span className="mt-0.5">⚠️</span>
                 <span>
-                  <strong>Kod Çakışması Riski:</strong> <code className="font-mono">{conflict.filePath}</code> dosyası
-                  şu an <strong>{conflict.otherUserName}</strong> tarafından &ldquo;{conflict.otherCardTitle}&rdquo;
-                  kartı üzerinde de düzenleniyor. Bu bir kesinlik değil, dosya bazlı bir risk sinyalidir —
-                  merge sırasında çakışma yaşamamak için erken iletişime geçmeniz önerilir.
+                  <strong>{t('conflictWarningTitle')}</strong>{' '}
+                  {lang === 'en' ? (
+                    <>
+                      File <code className="font-mono">{conflict.filePath}</code> is currently also being edited by{' '}
+                      <strong>{conflict.otherUserName}</strong> on card &ldquo;{conflict.otherCardTitle}&rdquo;. This is
+                      a file-based risk signal — it is recommended to communicate early to avoid merge conflicts.
+                    </>
+                  ) : (
+                    <>
+                      <code className="font-mono">{conflict.filePath}</code> dosyası şu an{' '}
+                      <strong>{conflict.otherUserName}</strong> tarafından &ldquo;{conflict.otherCardTitle}&rdquo; kartı
+                      üzerinde de düzenleniyor. Bu bir kesinlik değil, dosya bazlı bir risk sinyalidir — merge sırasında
+                      çakışma yaşamamak için erken iletişime geçmeniz önerilir.
+                    </>
+                  )}
                 </span>
               </div>
             )}
@@ -991,7 +1020,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-                  Etiketler
+                  {t('labelsLabel')}
                 </label>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {(task.labels ?? []).map((label) => (
@@ -1005,7 +1034,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         type="button"
                         onClick={() => handleDetachLabel(label.id)}
                         className="hover:bg-black/20 rounded-sm p-0.5"
-                        aria-label={`${label.name} etiketini kaldır`}
+                        aria-label={removeLabelAria(label.name)}
                       >
                         <XMarkIcon className="h-3 w-3" />
                       </button>
@@ -1021,7 +1050,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       disabled={isFilling}
                     >
                       <TagIcon className="h-3 w-3" />
-                      Etiket
+                      {t('labelBtn')}
                     </Button>
 
                     {showLabelPicker && (
@@ -1041,7 +1070,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                               </button>
                             ))}
                           {availableLabels.length === 0 && (
-                            <p className="text-xs text-muted-foreground px-2 py-1">Henüz etiket yok.</p>
+                            <p className="text-xs text-muted-foreground px-2 py-1">{t('noLabelsYet')}</p>
                           )}
                         </div>
 
@@ -1050,7 +1079,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             type="text"
                             value={newLabelName}
                             onChange={(e) => setNewLabelName(e.target.value)}
-                            placeholder="Yeni etiket adı"
+                            placeholder={t('newLabelPlaceholder')}
                             className="text-xs"
                           />
                           <div className="flex items-center justify-between gap-1">
@@ -1071,7 +1100,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                               disabled={isCreatingLabel || !newLabelName.trim()}
                               size="xs"
                             >
-                              Oluştur
+                              {t('createLabelBtn')}
                             </Button>
                           </div>
                         </form>
@@ -1083,12 +1112,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-                  Bağımlılıklar
+                  {t('dependenciesLabel')}
                 </label>
 
                 {(task.blockedBy ?? []).filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS').length > 0 && (
                   <div className="mb-2">
-                    <p className="text-xs text-muted-foreground mb-1">Bunlar bitmeden başlanamaz:</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t('dependencyBlockedByDesc')}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {(task.blockedBy ?? [])
                         .filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS')
@@ -1103,7 +1132,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             type="button"
                             onClick={() => handleRemoveDependency(task.id, b.id)}
                             className="hover:bg-black/10 rounded-sm p-0.5"
-                            aria-label={`${b.title} bağımlılığını kaldır`}
+                            aria-label={removeDependencyAria(b.title)}
                           >
                             <XMarkIcon className="h-3 w-3" />
                           </button>
@@ -1115,7 +1144,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
                 {(task.blocking ?? []).filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS').length > 0 && (
                   <div className="mb-2">
-                    <p className="text-xs text-muted-foreground mb-1">Bu kartı bekleyenler:</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t('dependencyBlockingDesc')}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {(task.blocking ?? [])
                         .filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS')
@@ -1130,7 +1159,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             type="button"
                             onClick={() => handleRemoveDependency(b.id, task.id)}
                             className="hover:bg-black/10 rounded-sm p-0.5"
-                            aria-label={`${b.title} bağımlılığını kaldır`}
+                            aria-label={removeDependencyAria(b.title)}
                           >
                             <XMarkIcon className="h-3 w-3" />
                           </button>
@@ -1185,7 +1214,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     disabled={isFilling}
                   >
                     <LinkIcon className="h-3 w-3" />
-                    Bağlantı ekle
+                    {t('addDependencyBtn')}
                   </Button>
 
                   {showDependencyPicker && (
@@ -1208,7 +1237,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       </div>
                       <p className="text-xs text-muted-foreground px-1 pb-1">
                         {dependencyRelationType === 'BLOCKS'
-                          ? 'Hangi kart bitmeden bu başlamasın?'
+                          ? t('addDependencyPlaceholder')
                           : 'Hangi kartla ilişkilendirilsin?'}
                       </p>
                       <div className="max-h-40 overflow-y-auto space-y-1">
@@ -1230,7 +1259,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             </button>
                           ))}
                         {availableCards.filter((c) => c.id !== task.id).length === 0 && (
-                          <p className="text-xs text-muted-foreground px-2 py-1">Başka kart yok.</p>
+                          <p className="text-xs text-muted-foreground px-2 py-1">{t('noOtherCards')}</p>
                         )}
                       </div>
                     </div>
@@ -1394,7 +1423,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-muted-foreground mb-1">
-                  Açıklama
+                  {t('descriptionLabel')}
                 </label>
                 <div className="relative">
                   <Textarea
@@ -1404,16 +1433,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     value={task.description || ''}
                     onChange={handleChange}
                     disabled={isFilling}
-                    placeholder="Görev için bir açıklama ekleyin..."
+                    placeholder={t('descriptionPlaceholder')}
                     className={isFilling ? "opacity-30" : ""}
                   />
                   {isFilling && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 rounded-md backdrop-blur-[1px] border border-dashed border-blue-300 dark:border-blue-800 animate-pulse">
                       <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium text-sm">
                         <SparklesIcon className="h-5 w-5 animate-bounce" />
-                        <span>AI görevi detaylandırıyor...</span>
+                        <span>{t('aiFillingDetails')}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground mt-1">İş yükü analizi ve açıklama oluşturuluyor</span>
+                      <span className="text-xs text-muted-foreground mt-1">{t('aiFillingDesc')}</span>
                     </div>
                   )}
                 </div>
@@ -1424,7 +1453,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   <div>
                     <label htmlFor="dueDate" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
                       <CalendarDaysIcon className="h-4 w-4" />
-                      Son Teslim Tarihi
+                      {t('dueDateLabel')}
                     </label>
                     <Input
                       type="date"
@@ -1438,7 +1467,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
                   <div>
                     <label htmlFor="priority" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
-                      Öncelik
+                      {t('priorityLabel')}
                     </label>
                     <select
                       id="priority"
@@ -1448,17 +1477,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       disabled={isFilling}
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
                     >
-                      <option value="" className="text-foreground bg-popover">Belirtilmemiş</option>
-                      <option value="LOW" className="text-foreground bg-popover">Düşük</option>
-                      <option value="MEDIUM" className="text-foreground bg-popover">Orta</option>
-                      <option value="HIGH" className="text-foreground bg-popover">Yüksek</option>
-                      <option value="URGENT" className="text-foreground bg-popover">Acil</option>
+                      <option value="" className="text-foreground bg-popover">{t('priorityNone')}</option>
+                      <option value="LOW" className="text-foreground bg-popover">{t('priorityLow')}</option>
+                      <option value="MEDIUM" className="text-foreground bg-popover">{t('priorityMedium')}</option>
+                      <option value="HIGH" className="text-foreground bg-popover">{t('priorityHigh')}</option>
+                      <option value="URGENT" className="text-foreground bg-popover">{t('priorityUrgent')}</option>
                     </select>
                   </div>
 
                   <div>
                     <label htmlFor="storyPoints" className="block text-sm font-medium text-muted-foreground mb-1">
-                      Story Point (Tahmini Efor)
+                      {t('storyPointsLabel')}
                     </label>
                     <Input
                       type="number"
@@ -1471,7 +1500,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         const raw = e.target.value;
                         setTask({ ...task, storyPoints: raw === '' ? null : Number(raw) });
                       }}
-                      placeholder="Belirtilmemiş"
+                      placeholder={t('priorityNone')}
                       disabled={isFilling}
                     />
                   </div>
@@ -1501,7 +1530,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
-                    Atanan Kişiler
+                    {t('assigneesLabel')}
                   </label>
 
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -1516,14 +1545,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                           type="button"
                           onClick={() => handleToggleAssignee(a.id)}
                           className="hover:bg-black/10 rounded-sm p-0.5"
-                          aria-label={`${a.name} atamasını kaldır`}
+                          aria-label={removeAssigneeAria(a.name)}
                         >
                           <XMarkIcon className="h-3 w-3" />
                         </button>
                       </Badge>
                     ))}
 
-                    {/* Uye de atama secebilir; kaydederken degisiklik talebine donusur */}
                     <div className="relative">
                       <Button
                         type="button"
@@ -1532,7 +1560,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         onClick={() => setShowAssigneePicker((v) => !v)}
                         disabled={isFilling}
                       >
-                        + Kişi
+                        {t('addPerson')}
                       </Button>
 
                       {showAssigneePicker && (
@@ -1561,7 +1589,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
                   {!isAdmin && (
                     <p className="text-[10px] text-muted-foreground mt-1.5">
-                      Atamalar değişiklik talebi olarak admin onayına sunulur.
+                      {t('assigneeRequestHelp')}
                     </p>
                   )}
                 </div>
@@ -1580,7 +1608,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               )}
 
               <p className="text-xs text-muted-foreground font-mono">
-                {taskId === 'new' ? `Yeni Görev Talebi | Sütun ID: ${columnId}` : `ID: ${task.id} | Sütun: ${task.columnId}`}
+                {taskId === 'new'
+                  ? `${t('newCardRequestTitle')} | ${lang === 'en' ? 'Column' : 'Sütun'} ID: ${columnId}`
+                  : `ID: ${task.id} | ${lang === 'en' ? 'Column' : 'Sütun'}: ${task.columnId}`}
               </p>
             </div>
 
@@ -1589,12 +1619,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <Input
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
-                  placeholder="Şablon adı (örn: Bug Report)"
+                  placeholder={t('templateNamePlaceholder')}
                   className="h-8 text-sm"
                   autoFocus
                 />
-                <Button type="submit" size="sm" disabled={isSavingTemplate || !templateName.trim()}>Kaydet</Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => setShowSaveTemplate(false)}>İptal</Button>
+                <Button type="submit" size="sm" disabled={isSavingTemplate || !templateName.trim()}>{t('save')}</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setShowSaveTemplate(false)}>{t('cancel')}</Button>
               </form>
             )}
 
@@ -1608,30 +1638,30 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   disabled={isFilling}
                 >
                   <TrashIcon className="h-4 w-4 mr-1" />
-                  {isAdmin ? 'Görevi Sil' : 'Silme Talebi Gönder'}
+                  {isAdmin ? t('deleteTaskTitle') : (lang === 'en' ? 'Send Delete Request' : 'Silme Talebi Gönder')}
                 </Button>
               )}
               {taskId !== 'new' && isAdmin && !showSaveTemplate && (
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowSaveTemplate(true)}>
-                  <BookmarkIcon className="h-3.5 w-3.5 mr-1" /> Şablon Olarak Kaydet
+                  <BookmarkIcon className="h-3.5 w-3.5 mr-1" /> {t('saveTemplateBtn')}
                 </Button>
               )}
               <Button type="button" variant="outline" onClick={onClose} disabled={isFilling || isRequesting}>
-                İptal
+                {t('cancel')}
               </Button>
               <Button type="button" onClick={handleSave} disabled={isFilling || isRequesting}>
                 {taskId === 'new'
                   ? isAdmin
-                    ? 'Kartı Oluştur'
-                    : 'Talebi Oluştur'
+                    ? t('createCardBtn')
+                    : t('createRequestBtn')
                   : isAdmin
-                  ? 'Değişiklikleri Kaydet'
-                  : 'Talep Gönder'}
+                  ? t('saveChangesBtn')
+                  : t('sendRequestBtn')}
               </Button>
             </DialogFooter>
           </>
         ) : (
-          <div className="text-center py-10 text-destructive">Görev yüklenemedi veya bulunamadı.</div>
+          <div className="text-center py-10 text-destructive">{t('taskLoadError')}</div>
         )}
       </DialogContent>
     </Dialog>

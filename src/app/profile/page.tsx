@@ -15,6 +15,14 @@ import { TagInput } from '@/components/ui/TagInput';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Eye, EyeOff, Sparkles, Cpu, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const EXPERTISE_SUGGESTIONS = [
   'Backend', 'Frontend', 'Full Stack', 'DevOps', 'UI/UX', 'Mobil', 'QA/Test',
@@ -36,6 +44,7 @@ function initials(name: string) {
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const { data: me, isLoading } = useGetMeQuery();
   const [updateProfile, { isLoading: isSaving }] = useUpdateProfileMutation();
   const [testAiConfig, { isLoading: isTesting }] = useTestAiConfigurationMutation();
@@ -48,6 +57,7 @@ export default function ProfilePage() {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [expertiseAreas, setExpertiseAreas] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
+  const [language, setLanguage] = useState('tr');
 
   // AI Configuration States
   const [aiProvider, setAiProvider] = useState('openai');
@@ -69,6 +79,7 @@ export default function ProfilePage() {
     setLinkedinUrl(me.linkedinUrl ?? '');
     setExpertiseAreas(me.expertiseAreas ?? []);
     setLanguages(me.languages ?? []);
+    setLanguage(me.language ?? 'tr');
     setAiProvider(me.aiProvider ?? 'openai');
     setAiBaseUrl(me.aiBaseUrl ?? '');
     setAiModel(me.aiModel ?? '');
@@ -84,6 +95,7 @@ export default function ProfilePage() {
         linkedinUrl: linkedinUrl.trim() || null,
         expertiseAreas,
         languages,
+        language,
         aiProvider: aiProvider || null,
         // Kullanici yeni bir anahtar yazmadiysa alani hic gondermiyoruz -
         // aksi halde her profil kaydinda mevcut anahtar null'a duserdi.
@@ -92,11 +104,9 @@ export default function ProfilePage() {
         aiModel: aiModel.trim() || null,
       }).unwrap();
       setAiApiKey('');
-      toast.success('Profil ve AI yapılandırman güncellendi.');
-      router.push('/projects');
-    } catch (err) {
-      const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-      toast.error(mesaj || 'Profil güncellenemedi.');
+      toast.success(t('profileSuccess'));
+    } catch (err: any) {
+      toast.error(err?.data?.error?.message || t('profileError'));
     }
   };
 
@@ -104,16 +114,16 @@ export default function ProfilePage() {
     try {
       await updateProfile({ aiApiKey: null }).unwrap();
       setAiApiKey('');
-      toast.success('Kayıtlı API anahtarı kaldırıldı.');
+      toast.success(t('aiApiKeyRemoved'));
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-      toast.error(mesaj || 'Anahtar kaldırılamadı.');
+      toast.error(mesaj || t('aiApiKeyRemoveError'));
     }
   };
 
   const handleTestConnection = async () => {
     if (!aiApiKey.trim()) {
-      toast.error('Bağlantı testi için bir API Anahtarı girmelisiniz.');
+      toast.error(t('aiTestPlaceholderRequire'));
       return;
     }
     try {
@@ -125,13 +135,13 @@ export default function ProfilePage() {
       }).unwrap();
 
       if (result.success) {
-        toast.success(result.message || 'Bağlantı testi başarılı!');
+        toast.success(result.message || t('aiTestSuccess'));
       } else {
-        toast.error('Bağlantı testi başarısız: ' + (result.message || 'Bilinmeyen hata'));
+        toast.error(t('aiTestError') + (result.message || 'Bilinmeyen hata'));
       }
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-      toast.error(mesaj || 'AI bağlantısı test edilirken hata oluştu.');
+      toast.error(mesaj || t('aiTestGenericError'));
     }
   };
 
@@ -158,53 +168,51 @@ export default function ProfilePage() {
 
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="mb-6 grid w-full grid-cols-2">
-          <TabsTrigger value="profile">Profil Bilgileri</TabsTrigger>
+          <TabsTrigger value="profile">{t('profileInfo')}</TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center gap-1.5">
-            <Sparkles className="size-4 text-primary" /> AI Yapılandırması
+            <Sparkles className="size-4 text-primary" /> {t('aiSettings')}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
           <Card>
             <CardHeader>
-              <CardTitle>Profil Bilgileri</CardTitle>
+              <CardTitle>{t('profileInfo')}</CardTitle>
               <CardDescription>
-                Bu bilgiler proje panolarında AI&apos;ın görev atarken en uygun kişiyi
-                önerebilmesi için kullanılır — uzmanlık alanların ve bildiğin diller ne kadar
-                güncel olursa, &quot;AI ile Doldur&quot; ve otomatik atama önerileri o kadar isabetli olur.
+                {t('profileDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="title">Unvan / Rol</Label>
+                  <Label htmlFor="title">{t('title')}</Label>
                   <Input
                     id="title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Örn: Senior Backend Developer"
+                    placeholder={t('titlePlaceholder')}
                     maxLength={100}
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="experience">Deneyim</Label>
+                  <Label htmlFor="experience">{t('experience')}</Label>
                   <Input
                     id="experience"
                     value={experience}
                     onChange={(e) => setExperience(e.target.value)}
-                    placeholder="Örn: 2 yıl 3 ay, 6 ay, Yeni başladım"
+                    placeholder={t('experiencePlaceholder')}
                     maxLength={50}
                   />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="bio">Kısa biyografi</Label>
+                <Label htmlFor="bio">{t('bio')}</Label>
                 <Textarea
                   id="bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Kendini kısaca tanıt..."
+                  placeholder={t('bioPlaceholder')}
                   maxLength={1000}
                   rows={3}
                 />
@@ -212,7 +220,7 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="githubUrl">GitHub linki</Label>
+                  <Label htmlFor="githubUrl">{t('githubPlaceholder')}</Label>
                   <Input
                     id="githubUrl"
                     value={githubUrl}
@@ -221,7 +229,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="linkedinUrl">LinkedIn linki</Label>
+                  <Label htmlFor="linkedinUrl">{t('linkedinPlaceholder')}</Label>
                   <Input
                     id="linkedinUrl"
                     value={linkedinUrl}
@@ -232,28 +240,43 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label>Uzmanlık alanları</Label>
+                <Label>{t('expertiseAreas')}</Label>
                 <TagInput
                   value={expertiseAreas}
                   onChange={setExpertiseAreas}
                   suggestions={EXPERTISE_SUGGESTIONS}
-                  placeholder="Örn: Backend, DevOps... (yazıp Enter'a bas)"
+                  placeholder={t('tagInputExpertisePlaceholder')}
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label>Bildiği diller</Label>
+                <Label>{t('languages')}</Label>
                 <TagInput
                   value={languages}
                   onChange={setLanguages}
                   suggestions={LANGUAGE_SUGGESTIONS}
-                  placeholder="Örn: TypeScript, Python... (yazıp Enter'a bas)"
+                  placeholder={t('tagInputLanguagesPlaceholder')}
                 />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>{t('languagePreference')}</Label>
+                <Select value={language} onValueChange={(val) => { if (val) setLanguage(val); }}>
+                  <SelectTrigger className="w-full h-10 border border-input rounded-lg px-3 bg-background text-sm flex items-center justify-between">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tr">Türkçe (Turkish)</SelectItem>
+                    <SelectItem value="en">English (İngilizce)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {t('languagePreferenceDesc')}
+                </p>
               </div>
 
               <div className="mt-2 flex justify-end">
                 <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                  {isSaving ? t('saving') : t('save')}
                 </Button>
               </div>
             </CardContent>
@@ -265,37 +288,40 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="size-5 text-primary" />
-                Özel AI Yapılandırması (AI Configuration)
+                {t('aiSettings')}
               </CardTitle>
               <CardDescription>
-                Quantro AI özelliklerinde (akıllı chat, kart doldurma vb.) sitenin genel motoru yerine kendinize ait bir yapay zeka modelini ve API anahtarını kullanabilirsiniz.
+                {t('aiSettingsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="aiProvider">AI Sağlayıcı (Provider)</Label>
-                <select
-                  id="aiProvider"
+                <Label htmlFor="aiProvider">{t('aiProvider')}</Label>
+                <Select
                   value={aiProvider}
-                  onChange={(e) => {
-                    const prov = e.target.value;
-                    setAiProvider(prov);
-                    // Default values reset placeholders
-                    if (prov === 'google-gemini') {
-                      if (!aiModel) setAiModel('gemini-flash-latest');
-                    } else if (prov === 'openai') {
-                      if (!aiModel) setAiModel('gpt-4o-mini');
+                  onValueChange={(prov) => {
+                    if (prov) {
+                      setAiProvider(prov);
+                      if (prov === 'google-gemini') {
+                        if (!aiModel) setAiModel('gemini-flash-latest');
+                      } else if (prov === 'openai') {
+                        if (!aiModel) setAiModel('gpt-4o-mini');
+                      }
                     }
                   }}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="openai">OpenAI API / Uyumlu Custom Endpoint</option>
-                  <option value="google-gemini">Google Gemini API</option>
-                </select>
+                  <SelectTrigger className="w-full h-10 border border-input rounded-lg px-3 bg-background text-sm flex items-center justify-between">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai">OpenAI API / Custom Endpoint</SelectItem>
+                    <SelectItem value="google-gemini">Google Gemini API</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="aiApiKey">API Anahtarı (API Key)</Label>
+                <Label htmlFor="aiApiKey">{t('aiApiKey')}</Label>
                 <div className="relative">
                   <Input
                     id="aiApiKey"
@@ -304,7 +330,7 @@ export default function ProfilePage() {
                     onChange={(e) => setAiApiKey(e.target.value)}
                     placeholder={
                       me?.hasAiApiKey
-                        ? '•••••••••••• (değiştirmek için yeni bir anahtar gir)'
+                        ? t('aiApiKeyPlaceholderExisting')
                         : aiProvider === 'google-gemini'
                           ? 'AIzaSy...'
                           : 'sk-...'
@@ -321,7 +347,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs text-muted-foreground">
-                    API anahtarınız şifreli olarak saklanır, kayıttan sonra tekrar görüntülenemez.
+                    {t('aiApiKeyHelp')}
                   </p>
                   {me?.hasAiApiKey && (
                     <button
@@ -329,7 +355,7 @@ export default function ProfilePage() {
                       onClick={handleRemoveApiKey}
                       className="shrink-0 text-xs text-destructive hover:underline"
                     >
-                      Kayıtlı anahtarı kaldır
+                      {t('removeSavedApiKey')}
                     </button>
                   )}
                 </div>
@@ -337,24 +363,24 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="aiBaseUrl">Özel Endpoint URL (Base URL)</Label>
+                  <Label htmlFor="aiBaseUrl">{t('customBaseUrl')}</Label>
                   <Input
                     id="aiBaseUrl"
                     value={aiBaseUrl}
                     onChange={(e) => setAiBaseUrl(e.target.value)}
                     placeholder={
                       aiProvider === 'google-gemini'
-                        ? 'Varsayılan (Google API)'
-                        : 'https://api.openai.com/v1 veya https://openrouter.ai/api/v1'
+                        ? t('customBaseUrlDefaultGemini')
+                        : t('customBaseUrlPlaceholder')
                     }
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    OpenRouter için: <code className="bg-muted px-1 rounded">https://openrouter.ai/api/v1</code> yazın. Boş bırakılırsa sağlayıcının varsayılan adresi kullanılır.
+                    {t('customBaseUrlHelp')}
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="aiModel">Model Adı (Model Name)</Label>
+                  <Label htmlFor="aiModel">{t('aiModelLabel')}</Label>
                   <Input
                     id="aiModel"
                     value={aiModel}
@@ -366,7 +392,7 @@ export default function ProfilePage() {
                     }
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Kullanmak istediğiniz tam model kodunu girin.
+                    {t('aiModelHelp')}
                   </p>
                 </div>
               </div>
@@ -374,11 +400,9 @@ export default function ProfilePage() {
               <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3 flex gap-3 text-xs text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="size-5 shrink-0" />
                 <div>
-                  <h4 className="font-semibold mb-0.5">Bilgilendirme</h4>
+                  <h4 className="font-semibold mb-0.5">{t('aiInfoTitle')}</h4>
                   <p>
-                    Kendi API anahtarınızı tanımladığınızda, Quantro chat paneli ve AI asistan
-                    görevleri sizin hesabınız üzerinden ücretlendirilir. Test butonunu
-                    kullanarak anahtarınızın geçerliliğini kontrol edebilirsiniz.
+                    {t('aiInfoDesc')}
                   </p>
                 </div>
               </div>
@@ -390,11 +414,11 @@ export default function ProfilePage() {
                   onClick={handleTestConnection}
                   disabled={isTesting}
                 >
-                  {isTesting ? 'Test Ediliyor...' : 'Bağlantıyı Test Et'}
+                  {isTesting ? t('aiTestingBtn') : t('aiTestBtn')}
                 </Button>
 
                 <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                  {isSaving ? t('saving') : t('save')}
                 </Button>
               </div>
             </CardContent>
