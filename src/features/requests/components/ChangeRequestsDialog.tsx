@@ -10,6 +10,7 @@ import {
   useReviewChangeRequestMutation,
   requestTypeLabel,
   type ChangeRequest,
+  type ChangeRequestType,
 } from '@/features/requests/requestsApi';
 import {
   Dialog,
@@ -28,6 +29,11 @@ interface Props {
   isAdmin: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Ikisi de opsiyonel: doluysa dialog "Triage" moduna gecer - sadece bu
+  // projeye/turedeki talepleri gosterir (orn. board'daki "Triage" butonu
+  // sadece bu projenin CARD_CREATE taleplerini gormek icin bunlari verir).
+  projectFilter?: string;
+  typeFilter?: ChangeRequestType;
 }
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -361,11 +367,24 @@ function TalepIcerigi({
   );
 }
 
-export const ChangeRequestsDialog: React.FC<Props> = ({ orgId, isAdmin, open, onOpenChange }) => {
+export const ChangeRequestsDialog: React.FC<Props> = ({
+  orgId,
+  isAdmin,
+  open,
+  onOpenChange,
+  projectFilter,
+  typeFilter,
+}) => {
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId || !open });
   const members = org?.members ?? [];
 
-  const { data: requests = [], isLoading } = useGetChangeRequestsQuery({ orgId }, { skip: !open || !orgId });
+  const { data: allRequests = [], isLoading } = useGetChangeRequestsQuery({ orgId }, { skip: !open || !orgId });
+  const requests = allRequests.filter(
+    (r) =>
+      (!projectFilter || r.projectId === projectFilter) &&
+      (!typeFilter || r.type === typeFilter),
+  );
+  const isTriage = !!projectFilter || !!typeFilter;
   const [review, { isLoading: isReviewing }] = useReviewChangeRequestMutation();
   const [redNotu, setRedNotu] = useState<Record<string, string>>({});
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
@@ -435,13 +454,15 @@ export const ChangeRequestsDialog: React.FC<Props> = ({ orgId, isAdmin, open, on
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Inbox className="size-5 text-primary" />
-            {isAdmin ? 'Bekleyen Talepler' : 'Taleplerim'}
+            {isTriage ? 'Triage: Yeni Kart Talepleri' : isAdmin ? 'Bekleyen Talepler' : 'Taleplerim'}
             {bekleyenler.length > 0 && <Badge className="text-xs px-3 py-0.5">{bekleyenler.length}</Badge>}
           </DialogTitle>
           <DialogDescription>
-            {isAdmin
-              ? 'Üyelerin gönderdiği değişiklik talepleri. Onaylarsan değişiklik otomatik uygulanır.'
-              : 'Gönderdiğin talepler ve sonuçları.'}
+            {isTriage
+              ? 'Üyelerin bu projede önerdiği yeni kartlar. Önceliği/atananı/etiketleri düzenleyip onayla, panoya öyle girsin.'
+              : isAdmin
+                ? 'Üyelerin gönderdiği değişiklik talepleri. Onaylarsan değişiklik otomatik uygulanır.'
+                : 'Gönderdiğin talepler ve sonuçları.'}
           </DialogDescription>
         </DialogHeader>
 

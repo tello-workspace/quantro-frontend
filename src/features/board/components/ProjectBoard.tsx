@@ -26,11 +26,13 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, GanttChartSquare } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, GanttChartSquare, Inbox } from 'lucide-react';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 import { AutomationRulesDialog } from '@/features/automations/components/AutomationRulesDialog';
 import { SprintPanel } from '@/features/sprints/components/SprintPanel';
 import { CustomFieldsPanel } from '@/features/customFields/components/CustomFieldsPanel';
+import { ChangeRequestsDialog } from '@/features/requests/components/ChangeRequestsDialog';
+import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { TableView } from './TableView';
 import { TimelineView } from './TimelineView';
 import { useGetTemplatesQuery, useCreateCardFromTemplateMutation } from '@/features/templates/templateApi';
@@ -153,6 +155,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const [automationsOpen, setAutomationsOpen] = useState(false);
   const [sprintsOpen, setSprintsOpen] = useState(false);
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
+  const [triageOpen, setTriageOpen] = useState(false);
+  const { data: changeRequests = [] } = useGetChangeRequestsQuery({ orgId }, { skip: !orgId || !isAdmin });
+  const triagePendingCount = changeRequests.filter(
+    (r) => r.status === 'PENDING' && r.type === 'CARD_CREATE' && r.projectId === projectId,
+  ).length;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
@@ -967,6 +974,22 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           </button>
         )}
 
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setTriageOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
+            title="Triage: Üyelerin önerdiği yeni kartları gözden geçir"
+          >
+            <Inbox className="size-3.5" /> Triage
+            {triagePendingCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
+                {triagePendingCount}
+              </span>
+            )}
+          </button>
+        )}
+
         <div className="flex-1 min-w-0">
           <BoardFilters
             search={search}
@@ -1209,6 +1232,17 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           projectId={projectId}
           open={customFieldsOpen}
           onOpenChange={setCustomFieldsOpen}
+        />
+      )}
+
+      {isAdmin && (
+        <ChangeRequestsDialog
+          orgId={orgId}
+          isAdmin={isAdmin}
+          open={triageOpen}
+          onOpenChange={setTriageOpen}
+          projectFilter={projectId}
+          typeFilter="CARD_CREATE"
         />
       )}
 
