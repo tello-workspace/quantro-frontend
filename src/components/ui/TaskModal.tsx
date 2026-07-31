@@ -596,12 +596,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   useEffect(() => {
+    console.log('[TASKMODAL DEBUG] effect ran, taskId:', taskId);
     if (isOpen) {
       if (taskId && taskId !== 'new') {
         setLoading(true);
         fetchTaskDetails(taskId)
           .then((data) => setTask(data))
-          .catch((err) => console.error(t('taskLoadError'), err))
+          .catch((err) => {
+            console.error('[TASKMODAL DEBUG] fetch FAILED:', err);
+            console.error(t('taskLoadError'), err);
+          })
           .finally(() => setLoading(false));
       } else if (taskId === 'new') {
         setLoading(false);
