@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { MotionButton } from '@/components/ui/motion-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TagInput } from '@/components/ui/TagInput';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -276,9 +277,14 @@ export default function ProfilePage() {
               </div>
 
               <div className="mt-2 flex justify-end">
-                <Button onClick={handleSave} disabled={isSaving}>
+                <MotionButton
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
                   {isSaving ? t('saving') : t('save')}
-                </Button>
+                </MotionButton>
               </div>
             </CardContent>
           </Card>
@@ -414,9 +420,14 @@ export default function ProfilePage() {
                   {isTesting ? t('aiTestingBtn') : t('aiTestBtn')}
                 </Button>
 
-                <Button onClick={handleSave} disabled={isSaving}>
+                <MotionButton
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
                   {isSaving ? t('saving') : t('save')}
-                </Button>
+                </MotionButton>
               </div>
             </CardContent>
           </Card>
