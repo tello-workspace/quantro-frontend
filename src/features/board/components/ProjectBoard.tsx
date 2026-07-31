@@ -26,7 +26,7 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, GanttChartSquare, Inbox } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox } from 'lucide-react';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 import { AutomationRulesDialog } from '@/features/automations/components/AutomationRulesDialog';
 import { SprintPanel } from '@/features/sprints/components/SprintPanel';
@@ -34,7 +34,6 @@ import { CustomFieldsPanel } from '@/features/customFields/components/CustomFiel
 import { ChangeRequestsDialog } from '@/features/requests/components/ChangeRequestsDialog';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { TableView } from './TableView';
-import { TimelineView } from './TimelineView';
 import { useGetTemplatesQuery, useCreateCardFromTemplateMutation } from '@/features/templates/templateApi';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -151,7 +150,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const { data: templates = [] } = useGetTemplatesQuery({ orgId, projectId }, { skip: !orgId || !projectId });
   const [createCardFromTemplate] = useCreateCardFromTemplateMutation();
 
-  const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table' | 'timeline'>('board');
+  const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table'>('board');
   const [automationsOpen, setAutomationsOpen] = useState(false);
   const [sprintsOpen, setSprintsOpen] = useState(false);
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
@@ -932,15 +931,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           >
             <Table2 className="size-3.5" /> Tablo
           </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('timeline')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              viewMode === 'timeline' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <GanttChartSquare className="size-3.5" /> Zaman Çizelgesi
-          </button>
         </div>
 
         <button
@@ -1020,15 +1010,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             columns={boardData.columns}
             onTaskClick={handleTaskClick}
           />
-        ) : viewMode === 'timeline' ? (
-          <TimelineView
-            tasks={calendarTasks}
-            columns={boardData.columns}
-            onTaskClick={handleTaskClick}
-          />
         ) : viewMode === 'calendar' ? (
           <CalendarView
             tasks={calendarTasks}
+            columns={boardData.columns}
             doneColumnIds={doneColumnIds}
             onTaskClick={handleTaskClick}
             onTaskReschedule={handleRescheduleTask}

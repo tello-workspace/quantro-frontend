@@ -14,8 +14,8 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronLeft, ChevronRight, List } from 'lucide-react';
-import type { Task, Priority } from '../services/boardService';
+import { ChevronLeft, ChevronRight, List, Link as LinkIcon } from 'lucide-react';
+import type { Task, Priority, Column } from '../services/boardService';
 import { toDateKey, buildMonthGrid, buildWeekGrid } from '../services/calendarService';
 import { CalendarAgendaView } from './CalendarAgendaView';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -27,13 +27,29 @@ const PRIORITY_DOT: Record<Priority, string> = {
   LOW: 'bg-zinc-400',
 };
 
+const PRIORITY_BORDER: Record<Priority, string> = {
+  URGENT: 'border-l-red-500',
+  HIGH: 'border-l-orange-500',
+  MEDIUM: 'border-l-blue-500',
+  LOW: 'border-l-zinc-400',
+};
+
 const MAX_VISIBLE_PER_DAY = 3;
 const DAY_DROPPABLE_PREFIX = 'cal-day-';
+
+// "YYYY-MM-DD" -> "31 Tem" gibi kisa etiket. new Date("YYYY-MM-DD") kullanmiyoruz
+// cunku bu ISO tarih-only formu UTC gece yarisi olarak yorumlanir ve yerel saat
+// diliminde bir gun kaymaya (Timeline'da yasanan hata) yol acabilirdi.
+function formatDayMonth(dateKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+}
 
 type CalendarMode = 'month' | 'week' | 'agenda';
 
 interface CalendarViewProps {
   tasks: Task[];
+  columns: Record<string, Column>;
   doneColumnIds: Set<string>;
   onTaskClick: (taskId: string) => void;
   onTaskReschedule: (taskId: string, newDueDate: string) => void;
@@ -89,6 +105,67 @@ function TaskChip({ task, isDone, isOverdue, onClick }: TaskChipProps) {
   );
 }
 
+interface WeekTaskChipProps {
+  task: Task;
+  isDone: boolean;
+  isOverdue: boolean;
+  columnTitle: string;
+  rangeLabel: string | null;
+  onClick: () => void;
+}
+
+// Hafta gorunumune ozel, daha genis kart: sadece dueDate degil startDate->dueDate
+// araligini da (varsa) ve hangi pano sutununda oldugunu gosterir. Onceden ayri
+// bir "Zaman Cizelgesi" view'inde vardi - kullanicinin bu stili begenmesi
+// uzerine hafta gorunumune tasindi, ayri view kaldirildi.
+function WeekTaskChip({ task, isDone, isOverdue, columnTitle, rangeLabel, onClick }: WeekTaskChipProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
+  const blockedByOpen = (task.blockedBy ?? []).filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS');
+
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    zIndex: isDragging ? 20 : undefined,
+  };
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      title={task.title}
+      className={`w-full text-left rounded-md border-l-4 bg-background border border-border/60 px-2 py-1.5 shadow-sm hover:shadow transition-shadow cursor-grab active:cursor-grabbing touch-none shrink-0 ${
+        PRIORITY_BORDER[task.priority ?? 'MEDIUM']
+      } ${isDragging ? 'opacity-30' : ''}`}
+    >
+      <div className="flex items-start gap-1">
+        {blockedByOpen.length > 0 && (
+          <LinkIcon
+            className="size-3 text-amber-500 shrink-0 mt-0.5"
+            aria-label={`Bekliyor: ${blockedByOpen.map((b) => b.title).join(', ')}`}
+          />
+        )}
+        <span
+          className={`text-xs line-clamp-2 ${
+            isDone ? 'text-muted-foreground line-through' : isOverdue ? 'text-red-700 dark:text-red-400' : 'text-foreground'
+          }`}
+        >
+          {task.title}
+        </span>
+      </div>
+      <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+        {columnTitle}
+        {rangeLabel && ` · ${rangeLabel}`}
+      </div>
+    </button>
+  );
+}
+
 interface DayCellProps {
   date: Date;
   variant: CalendarMode;
@@ -97,11 +174,12 @@ interface DayCellProps {
   dayTasks: Task[];
   doneColumnIds: Set<string>;
   todayKey: string;
+  columns: Record<string, Column>;
   onTaskClick: (taskId: string) => void;
   onDayClick?: (date: string) => void;
 }
 
-function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, todayKey, onTaskClick, onDayClick }: DayCellProps) {
+function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, todayKey, columns, onTaskClick, onDayClick }: DayCellProps) {
   const { t, lang } = useTranslation();
   const key = toDateKey(date);
   const { setNodeRef, isOver } = useDroppable({ id: `${DAY_DROPPABLE_PREFIX}${key}` });
@@ -142,6 +220,25 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
         {visibleTasks.map((task) => {
           const isDone = doneColumnIds.has(task.columnId);
           const isOverdue = !isDone && key < todayKey;
+
+          if (variant === 'week') {
+            const dueKey = task.dueDate?.slice(0, 10);
+            const startKey = task.startDate?.slice(0, 10);
+            const isMultiDay = !!startKey && !!dueKey && startKey !== dueKey;
+            const rangeLabel = isMultiDay ? `${formatDayMonth(startKey!)} → ${formatDayMonth(dueKey!)}` : null;
+            return (
+              <WeekTaskChip
+                key={task.id}
+                task={task}
+                isDone={isDone}
+                isOverdue={isOverdue}
+                columnTitle={columns[task.columnId]?.title ?? '—'}
+                rangeLabel={rangeLabel}
+                onClick={() => onTaskClick(task.id)}
+              />
+            );
+          }
+
           return (
             <TaskChip
               key={task.id}
@@ -176,7 +273,7 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
 // deneyiminin takvim karşılığı. Optimistik guncelleme + hata durumunda geri
 // alma parent'taki onTaskReschedule'da yapılır (panonun kendi drag mantığıyla
 // aynı desen).
-export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedule, onDayClick }: CalendarViewProps) {
+export function CalendarView({ tasks, columns, doneColumnIds, onTaskClick, onTaskReschedule, onDayClick }: CalendarViewProps) {
   const { t, lang } = useTranslation();
   const [mode, setMode] = useState<CalendarMode>('month');
   const [cursor, setCursor] = useState(() => new Date());
@@ -205,6 +302,28 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
   const monthDays = useMemo(() => buildMonthGrid(cursor), [cursor]);
 
   const weekDays = useMemo(() => buildWeekGrid(cursor), [cursor]);
+
+  // Hafta gorunumu ay gorunumunden farkli olarak startDate->dueDate araligini
+  // da hesaba katar: bir kart birden fazla gune yayiliyorsa aralik icindeki
+  // HER gun sutununda gorunur. "YYYY-MM-DD" string karsilastirmasi kullanilir
+  // (Date nesnesi araligina hic girilmez) - Timeline'daki saat/timezone
+  // kaymasi hatasinin tekrarlanmamasi icin bilerek boyle.
+  const weekTasksByDay = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const day of weekDays) {
+      const key = toDateKey(day);
+      const dayTasks = tasks.filter((task) => {
+        if (!task.dueDate) return false;
+        const due = task.dueDate.slice(0, 10);
+        const start = task.startDate ? task.startDate.slice(0, 10) : due;
+        const from = start <= due ? start : due;
+        const to = start <= due ? due : start;
+        return key >= from && key <= to;
+      });
+      map.set(key, dayTasks);
+    }
+    return map;
+  }, [weekDays, tasks]);
 
   const days = mode === 'month' ? monthDays : weekDays;
 
@@ -363,6 +482,7 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
                       dayTasks={tasksByDay.get(key) ?? []}
                       doneColumnIds={doneColumnIds}
                       todayKey={todayKey}
+                      columns={columns}
                       onTaskClick={onTaskClick}
                       onDayClick={onDayClick}
                     />
@@ -384,9 +504,10 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
                         variant="week"
                         inMonth
                         isToday={key === todayKey}
-                        dayTasks={tasksByDay.get(key) ?? []}
+                        dayTasks={weekTasksByDay.get(key) ?? []}
                         doneColumnIds={doneColumnIds}
                         todayKey={todayKey}
+                        columns={columns}
                         onTaskClick={onTaskClick}
                         onDayClick={onDayClick}
                       />
