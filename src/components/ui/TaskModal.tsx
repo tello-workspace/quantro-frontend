@@ -47,6 +47,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { FileUpload } from '@/components/ui/file-upload';
 import { TriangleAlert as TriangleAlertIcon } from 'lucide-react';
 import {
   Dialog,
@@ -387,11 +388,9 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
   const { data: attachments = [] } = useGetAttachmentsQuery(cardId);
   const [uploadAttachment, { isLoading: isUploading }] = useUploadAttachmentMutation();
   const [deleteAttachment] = useDeleteAttachmentMutation();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+  const handleFilesPicked = async (files: File[]) => {
+    const file = files[0];
     if (!file) return;
 
     if (file.size > MAX_ATTACHMENT_SIZE) {
@@ -475,17 +474,8 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
         ))}
       </div>
 
-      <input ref={fileInputRef} type="file" onChange={handleFileSelect} className="hidden" />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={isUploading}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <PaperClipIcon className="h-4 w-4" />
-        {isUploading ? t('uploading') : t('addFileBtn')}
-      </Button>
+      <FileUpload onChange={handleFilesPicked} />
+      {isUploading && <p className="mt-2 text-xs text-muted-foreground">{t('uploading')}</p>}
     </div>
   );
 };
