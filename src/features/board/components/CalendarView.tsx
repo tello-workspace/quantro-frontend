@@ -16,6 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Task, Priority } from '../services/boardService';
+import { toDateKey, buildMonthGrid, buildWeekGrid } from '../services/calendarService';
 
 const PRIORITY_DOT: Record<Priority, string> = {
   URGENT: 'bg-red-500',
@@ -29,16 +30,6 @@ const MAX_VISIBLE_PER_DAY = 3;
 const DAY_DROPPABLE_PREFIX = 'cal-day-';
 
 type CalendarMode = 'month' | 'week';
-
-function toDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// Haftayi Pazartesi'den baslatir (JS getDay(): 0=Pazar..6=Cmt).
-function startOfWeek(d: Date): Date {
-  const weekday = (d.getDay() + 6) % 7;
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - weekday);
-}
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -188,18 +179,9 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
     return map;
   }, [tasks]);
 
-  const monthDays = useMemo(() => {
-    const year = cursor.getFullYear();
-    const month = cursor.getMonth();
-    const firstOfMonth = new Date(year, month, 1);
-    const gridStart = startOfWeek(firstOfMonth);
-    return Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
-  }, [cursor]);
+  const monthDays = useMemo(() => buildMonthGrid(cursor), [cursor]);
 
-  const weekDays = useMemo(() => {
-    const gridStart = startOfWeek(cursor);
-    return Array.from({ length: 7 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
-  }, [cursor]);
+  const weekDays = useMemo(() => buildWeekGrid(cursor), [cursor]);
 
   const days = mode === 'month' ? monthDays : weekDays;
 

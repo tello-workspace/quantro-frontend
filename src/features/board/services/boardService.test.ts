@@ -51,8 +51,8 @@ describe('normalizeCard', () => {
     expect(task.description).toBe('aciklama');
     expect(task.assignees).toEqual([{ id: 'u1', name: 'Ali', badges: [{ id: 'b1', name: 'Backend', color: '#000', icon: null }] }]);
     expect(task.labels).toEqual([{ id: 'l1', name: 'bug', color: '#f00' }]);
-    expect(task.blockedBy).toEqual([{ id: 'c2', title: 'Bloklayan kart' }]);
-    expect(task.blocking).toEqual([{ id: 'c3', title: 'Bloklanan kart' }]);
+    expect(task.blockedBy).toEqual([{ id: 'c2', title: 'Bloklayan kart', relationType: 'BLOCKS' }]);
+    expect(task.blocking).toEqual([{ id: 'c3', title: 'Bloklanan kart', relationType: 'BLOCKS' }]);
   });
 
   it('opsiyonel alanlar eksikse null/undefined yerine bos dizi/undefined doner', () => {
@@ -71,5 +71,20 @@ describe('normalizeCard', () => {
 
     expect(task.description).toBeUndefined();
     expect(task.dueDate).toBeUndefined();
+  });
+
+  it('storyPoints sayisini oldugu gibi tasir', () => {
+    const task = normalizeCard({ ...baseRaw, storyPoints: 5 });
+    expect(task.storyPoints).toBe(5);
+  });
+
+  it('storyPoints null gelirse null olarak kalir (undefined\'a cevrilmez)', () => {
+    const task = normalizeCard({ ...baseRaw, storyPoints: null });
+    expect(task.storyPoints).toBeNull();
+  });
+
+  it('storyPoints hic gelmezse undefined doner', () => {
+    const task = normalizeCard(baseRaw);
+    expect(task.storyPoints).toBeUndefined();
   });
 });

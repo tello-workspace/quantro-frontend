@@ -50,9 +50,12 @@ export interface TaskAssignee {
   badges?: BadgeInfo[];
 }
 
+export type DependencyRelationType = 'BLOCKS' | 'RELATES_TO' | 'DUPLICATES' | 'CLONES';
+
 export interface DependencyCard {
   id: string;
   title: string;
+  relationType?: DependencyRelationType;
 }
 
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
@@ -75,6 +78,15 @@ export interface Task {
   // sayim) - tam liste TaskModal acilinca checklistApi'den ayrica cekilir.
   checklistTotal?: number;
   checklistDone?: number;
+  // undefined = bu Task'i doldururken backend'den hic secilmedi (orn. board
+  // liste endpoint'i), null = secildi ama deger yok. Bu ayrim onemli:
+  // sprintId'yi kasitsizce null'a cevirip mevcut atamayi silmemek icin
+  // updateTask sadece "undefined degil" durumunda bu alani govdeye ekler.
+  sprintId?: string | null;
+  parentCardId?: string | null;
+  parent?: { id: string; title: string } | null;
+  subtasks?: { id: string; title: string; done: boolean }[];
+  customFieldValues?: { fieldId: string; value: string | null }[];
 }
 
 // Backend /cards/:id (GET, PATCH) assignees/labels'i nested CardAssignee[]/
@@ -92,8 +104,13 @@ export interface RawCard {
   lastActivityAt?: string;
   assignees?: { user: { id: string; name: string; badges?: { badge: BadgeInfo }[] } }[];
   labels?: { label: { id: string; name: string; color: string } }[];
-  blockedBy?: { blocker: DependencyCard }[];
-  blocking?: { blocked: DependencyCard }[];
+  blockedBy?: { blocker: DependencyCard; relationType?: DependencyRelationType }[];
+  blocking?: { blocked: DependencyCard; relationType?: DependencyRelationType }[];
+  sprintId?: string | null;
+  parentCardId?: string | null;
+  parent?: { id: string; title: string } | null;
+  subtasks?: { id: string; title: string; column?: { isDone: boolean } }[];
+  customFieldValues?: { fieldId: string; value: string | null }[];
 }
 
 export function normalizeCard(raw: RawCard): Task {
@@ -112,8 +129,13 @@ export function normalizeCard(raw: RawCard): Task {
       badges: a.user.badges?.map((b) => b.badge) ?? [],
     })) ?? [],
     labels: raw.labels?.map((cl) => cl.label) ?? [],
-    blockedBy: raw.blockedBy?.map((d) => d.blocker) ?? [],
-    blocking: raw.blocking?.map((d) => d.blocked) ?? [],
+    blockedBy: raw.blockedBy?.map((d) => ({ ...d.blocker, relationType: d.relationType ?? 'BLOCKS' })) ?? [],
+    blocking: raw.blocking?.map((d) => ({ ...d.blocked, relationType: d.relationType ?? 'BLOCKS' })) ?? [],
+    sprintId: raw.sprintId,
+    parentCardId: raw.parentCardId,
+    parent: raw.parent,
+    subtasks: raw.subtasks?.map((s) => ({ id: s.id, title: s.title, done: s.column?.isDone ?? false })),
+    customFieldValues: raw.customFieldValues,
   };
 }
 
@@ -185,6 +207,18 @@ export const boardService = {
     return await res.json();
   },
 
+  // Bir kartin ust gorevini (parentCardId) tek basina degistirir - hem "bu
+  // kartin ust gorevini sec" hem de "baska bir karti bunun alt gorevi yap"
+  // (o zaman hedef karta cagrilir) icin kullanilir.
+  async setCardParent(cardId: string, parentCardId: string | null): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/cards/${cardId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ parentCardId }),
+    });
+    if (!res.ok) throw new Error(await readApiError(res, 'Üst görev güncellenemedi.'));
+  },
+
   async getTaskDetails(projectId: string, taskId: string): Promise<Task> {
     const res = await fetch(`${API_BASE_URL}/cards/${taskId}`, {
       method: 'GET',
@@ -220,6 +254,12 @@ export const boardService = {
     if (options.includeAssignees && task.assignees !== undefined) {
       body.assigneeIds = task.assignees.map((a) => a.id);
     }
+
+    // undefined = bu Task bu alani hic fetch etmedi (orn. board listesi) ->
+    // gonderme, mevcut degeri koru. null/string = kullanici gercekten
+    // degistirdi (ya da fetch edilmis mevcut deger) -> gonder.
+    if (task.sprintId !== undefined) body.sprintId = task.sprintId;
+    if (task.parentCardId !== undefined) body.parentCardId = task.parentCardId;
 
     const res = await fetch(`${API_BASE_URL}/cards/${task.id}`, {
       method: 'PATCH',

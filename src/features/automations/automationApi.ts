@@ -1,7 +1,12 @@
 import { api } from '@/lib/api';
 
-export type AutomationTrigger = 'CARD_MOVED_TO_COLUMN' | 'CARD_CREATED';
-export type AutomationActionType = 'ADD_LABEL' | 'MOVE_TO_COLUMN' | 'ASSIGN_USER' | 'SEND_NOTIFICATION';
+export type AutomationTrigger = 'CARD_MOVED_TO_COLUMN' | 'CARD_CREATED' | 'SCHEDULED' | 'CARD_DUE_SOON';
+export type AutomationActionType =
+  | 'ADD_LABEL'
+  | 'MOVE_TO_COLUMN'
+  | 'ASSIGN_USER'
+  | 'SEND_NOTIFICATION'
+  | 'CREATE_CARD';
 
 export interface AutomationRule {
   id: string;
@@ -17,6 +22,8 @@ export interface AutomationRule {
   isActive: boolean;
   createdById: string;
   createdAt: string;
+  scheduleDayOfWeek: number | null;
+  dueSoonDays: number | null;
 }
 
 export interface CreateAutomationRuleInput {
@@ -28,6 +35,8 @@ export interface CreateAutomationRuleInput {
   actionColumnId?: string | null;
   actionUserId?: string | null;
   actionMessage?: string | null;
+  scheduleDayOfWeek?: number | null;
+  dueSoonDays?: number | null;
 }
 
 interface ApiEnvelope<T> {

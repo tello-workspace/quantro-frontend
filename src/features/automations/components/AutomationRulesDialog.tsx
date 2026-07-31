@@ -51,6 +51,8 @@ interface AutomationRulesDialogProps {
 const TRIGGER_LABEL: Record<AutomationTrigger, string> = {
   CARD_MOVED_TO_COLUMN: 'Kart bir sütuna taşınınca',
   CARD_CREATED: 'Kart oluşturulunca',
+  SCHEDULED: 'Zamanlanmış (gece taramasında)',
+  CARD_DUE_SOON: 'Teslim tarihi yaklaşınca',
 };
 
 const ACTION_LABEL: Record<AutomationActionType, string> = {
@@ -58,7 +60,10 @@ const ACTION_LABEL: Record<AutomationActionType, string> = {
   MOVE_TO_COLUMN: 'Sütuna taşı',
   ASSIGN_USER: 'Kişiye ata',
   SEND_NOTIFICATION: 'Bildirim gönder',
+  CREATE_CARD: 'Yeni kart oluştur',
 };
+
+const DAY_OF_WEEK_LABEL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
 export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
   orgId,
@@ -84,6 +89,8 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
   const [actionColumnId, setActionColumnId] = useState('');
   const [actionUserId, setActionUserId] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const [scheduleDayOfWeek, setScheduleDayOfWeek] = useState(''); // '' = her gün
+  const [dueSoonDays, setDueSoonDays] = useState('3');
 
   const resetForm = () => {
     setName('');
@@ -94,6 +101,8 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
     setActionColumnId('');
     setActionUserId('');
     setActionMessage('');
+    setScheduleDayOfWeek('');
+    setDueSoonDays('3');
     setShowForm(false);
   };
 
@@ -104,11 +113,15 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
       toast.error('Bu tetikleyici için hedef sütun seçmelisin.');
       return;
     }
+    if (trigger === 'CARD_DUE_SOON' && !dueSoonDays.trim()) {
+      toast.error('Kaç gün kala tetikleneceğini yazmalısın.');
+      return;
+    }
     if (actionType === 'ADD_LABEL' && !actionLabelId) {
       toast.error('Eklenecek etiketi seçmelisin.');
       return;
     }
-    if (actionType === 'MOVE_TO_COLUMN' && !actionColumnId) {
+    if ((actionType === 'MOVE_TO_COLUMN' || actionType === 'CREATE_CARD') && !actionColumnId) {
       toast.error('Hedef sütunu seçmelisin.');
       return;
     }
@@ -116,8 +129,8 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
       toast.error('Bir kişi seçmelisin.');
       return;
     }
-    if (actionType === 'SEND_NOTIFICATION' && !actionMessage.trim()) {
-      toast.error('Bildirim mesajını yazmalısın.');
+    if ((actionType === 'SEND_NOTIFICATION' || actionType === 'CREATE_CARD') && !actionMessage.trim()) {
+      toast.error(actionType === 'CREATE_CARD' ? 'Yeni kartın başlığını yazmalısın.' : 'Bildirim mesajını yazmalısın.');
       return;
     }
 
@@ -130,9 +143,12 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
         triggerColumnId: trigger === 'CARD_MOVED_TO_COLUMN' ? triggerColumnId : null,
         actionType,
         actionLabelId: actionType === 'ADD_LABEL' ? actionLabelId : null,
-        actionColumnId: actionType === 'MOVE_TO_COLUMN' ? actionColumnId : null,
+        actionColumnId: actionType === 'MOVE_TO_COLUMN' || actionType === 'CREATE_CARD' ? actionColumnId : null,
         actionUserId: actionType === 'ASSIGN_USER' || actionType === 'SEND_NOTIFICATION' ? actionUserId : null,
-        actionMessage: actionType === 'SEND_NOTIFICATION' ? actionMessage.trim() : null,
+        actionMessage:
+          actionType === 'SEND_NOTIFICATION' || actionType === 'CREATE_CARD' ? actionMessage.trim() : null,
+        scheduleDayOfWeek: trigger === 'SCHEDULED' && scheduleDayOfWeek !== '' ? Number(scheduleDayOfWeek) : null,
+        dueSoonDays: trigger === 'CARD_DUE_SOON' ? Number(dueSoonDays) : null,
       }).unwrap();
       toast.success('Otomasyon kuralı oluşturuldu.');
       resetForm();
@@ -176,6 +192,8 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
         return `Kişiye ata: ${members.find((m) => m.userId === rule.actionUserId)?.user.name ?? '—'}`;
       case 'SEND_NOTIFICATION':
         return `Bildirim gönder: "${rule.actionMessage}"`;
+      case 'CREATE_CARD':
+        return `Yeni kart oluştur: "${rule.actionMessage}" → ${columns.find((c) => c.id === rule.actionColumnId)?.title ?? '—'}`;
     }
   };
 
@@ -183,6 +201,14 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
     if (rule.trigger === 'CARD_MOVED_TO_COLUMN') {
       const colTitle = columns.find((c) => c.id === rule.triggerColumnId)?.title ?? '—';
       return `Kart "${colTitle}" sütununa taşınınca`;
+    }
+    if (rule.trigger === 'SCHEDULED') {
+      return rule.scheduleDayOfWeek == null
+        ? 'Her gün gece taramasında'
+        : `Her ${DAY_OF_WEEK_LABEL[rule.scheduleDayOfWeek]} gece taramasında`;
+    }
+    if (rule.trigger === 'CARD_DUE_SOON') {
+      return `Teslim tarihine ${rule.dueSoonDays} gün kala`;
     }
     return 'Kart oluşturulunca';
   };
@@ -283,6 +309,35 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
                   </select>
                 </div>
               )}
+
+              {trigger === 'SCHEDULED' && (
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Hangi gün</label>
+                  <select
+                    value={scheduleDayOfWeek}
+                    onChange={(e) => setScheduleDayOfWeek(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+                  >
+                    <option value="" className="bg-popover">Her gün</option>
+                    {DAY_OF_WEEK_LABEL.map((label, i) => (
+                      <option key={i} value={i} className="bg-popover">{label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {trigger === 'CARD_DUE_SOON' && (
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Kaç gün kala</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={90}
+                    value={dueSoonDays}
+                    onChange={(e) => setDueSoonDays(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -339,11 +394,24 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
               </select>
             )}
 
-            {actionType === 'SEND_NOTIFICATION' && (
+            {actionType === 'CREATE_CARD' && (
+              <select
+                value={actionColumnId}
+                onChange={(e) => setActionColumnId(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+              >
+                <option value="" className="bg-popover">Kartın açılacağı sütun...</option>
+                {columns.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-popover">{c.title}</option>
+                ))}
+              </select>
+            )}
+
+            {(actionType === 'SEND_NOTIFICATION' || actionType === 'CREATE_CARD') && (
               <Input
                 value={actionMessage}
                 onChange={(e) => setActionMessage(e.target.value)}
-                placeholder="Bildirim mesajı..."
+                placeholder={actionType === 'CREATE_CARD' ? 'Yeni kartın başlığı...' : 'Bildirim mesajı...'}
               />
             )}
 

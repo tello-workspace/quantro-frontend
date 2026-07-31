@@ -26,9 +26,12 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus } from 'lucide-react';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 import { AutomationRulesDialog } from '@/features/automations/components/AutomationRulesDialog';
+import { SprintPanel } from '@/features/sprints/components/SprintPanel';
+import { CustomFieldsPanel } from '@/features/customFields/components/CustomFieldsPanel';
+import { TableView } from './TableView';
 import { useGetTemplatesQuery, useCreateCardFromTemplateMutation } from '@/features/templates/templateApi';
 
 interface ProjectBoardProps {
@@ -142,8 +145,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const { data: templates = [] } = useGetTemplatesQuery({ orgId, projectId }, { skip: !orgId || !projectId });
   const [createCardFromTemplate] = useCreateCardFromTemplateMutation();
 
-  const [viewMode, setViewMode] = useState<'board' | 'calendar'>('board');
+  const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table'>('board');
   const [automationsOpen, setAutomationsOpen] = useState(false);
+  const [sprintsOpen, setSprintsOpen] = useState(false);
+  const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
@@ -880,7 +885,25 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           >
             <CalendarDays className="size-3.5" /> Takvim
           </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('table')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'table' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Table2 className="size-3.5" /> Tablo
+          </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setSprintsOpen(true)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
+          title="Sprintler"
+        >
+          <Rocket className="size-3.5" /> Sprintler
+        </button>
 
         {isAdmin && (
           <button
@@ -890,6 +913,17 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             title="Otomasyon Kuralları"
           >
             <Zap className="size-3.5" /> Otomasyonlar
+          </button>
+        )}
+
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setCustomFieldsOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
+            title="Ek Alanlar"
+          >
+            <ListPlus className="size-3.5" /> Ek Alanlar
           </button>
         )}
 
@@ -917,7 +951,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       </div>
 
       <div className="flex-1 min-h-0 flex gap-4 sm:gap-6 relative overflow-hidden">
-        {viewMode === 'calendar' ? (
+        {viewMode === 'table' ? (
+          <TableView
+            tasks={calendarTasks}
+            columns={boardData.columns}
+            onTaskClick={handleTaskClick}
+          />
+        ) : viewMode === 'calendar' ? (
           <CalendarView
             tasks={calendarTasks}
             doneColumnIds={doneColumnIds}
@@ -1105,6 +1145,23 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         onCreateTask={handleCreateTask}
         conflict={selectedTaskId ? conflicts[selectedTaskId] : undefined}
       />
+
+      <SprintPanel
+        orgId={orgId}
+        projectId={projectId}
+        isAdmin={!!isAdmin}
+        open={sprintsOpen}
+        onOpenChange={setSprintsOpen}
+      />
+
+      {isAdmin && (
+        <CustomFieldsPanel
+          orgId={orgId}
+          projectId={projectId}
+          open={customFieldsOpen}
+          onOpenChange={setCustomFieldsOpen}
+        />
+      )}
 
       {isAdmin && (
         <AutomationRulesDialog

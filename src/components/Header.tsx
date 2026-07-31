@@ -11,7 +11,7 @@ import { disconnectSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { LayoutGrid, LogOut, Search } from 'lucide-react';
+import { LayoutGrid, LogOut, Search, ListChecks } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useGetMyOrganizationsQuery, useLazySearchOrganizationQuery } from '@/features/organizations/organizationsApi';
 
@@ -182,6 +182,13 @@ export default function Header(){
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
+              <Link
+                href="/dashboard"
+                title="Bana Atananlar"
+                className="flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ListChecks className="size-4" />
+              </Link>
               <ThemeToggle />
               <NotificationBell />
               {me && (

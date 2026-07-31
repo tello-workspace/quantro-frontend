@@ -7,7 +7,7 @@ import { EyeIcon as EyeIconSolid } from '@heroicons/react/24/solid';
 import { useGetWatchStatusQuery, useWatchCardMutation, useUnwatchCardMutation } from '@/features/watchers/watchApi';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
-import { Task, TaskLabel, DependencyCard } from '@/features/board/services/boardService';
+import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import { useFillCardWithAiMutation } from '@/features/ai/aiApi';
@@ -25,6 +25,9 @@ import {
   useDeleteCommentMutation,
 } from '@/features/comments/commentsApi';
 import { useAddDependencyMutation, useRemoveDependencyMutation } from '@/features/dependencies/dependenciesApi';
+import { useGetSprintsQuery } from '@/features/sprints/sprintsApi';
+import { useGetCustomFieldsQuery, useSetCustomFieldValueMutation } from '@/features/customFields/customFieldsApi';
+import { extractMentionQuery, filterMentionCandidates, insertMention } from '@/features/comments/mentionUtils';
 import {
   useGetAttachmentsQuery,
   useUploadAttachmentMutation,
@@ -53,6 +56,13 @@ import {
 } from '@/components/ui/dialog';
 
 const NEW_LABEL_COLORS = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899'];
+
+const RELATION_TYPE_LABELS: Record<DependencyRelationType, string> = {
+  BLOCKS: 'Bloklar',
+  RELATES_TO: 'İlişkili',
+  DUPLICATES: 'Kopyası',
+  CLONES: 'Klonu',
+};
 
 function timeAgo(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -86,15 +96,12 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
   // SONUNDAKI "@kelime" parcasina bakiyoruz - tipik kullanim (yorumun
   // ortasina donup mention eklemek nadir) icin yeterli, tam bir editor
   // kutuphanesi kurmadan basit ve isiyor.
-  const mentionMatch = /@([\wÀ-ÖØ-öø-ÿĞğİıŞşÇçÖöÜü]*)$/.exec(newText);
-  const mentionQuery = mentionMatch?.[1]?.toLowerCase() ?? null;
+  const mentionQuery = extractMentionQuery(newText);
   const mentionCandidates =
-    mentionQuery !== null
-      ? members.filter((m) => m.user.name.toLowerCase().includes(mentionQuery)).slice(0, 5)
-      : [];
+    mentionQuery !== null ? filterMentionCandidates(members, mentionQuery) : [];
 
   const selectMention = (name: string) => {
-    setNewText((t) => t.replace(/@([\wÀ-ÖØ-öø-ÿĞğİıŞşÇçÖöÜü]*)$/, `@${name} `));
+    setNewText((t) => insertMention(t, name));
   };
 
   const handlePost = async (e: React.FormEvent) => {
@@ -521,6 +528,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [newLabelColor, setNewLabelColor] = useState(NEW_LABEL_COLORS[0]);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
   const [showDependencyPicker, setShowDependencyPicker] = useState(false);
+  const [dependencyRelationType, setDependencyRelationType] = useState<DependencyRelationType>('BLOCKS');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
 
@@ -535,6 +543,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [createLabel, { isLoading: isCreatingLabel }] = useCreateLabelMutation();
   const [attachLabel] = useAttachLabelMutation();
   const [detachLabel] = useDetachLabelMutation();
+  const { data: sprints = [] } = useGetSprintsQuery(
+    { orgId, projectId },
+    { skip: !orgId || !projectId || !isOpen },
+  );
+  const { data: customFields = [] } = useGetCustomFieldsQuery(
+    { orgId, projectId },
+    { skip: !orgId || !projectId || !isOpen },
+  );
+  const [setCustomFieldValue] = useSetCustomFieldValueMutation();
   const [addDependency] = useAddDependencyMutation();
   const [removeDependency] = useRemoveDependencyMutation();
   const [fillCardWithAi, { isLoading: isFilling }] = useFillCardWithAiMutation();
@@ -783,14 +800,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       if (blockerCard) {
         setTask({
           ...task,
-          blockedBy: [...(task.blockedBy ?? []), { id: blockerId, title: blockerCard.title }],
+          blockedBy: [
+            ...(task.blockedBy ?? []),
+            { id: blockerId, title: blockerCard.title, relationType: dependencyRelationType },
+          ],
         });
       }
       setShowDependencyPicker(false);
       return;
     }
     try {
-      await addDependency({ cardId: task.id, blockerId }).unwrap();
+      await addDependency({ cardId: task.id, blockerId, relationType: dependencyRelationType }).unwrap();
       const refreshed = await fetchTaskDetails(task.id);
       setTask(refreshed);
       setShowDependencyPicker(false);
@@ -815,6 +835,59 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setTask(refreshed);
     } catch {
       toast.error('Bağımlılık kaldırılamadı.');
+    }
+  };
+
+  const [showParentPicker, setShowParentPicker] = useState(false);
+  const [showSubtaskPicker, setShowSubtaskPicker] = useState(false);
+
+  const handleSetParent = async (parentId: string | null) => {
+    if (!task || taskId === 'new') return;
+    const parentCard = parentId ? availableCards.find((c) => c.id === parentId) : null;
+    setTask({ ...task, parentCardId: parentId, parent: parentCard ? { id: parentCard.id, title: parentCard.title } : null });
+    setShowParentPicker(false);
+    try {
+      await boardService.setCardParent(task.id, parentId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Üst görev güncellenemedi.');
+    }
+  };
+
+  const handleAddSubtask = async (childId: string) => {
+    if (!task || taskId === 'new') return;
+    setShowSubtaskPicker(false);
+    try {
+      await boardService.setCardParent(childId, task.id);
+      const refreshed = await fetchTaskDetails(task.id);
+      setTask(refreshed);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Alt görev eklenemedi.');
+    }
+  };
+
+  const handleRemoveSubtask = async (childId: string) => {
+    if (!task) return;
+    try {
+      await boardService.setCardParent(childId, null);
+      const refreshed = await fetchTaskDetails(task.id);
+      setTask(refreshed);
+    } catch {
+      toast.error('Alt görev kaldırılamadı.');
+    }
+  };
+
+  const handleSetCustomFieldValue = async (fieldId: string, value: string | null) => {
+    if (!task || taskId === 'new') return;
+    const prevValues = task.customFieldValues ?? [];
+    const nextValues = [
+      ...prevValues.filter((v) => v.fieldId !== fieldId),
+      { fieldId, value },
+    ];
+    setTask({ ...task, customFieldValues: nextValues });
+    try {
+      await setCustomFieldValue({ cardId: task.id, fieldId, value }).unwrap();
+    } catch {
+      toast.error('Alan kaydedilemedi.');
     }
   };
 
@@ -1013,11 +1086,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   Bağımlılıklar
                 </label>
 
-                {(task.blockedBy ?? []).length > 0 && (
+                {(task.blockedBy ?? []).filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS').length > 0 && (
                   <div className="mb-2">
                     <p className="text-xs text-muted-foreground mb-1">Bunlar bitmeden başlanamaz:</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {(task.blockedBy ?? []).map((b) => (
+                      {(task.blockedBy ?? [])
+                        .filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS')
+                        .map((b) => (
                         <Badge
                           key={b.id}
                           variant="destructive"
@@ -1038,11 +1113,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   </div>
                 )}
 
-                {(task.blocking ?? []).length > 0 && (
+                {(task.blocking ?? []).filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS').length > 0 && (
                   <div className="mb-2">
                     <p className="text-xs text-muted-foreground mb-1">Bu kartı bekleyenler:</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {(task.blocking ?? []).map((b) => (
+                      {(task.blocking ?? [])
+                        .filter((b) => (b.relationType ?? 'BLOCKS') === 'BLOCKS')
+                        .map((b) => (
                         <Badge
                           key={b.id}
                           variant="secondary"
@@ -1063,6 +1140,42 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   </div>
                 )}
 
+                {(() => {
+                  const related = [
+                    ...(task.blockedBy ?? []).filter((b) => (b.relationType ?? 'BLOCKS') !== 'BLOCKS'),
+                    ...(task.blocking ?? []).filter((b) => (b.relationType ?? 'BLOCKS') !== 'BLOCKS'),
+                  ];
+                  if (related.length === 0) return null;
+                  return (
+                    <div className="mb-2">
+                      <p className="text-xs text-muted-foreground mb-1">İlişkili kartlar:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {related.map((b) => (
+                          <Badge
+                            key={b.id}
+                            variant="outline"
+                            className="flex items-center gap-1 pl-2 pr-1"
+                          >
+                            {RELATION_TYPE_LABELS[b.relationType ?? 'BLOCKS']}: {b.title}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                (task.blockedBy ?? []).some((d) => d.id === b.id)
+                                  ? handleRemoveDependency(task.id, b.id)
+                                  : handleRemoveDependency(b.id, task.id)
+                              }
+                              className="hover:bg-black/10 rounded-sm p-0.5"
+                              aria-label={`${b.title} ilişkisini kaldır`}
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="relative inline-block">
                   <Button
                     type="button"
@@ -1072,20 +1185,39 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     disabled={isFilling}
                   >
                     <LinkIcon className="h-3 w-3" />
-                    Bağımlılık ekle
+                    Bağlantı ekle
                   </Button>
 
                   {showDependencyPicker && (
-                    <div className="absolute z-10 mt-2 w-56 rounded-lg border border-border bg-popover shadow-lg p-2">
+                    <div className="absolute z-10 mt-2 w-64 rounded-lg border border-border bg-popover shadow-lg p-2">
+                      <div className="flex flex-wrap gap-1 mb-2 pb-2 border-b border-border">
+                        {(Object.keys(RELATION_TYPE_LABELS) as DependencyRelationType[]).map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setDependencyRelationType(type)}
+                            className={`px-1.5 py-0.5 rounded text-[11px] border ${
+                              dependencyRelationType === type
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:bg-muted'
+                            }`}
+                          >
+                            {RELATION_TYPE_LABELS[type]}
+                          </button>
+                        ))}
+                      </div>
                       <p className="text-xs text-muted-foreground px-1 pb-1">
-                        Hangi kart bitmeden bu başlamasın?
+                        {dependencyRelationType === 'BLOCKS'
+                          ? 'Hangi kart bitmeden bu başlamasın?'
+                          : 'Hangi kartla ilişkilendirilsin?'}
                       </p>
                       <div className="max-h-40 overflow-y-auto space-y-1">
                         {availableCards
                           .filter(
                             (c) =>
                               c.id !== task.id &&
-                              !(task.blockedBy ?? []).some((b) => b.id === c.id),
+                              !(task.blockedBy ?? []).some((b) => b.id === c.id) &&
+                              !(task.blocking ?? []).some((b) => b.id === c.id),
                           )
                           .map((c) => (
                             <button
@@ -1105,6 +1237,160 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {taskId !== 'new' && (
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                    Üst Görev / Alt Görevler
+                  </label>
+
+                  {task.parent ? (
+                    <div className="mb-2">
+                      <p className="text-xs text-muted-foreground mb-1">Üst görev:</p>
+                      <Badge variant="outline" className="flex items-center gap-1 pl-2 pr-1 w-fit">
+                        {task.parent.title}
+                        <button
+                          type="button"
+                          onClick={() => handleSetParent(null)}
+                          className="hover:bg-black/10 rounded-sm p-0.5"
+                          aria-label="Üst görevi kaldır"
+                        >
+                          <XMarkIcon className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    </div>
+                  ) : (
+                    <div className="relative inline-block mb-2">
+                      <Button type="button" variant="outline" size="xs" onClick={() => setShowParentPicker((v) => !v)}>
+                        + Üst görev seç
+                      </Button>
+                      {showParentPicker && (
+                        <div className="absolute z-10 mt-2 w-56 rounded-lg border border-border bg-popover shadow-lg p-2">
+                          <div className="max-h-40 overflow-y-auto space-y-1">
+                            {availableCards
+                              .filter((c) => c.id !== task.id)
+                              .map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={() => handleSetParent(c.id)}
+                                  className="flex w-full px-2 py-1 rounded-md text-xs text-left text-foreground hover:bg-muted"
+                                >
+                                  {c.title}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(task.subtasks ?? []).length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Alt görevler ({(task.subtasks ?? []).filter((s) => s.done).length}/{(task.subtasks ?? []).length}):
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(task.subtasks ?? []).map((s) => (
+                          <Badge
+                            key={s.id}
+                            variant={s.done ? 'secondary' : 'outline'}
+                            className="flex items-center gap-1 pl-2 pr-1"
+                          >
+                            {s.done && '✓ '}{s.title}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSubtask(s.id)}
+                              className="hover:bg-black/10 rounded-sm p-0.5"
+                              aria-label={`${s.title} alt görevini kaldır`}
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="relative inline-block">
+                    <Button type="button" variant="outline" size="xs" onClick={() => setShowSubtaskPicker((v) => !v)}>
+                      + Alt görev ekle
+                    </Button>
+                    {showSubtaskPicker && (
+                      <div className="absolute z-10 mt-2 w-56 rounded-lg border border-border bg-popover shadow-lg p-2">
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {availableCards
+                            .filter(
+                              (c) => c.id !== task.id && !(task.subtasks ?? []).some((s) => s.id === c.id),
+                            )
+                            .map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => handleAddSubtask(c.id)}
+                                className="flex w-full px-2 py-1 rounded-md text-xs text-left text-foreground hover:bg-muted"
+                              >
+                                {c.title}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {taskId !== 'new' && customFields.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                    Ek Alanlar
+                  </label>
+                  <div className="space-y-2">
+                    {customFields.map((field) => {
+                      const current = (task.customFieldValues ?? []).find((v) => v.fieldId === field.id)?.value ?? '';
+                      if (field.type === 'CHECKBOX') {
+                        return (
+                          <label key={field.id} className="flex items-center gap-2 text-sm text-foreground">
+                            <input
+                              type="checkbox"
+                              checked={current === 'true'}
+                              onChange={(e) => handleSetCustomFieldValue(field.id, e.target.checked ? 'true' : 'false')}
+                            />
+                            {field.name}
+                          </label>
+                        );
+                      }
+                      if (field.type === 'SELECT') {
+                        return (
+                          <div key={field.id}>
+                            <label className="block text-xs text-muted-foreground mb-1">{field.name}</label>
+                            <select
+                              value={current}
+                              onChange={(e) => handleSetCustomFieldValue(field.id, e.target.value || null)}
+                              className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+                            >
+                              <option value="" className="bg-popover">Seç...</option>
+                              {field.options.map((opt) => (
+                                <option key={opt} value={opt} className="bg-popover">{opt}</option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={field.id}>
+                          <label className="block text-xs text-muted-foreground mb-1">{field.name}</label>
+                          <Input
+                            type={field.type === 'NUMBER' ? 'number' : field.type === 'DATE' ? 'date' : 'text'}
+                            defaultValue={current}
+                            onBlur={(e) => handleSetCustomFieldValue(field.id, e.target.value || null)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-muted-foreground mb-1">
@@ -1189,6 +1475,28 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       disabled={isFilling}
                     />
                   </div>
+
+                  {taskId !== 'new' && sprints.length > 0 && (
+                    <div>
+                      <label htmlFor="sprintId" className="block text-sm font-medium text-muted-foreground mb-1">
+                        Sprint
+                      </label>
+                      <select
+                        id="sprintId"
+                        value={task.sprintId ?? ''}
+                        onChange={(e) => setTask({ ...task, sprintId: e.target.value || null })}
+                        disabled={isFilling}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm text-foreground"
+                      >
+                        <option value="" className="bg-popover">Sprint yok</option>
+                        {sprints.map((s) => (
+                          <option key={s.id} value={s.id} className="bg-popover">
+                            {s.name} ({s.status === 'ACTIVE' ? 'Aktif' : s.status === 'COMPLETED' ? 'Tamamlandı' : 'Planlandı'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div>
