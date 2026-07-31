@@ -17,6 +17,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { ChevronLeft, ChevronRight, List } from 'lucide-react';
 import type { Task, Priority } from '../services/boardService';
 import { CalendarAgendaView } from './CalendarAgendaView';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const PRIORITY_DOT: Record<Priority, string> = {
   URGENT: 'bg-red-500',
@@ -25,7 +26,6 @@ const PRIORITY_DOT: Record<Priority, string> = {
   LOW: 'bg-zinc-400',
 };
 
-const WEEKDAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 const MAX_VISIBLE_PER_DAY = 3;
 const DAY_DROPPABLE_PREFIX = 'cal-day-';
 
@@ -111,6 +111,7 @@ interface DayCellProps {
 }
 
 function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, todayKey, onTaskClick, onDayClick }: DayCellProps) {
+  const { t, lang } = useTranslation();
   const key = toDateKey(date);
   const { setNodeRef, isOver } = useDroppable({ id: `${DAY_DROPPABLE_PREFIX}${key}` });
   // Ay gorunumunde 6 satir sabit yukseklige sigmali (fazlasi "+N daha"), hafta
@@ -119,12 +120,18 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
   const visibleTasks = variant === 'month' ? dayTasks.slice(0, MAX_VISIBLE_PER_DAY) : dayTasks;
   const hiddenCount = variant === 'month' ? dayTasks.length - MAX_VISIBLE_PER_DAY : 0;
 
+  const ariaLabelText = onDayClick
+    ? (lang === 'en'
+      ? `Add card to day ${date.getDate()}`
+      : `${date.getDate()} gününe kart ekle`)
+    : undefined;
+
   return (
     <div
       ref={setNodeRef}
       onClick={() => onDayClick?.(key)}
       role={onDayClick ? 'button' : undefined}
-      aria-label={onDayClick ? `${date.getDate()} gününe kart ekle` : undefined}
+      aria-label={ariaLabelText}
       className={`p-1.5 flex flex-col gap-1 transition-colors cursor-default ${
         variant === 'month' ? 'min-h-0 overflow-hidden' : 'min-h-[7rem]'
       } ${isOver ? 'bg-primary/10' : 'bg-background'} ${inMonth ? '' : 'opacity-40'} ${
@@ -155,7 +162,7 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
           );
         })}
         {hiddenCount > 0 && (
-          <span className="text-[10px] text-muted-foreground px-1.5">+{hiddenCount} daha</span>
+          <span className="text-[10px] text-muted-foreground px-1.5">+{hiddenCount} {t('moreTasks')}</span>
         )}
       </div>
     </div>
@@ -179,6 +186,7 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
 // alma parent'taki onTaskReschedule'da yapılır (panonun kendi drag mantığıyla
 // aynı desen).
 export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedule, onDayClick }: CalendarViewProps) {
+  const { t, lang } = useTranslation();
   const [mode, setMode] = useState<CalendarMode>('month');
   const [cursor, setCursor] = useState(() => new Date());
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -222,17 +230,22 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
   const activeTask = activeTaskId ? tasksById.get(activeTaskId) : undefined;
 
   const periodLabel = useMemo(() => {
-    if (mode === 'agenda') return 'Liste';
+    if (mode === 'agenda') return t('viewModeList');
+    const locale = lang === 'en' ? 'en-US' : 'tr-TR';
     if (mode === 'month') {
-      return cursor.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+      return cursor.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
     }
     const start = weekDays[0];
     const end = weekDays[6];
     const sameMonth = start.getMonth() === end.getMonth();
-    const startLabel = start.toLocaleDateString('tr-TR', { day: 'numeric', month: sameMonth ? undefined : 'short' });
-    const endLabel = end.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+    const startLabel = start.toLocaleDateString(locale, { day: 'numeric', month: sameMonth ? undefined : 'short' });
+    const endLabel = end.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
     return `${startLabel} – ${endLabel}`;
-  }, [mode, cursor, weekDays]);
+  }, [mode, cursor, weekDays, lang, t]);
+
+  const weekdayLabels = lang === 'en'
+    ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    : ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
   const goPrev = () => {
     if (mode === 'month') {
@@ -282,7 +295,7 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
                   mode === 'month' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Ay
+                {t('calendarModeMonth')}
               </button>
               <button
                 type="button"
@@ -291,7 +304,7 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
                   mode === 'week' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Hafta
+                {t('calendarModeWeek')}
               </button>
               <button
                 type="button"
@@ -301,7 +314,7 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
                 }`}
               >
                 <List className="size-3.5" />
-                Liste
+                {t('viewModeList')}
               </button>
             </div>
 
@@ -311,7 +324,7 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
                   type="button"
                   onClick={goPrev}
                   className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={mode === 'month' ? 'Önceki ay' : 'Önceki hafta'}
+                  aria-label={mode === 'month' ? t('calendarPrevMonth') : t('calendarPrevWeek')}
                 >
                   <ChevronLeft className="size-4" />
                 </button>
@@ -320,13 +333,13 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
                   onClick={() => setCursor(new Date())}
                   className="px-2.5 py-1 text-xs font-medium rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Bugün
+                  {t('calendarToday')}
                 </button>
                 <button
                   type="button"
                   onClick={goNext}
                   className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={mode === 'month' ? 'Sonraki ay' : 'Sonraki hafta'}
+                  aria-label={mode === 'month' ? t('calendarNextMonth') : t('calendarNextWeek')}
                 >
                   <ChevronRight className="size-4" />
                 </button>
@@ -344,7 +357,7 @@ export function CalendarView({ tasks, doneColumnIds, onTaskClick, onTaskReschedu
         ) : (
           <>
             <div className="grid grid-cols-7 gap-px bg-border rounded-t-lg overflow-hidden shrink-0 sticky top-0 z-[1]">
-              {WEEKDAY_LABELS.map((label) => (
+              {weekdayLabels.map((label) => (
                 <div
                   key={label}
                   className="bg-muted/50 py-1.5 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-wide"
