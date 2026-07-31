@@ -139,11 +139,11 @@ function WeekTaskChip({ task, isDone, isOverdue, columnTitle, rangeLabel, onClic
         onClick();
       }}
       title={task.title}
-      className={`w-full text-left rounded-md border-l-4 bg-background border border-border/60 px-2 py-1.5 shadow-sm hover:shadow transition-shadow cursor-grab active:cursor-grabbing touch-none shrink-0 ${
+      className={`w-full text-left rounded-lg border-l-[6px] bg-background border border-border/60 px-3 py-2.5 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing touch-none shrink-0 ${
         PRIORITY_BORDER[task.priority ?? 'MEDIUM']
       } ${isDragging ? 'opacity-30' : ''}`}
     >
-      <div className="flex items-start gap-1">
+      <div className="flex items-start gap-1.5">
         {blockedByOpen.length > 0 && (
           <LinkIcon
             className="size-3 text-amber-500 shrink-0 mt-0.5"
@@ -151,14 +151,14 @@ function WeekTaskChip({ task, isDone, isOverdue, columnTitle, rangeLabel, onClic
           />
         )}
         <span
-          className={`text-xs line-clamp-2 ${
+          className={`text-sm font-medium line-clamp-2 ${
             isDone ? 'text-muted-foreground line-through' : isOverdue ? 'text-red-700 dark:text-red-400' : 'text-foreground'
           }`}
         >
           {task.title}
         </span>
       </div>
-      <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+      <div className="text-xs text-muted-foreground mt-1 truncate">
         {columnTitle}
         {rangeLabel && ` · ${rangeLabel}`}
       </div>
@@ -201,22 +201,41 @@ function DayCell({ date, variant, inMonth, isToday, dayTasks, doneColumnIds, tod
       onClick={() => onDayClick?.(key)}
       role={onDayClick ? 'button' : undefined}
       aria-label={ariaLabelText}
-      className={`p-1.5 flex flex-col gap-1 transition-colors cursor-default ${
-        variant === 'month' ? 'min-h-0 overflow-hidden' : 'min-h-[7rem]'
+      className={`transition-colors cursor-default ${
+        variant === 'month'
+          ? 'p-1.5 flex flex-col gap-1 min-h-0 overflow-hidden'
+          : `p-3 flex flex-col gap-2 min-h-[18rem] rounded-xl border ${isToday ? 'border-primary/40' : 'border-border'}`
       } ${isOver ? 'bg-primary/10' : 'bg-background'} ${inMonth ? '' : 'opacity-40'} ${
         onDayClick ? 'hover:bg-accent/40 cursor-pointer' : ''
       }`}
     >
-      <span
-        className={
-          isToday
-            ? 'inline-flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground text-xs font-medium shrink-0'
-            : 'text-xs font-medium text-muted-foreground shrink-0'
-        }
-      >
-        {date.getDate()}
-      </span>
-      <div className={`flex flex-col gap-1 ${variant === 'month' ? 'overflow-y-auto min-h-0 no-scrollbar' : ''}`}>
+      {variant === 'week' ? (
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className={
+              isToday
+                ? 'inline-flex items-center justify-center size-8 rounded-full bg-primary text-primary-foreground text-base font-semibold shrink-0'
+                : 'inline-flex items-center justify-center size-8 rounded-full text-base font-semibold text-foreground shrink-0'
+            }
+          >
+            {date.getDate()}
+          </span>
+          <span className="text-xs text-muted-foreground capitalize">
+            {date.toLocaleDateString('tr-TR', { weekday: 'long' })}
+          </span>
+        </div>
+      ) : (
+        <span
+          className={
+            isToday
+              ? 'inline-flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground text-xs font-medium shrink-0'
+              : 'text-xs font-medium text-muted-foreground shrink-0'
+          }
+        >
+          {date.getDate()}
+        </span>
+      )}
+      <div className={`flex flex-col gap-2 ${variant === 'month' ? 'overflow-y-auto min-h-0 no-scrollbar gap-1' : ''}`}>
         {visibleTasks.map((task) => {
           const isDone = doneColumnIds.has(task.columnId);
           const isOverdue = !isDone && key < todayKey;
@@ -457,16 +476,18 @@ export function CalendarView({ tasks, columns, doneColumnIds, onTaskClick, onTas
           />
         ) : (
           <>
-            <div className="grid grid-cols-7 gap-px bg-border rounded-t-lg overflow-hidden shrink-0 sticky top-0 z-[1]">
-              {weekdayLabels.map((label) => (
-                <div
-                  key={label}
-                  className="bg-muted/50 py-1.5 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-wide"
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
+            {mode === 'month' && (
+              <div className="grid grid-cols-7 gap-px bg-border rounded-t-lg overflow-hidden shrink-0 sticky top-0 z-[1]">
+                {weekdayLabels.map((label) => (
+                  <div
+                    key={label}
+                    className="bg-muted/50 py-1.5 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-wide"
+                  >
+                    {label}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {mode === 'month' ? (
               <div className="grid grid-cols-7 grid-rows-6 gap-px bg-border flex-1 min-h-0 rounded-b-lg overflow-hidden">
@@ -493,8 +514,8 @@ export function CalendarView({ tasks, columns, doneColumnIds, onTaskClick, onTas
               // Hafta gorunumu: gun sutunlari icerige gore asagi buyur, disaridaki
               // konteyner (flex-1 min-h-0 + overflow-y-auto) tasan kismi kaydirir -
               // sayfa sonsuza kadar uzamiyor, "en kotu" durumda scroll devreye girer.
-              <div className="flex-1 min-h-0 overflow-y-auto rounded-b-lg border border-t-0 border-border">
-                <div className="grid grid-cols-7 gap-px bg-border">
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="grid grid-cols-7 gap-3">
                   {days.map((date) => {
                     const key = toDateKey(date);
                     return (
