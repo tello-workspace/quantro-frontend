@@ -65,6 +65,22 @@ const ACTION_LABEL: Record<AutomationActionType, string> = {
 
 const DAY_OF_WEEK_LABEL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
+// Backend ForbiddenError dönerse (403) yetkisiz kullanıcıya net bir mesaj
+// göster. Varsayılan hata mesajı backend'den gelebilir; 403'te "yetkiniz yok"
+// açıkça söylenir ki MEMBER kullanıcı otomasyonu yönetmeye çalıştığında
+// ne olduğunu anlasın.
+function getAutomationError(
+  err: unknown,
+  fallback: string,
+): { message: string; isForbidden: boolean } {
+  const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
+  const status = (err as { status?: number })?.status;
+  if (status === 403) {
+    return { message: 'Otomasyon kurallarını yalnızca organizasyon yöneticileri yönetebilir.', isForbidden: true };
+  }
+  return { message: errData?.message || fallback, isForbidden: false };
+}
+
 const PRIORITY_LABEL: Record<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT', string> = {
   LOW: 'Düşük',
   MEDIUM: 'Orta',
@@ -166,16 +182,18 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
       toast.success('Otomasyon kuralı oluşturuldu.');
       resetForm();
     } catch (err: unknown) {
-      const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
-      toast.error(errData?.message || 'Kural oluşturulamadı.');
+      const { message, isForbidden } = getAutomationError(err, 'Kural oluşturulamadı.');
+      toast.error(message);
+      // Yetkisiz kullanıcıysa formu kapat - zaten kaydedemez.
+      if (isForbidden) setShowForm(false);
     }
   };
 
   const handleToggle = async (ruleId: string, isActive: boolean) => {
     try {
       await toggleRule({ ruleId, projectId, isActive: !isActive }).unwrap();
-    } catch {
-      toast.error('Kural güncellenemedi.');
+    } catch (err: unknown) {
+      toast.error(getAutomationError(err, 'Kural güncellenemedi.').message);
     }
   };
 
@@ -190,8 +208,8 @@ export const AutomationRulesDialog: React.FC<AutomationRulesDialogProps> = ({
     if (!ok) return;
     try {
       await deleteRule({ ruleId, projectId }).unwrap();
-    } catch {
-      toast.error('Kural silinemedi.');
+    } catch (err: unknown) {
+      toast.error(getAutomationError(err, 'Kural silinemedi.').message);
     }
   };
 

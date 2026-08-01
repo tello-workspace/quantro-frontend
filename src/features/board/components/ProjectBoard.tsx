@@ -136,9 +136,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // Real-time board updates
   const realtimeBoard = useRealtimeBoard(projectId);
 
-  // Kart ekleme sadece ADMIN'e acik; suruklemeyi (kart tasima) herkes yapabilir
+  // Kart ekleme sadece ADMIN'e acik; suruklemeyi (kart tasima) herkes yapabilir.
+  // Yetki TEK kaynaktan (org uyeligi) alinir; boardData.myRole'a guvenmez.
+  // Tek kaynak olmasi kritik: board verisi gecikmeli/onbellegi olabilirken
+  // org uyeligi her istekte guvenilirdir - iki kaynagi OR'lamak tutarsiz
+  // durumda (biri cached digeri degil) yanlis yetki verebilir.
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId });
-  const isAdmin = boardData?.myRole === 'ADMIN' || org?.myRole === 'ADMIN';
+  const isAdmin = org?.myRole === 'ADMIN';
   // Uye de kart ekleme formunu gorur; farki gonderdigi seyin talep olmasi
   const canAddTask = true;
   const [createChangeRequest] = useCreateChangeRequestMutation();
