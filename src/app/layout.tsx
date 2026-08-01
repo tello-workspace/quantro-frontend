@@ -37,8 +37,9 @@ export const metadata: Metadata = {
   description: 'Sana konuşan proje panosu — stale kartları, iş yükünü ve darboğazları kendisi tespit eder.',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const sidebarCookie = cookies().get('sidebar_state')?.value;
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const sidebarCookie = cookieStore.get('sidebar_state')?.value;
   const defaultSidebarOpen = sidebarCookie === 'true';
 
   return (
