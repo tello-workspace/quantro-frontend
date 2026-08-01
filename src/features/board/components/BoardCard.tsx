@@ -112,12 +112,15 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
       }`}
     >
       {/* Oncelik solda ince bir serit: nokta yerine kart taranirken
-          uzaktan okunabilen bir sinyal veriyor */}
-      {task.priority && (
-        <span
-          aria-hidden
-          className={`absolute inset-y-0 left-0 w-1 ${PRIORITY_BAR[task.priority]}`}
-        />
+          uzaktan okunabilen bir sinyal veriyor. Done sütununda oncelik
+          sinyali anlamsiz oldugundan yerine yesil "tamamlandi" seridi
+          gosteriliyor. */}
+      {isDoneColumn ? (
+        <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-emerald-500" />
+      ) : (
+        task.priority && (
+          <span aria-hidden className={`absolute inset-y-0 left-0 w-1 ${PRIORITY_BAR[task.priority]}`} />
+        )
       )}
 
       {conflict && (
