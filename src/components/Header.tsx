@@ -37,7 +37,7 @@ export default function Header(){
     const { t } = useTranslation();
     const router = useRouter();
     const dispatch = useDispatch();
-    const { toggleSidebar } = useSidebar();
+    const { toggleSidebar, open } = useSidebar();
     const searchParams = useSearchParams();
     const { data: me } = useGetMeQuery();
     const { data: orgs } = useGetMyOrganizationsQuery();
@@ -107,7 +107,7 @@ export default function Header(){
     };
 
     return (
-        <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
+        <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md supports-backdrop-filter:bg-card/60">
           <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
             <div className="flex items-center gap-1 shrink-0">
               <button
@@ -115,17 +115,21 @@ export default function Header(){
                 onClick={toggleSidebar}
                 title="Menü"
                 aria-label="Menü"
+                aria-pressed={open}
                 className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:text-primary"
               >
                 <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
                   <LayoutGrid className="size-4" />
                 </span>
                 <span className="hidden text-sm font-bold tracking-tight text-foreground sm:inline">Quantro</span>
+                <span className={`hidden rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.24em] sm:inline-flex ${open ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'border-muted-foreground/20 bg-muted text-muted-foreground'}`}>
+                  {open ? 'ON' : 'OFF'}
+                </span>
               </button>
             </div>
 
             {/* Global Search Input & Google Suggestions-like Dropdown */}
-            <div ref={containerRef} className="flex-1 max-w-[240px] xs:max-w-xs sm:max-w-xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto relative">
+            <div ref={containerRef} className="flex-1 max-w-60 xs:max-w-xs sm:max-w-xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto relative">
               {activeOrgId ? (
                 <div className="relative">
                   <div className="relative flex items-center">

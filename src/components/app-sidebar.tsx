@@ -25,7 +25,6 @@ export function AppSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const orgId = searchParams?.get('orgId');
-  const { setOpen } = useSidebar();
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -39,7 +38,7 @@ export function AppSidebar() {
                 const href = orgId ? `${item.href}?orgId=${orgId}` : item.href;
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} onClick={() => setOpen(false)}>
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
                       <Link href={href}>
                         <item.icon />
                         <span>{item.label}</span>
