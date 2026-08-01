@@ -946,7 +946,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="sm:max-w-3xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
           <div className="text-center py-10 text-muted-foreground">{t('loading')}</div>
         ) : task ? (
@@ -1640,7 +1640,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </form>
             )}
 
-            <DialogFooter className="mt-8 pt-4 border-t border-border">
+            <DialogFooter className="mt-8 pt-4 border-t border-border flex-wrap">
               {taskId !== 'new' && (
                 <Button
                   type="button"
