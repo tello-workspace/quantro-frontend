@@ -27,7 +27,7 @@ export default function AuthenticatedShell({ children }: { children: React.React
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <AppSidebar />
       <SidebarInset>
         <Header />

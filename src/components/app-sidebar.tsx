@@ -9,11 +9,10 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar';
 
 const NAV_ITEMS = [
@@ -26,22 +25,10 @@ export function AppSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const orgId = searchParams?.get('orgId');
+  const { setOpen } = useSidebar();
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <Link
-          href="/projects"
-          className="group flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:text-primary"
-        >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform duration-200 group-hover:-rotate-6">
-            <LayoutGrid className="size-3.5" />
-          </span>
-          <span className="text-sm font-bold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">
-            Quantro
-          </span>
-        </Link>
-      </SidebarHeader>
+    <Sidebar collapsible="offcanvas">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Menü</SidebarGroupLabel>
@@ -52,7 +39,7 @@ export function AppSidebar() {
                 const href = orgId ? `${item.href}?orgId=${orgId}` : item.href;
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} onClick={() => setOpen(false)}>
                       <Link href={href}>
                         <item.icon />
                         <span>{item.label}</span>
@@ -65,7 +52,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarRail />
     </Sidebar>
   );
 }

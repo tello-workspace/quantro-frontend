@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LayoutGrid, LogOut, Search, ListChecks } from 'lucide-react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useSidebar } from '@/components/ui/sidebar';
 import { useState, useEffect, useRef } from 'react';
 import { useGetMyOrganizationsQuery, useLazySearchOrganizationQuery } from '@/features/organizations/organizationsApi';
 
@@ -37,6 +37,7 @@ export default function Header(){
     const { t } = useTranslation();
     const router = useRouter();
     const dispatch = useDispatch();
+    const { toggleSidebar } = useSidebar();
     const searchParams = useSearchParams();
     const { data: me } = useGetMeQuery();
     const { data: orgs } = useGetMyOrganizationsQuery();
@@ -109,16 +110,18 @@ export default function Header(){
         <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md supports-[backdrop-filter]:bg-card/60">
           <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
             <div className="flex items-center gap-1 shrink-0">
-              <SidebarTrigger />
-              <Link
-                href="/projects"
-                className="group hidden sm:flex items-center gap-2.5 rounded-lg px-1.5 transition-colors hover:text-primary"
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                title="Menü"
+                aria-label="Menü"
+                className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:text-primary"
               >
                 <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
                   <LayoutGrid className="size-4" />
                 </span>
-                <span className="text-sm font-bold tracking-tight text-foreground">Quantro</span>
-              </Link>
+                <span className="hidden text-sm font-bold tracking-tight text-foreground sm:inline">Quantro</span>
+              </button>
             </div>
 
             {/* Global Search Input & Google Suggestions-like Dropdown */}
