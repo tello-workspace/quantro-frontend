@@ -37,7 +37,7 @@ export default function Header(){
     const { t } = useTranslation();
     const router = useRouter();
     const dispatch = useDispatch();
-    const { toggleSidebar, open } = useSidebar();
+    const { toggleSidebar } = useSidebar();
     const searchParams = useSearchParams();
     const { data: me } = useGetMeQuery();
     const { data: orgs } = useGetMyOrganizationsQuery();
@@ -115,16 +115,12 @@ export default function Header(){
                 onClick={toggleSidebar}
                 title="Menü"
                 aria-label="Menü"
-                aria-pressed={open}
                 className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:text-primary"
               >
                 <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
                   <LayoutGrid className="size-4" />
                 </span>
                 <span className="hidden text-sm font-bold tracking-tight text-foreground sm:inline">Quantro</span>
-                <span className={`hidden rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.24em] sm:inline-flex ${open ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'border-muted-foreground/20 bg-muted text-muted-foreground'}`}>
-                  {open ? 'ON' : 'OFF'}
-                </span>
               </button>
             </div>
 
