@@ -17,11 +17,9 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from '@/components/ui/sidebar';
 
 const NAV_ITEMS = [
@@ -72,20 +70,7 @@ export function AppSidebar() {
   const onManagePage = !!activeProjectId && pathname === `/projects/${activeProjectId}/manage`;
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <Link
-          href="/projects"
-          className="group flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:text-primary"
-        >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform duration-200 group-hover:-rotate-6">
-            <LayoutGrid className="size-3.5" />
-          </span>
-          <span className="text-sm font-bold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">
-            Quantro
-          </span>
-        </Link>
-      </SidebarHeader>
+    <Sidebar collapsible="offcanvas">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Menü</SidebarGroupLabel>
@@ -155,7 +140,6 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarRail />
     </Sidebar>
   );
 }

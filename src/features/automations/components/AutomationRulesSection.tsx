@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/hooks/useConfirm';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ColumnOption {
   id: string;
@@ -39,22 +40,41 @@ interface AutomationRulesSectionProps {
   members: MemberOption[];
 }
 
-const TRIGGER_LABEL: Record<AutomationTrigger, string> = {
-  CARD_MOVED_TO_COLUMN: 'Kart bir sütuna taşınınca',
-  CARD_CREATED: 'Kart oluşturulunca',
-  SCHEDULED: 'Zamanlanmış (gece taramasında)',
-  CARD_DUE_SOON: 'Teslim tarihi yaklaşınca',
+const TRIGGER_KEYS: AutomationTrigger[] = ['CARD_MOVED_TO_COLUMN', 'CARD_CREATED', 'SCHEDULED', 'CARD_DUE_SOON'];
+const ACTION_KEYS: AutomationActionType[] = ['ADD_LABEL', 'MOVE_TO_COLUMN', 'ASSIGN_USER', 'SEND_NOTIFICATION', 'CREATE_CARD'];
+// enum degerini ceviri anahtarina esleyen yardimcilar (dinamik template yerine
+// tip-guvenli sabit map — t()'e dogrudan gecerli bir TranslationKey gecmek icin)
+const TRIGGER_I18N_KEY: Record<AutomationTrigger, 'automationTriggerMoved' | 'automationTriggerCreated' | 'automationTriggerScheduled' | 'automationTriggerDueSoon'> = {
+  CARD_MOVED_TO_COLUMN: 'automationTriggerMoved',
+  CARD_CREATED: 'automationTriggerCreated',
+  SCHEDULED: 'automationTriggerScheduled',
+  CARD_DUE_SOON: 'automationTriggerDueSoon',
 };
-
-const ACTION_LABEL: Record<AutomationActionType, string> = {
-  ADD_LABEL: 'Etiket ekle',
-  MOVE_TO_COLUMN: 'Sütuna taşı',
-  ASSIGN_USER: 'Kişiye ata',
-  SEND_NOTIFICATION: 'Bildirim gönder',
-  CREATE_CARD: 'Yeni kart oluştur',
+const ACTION_I18N_KEY: Record<AutomationActionType, 'automationActionAddLabel' | 'automationActionMove' | 'automationActionAssign' | 'automationActionNotify' | 'automationActionCreateCard'> = {
+  ADD_LABEL: 'automationActionAddLabel',
+  MOVE_TO_COLUMN: 'automationActionMove',
+  ASSIGN_USER: 'automationActionAssign',
+  SEND_NOTIFICATION: 'automationActionNotify',
+  CREATE_CARD: 'automationActionCreateCard',
 };
-
 const DAY_OF_WEEK_LABEL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+
+// Backend ForbiddenError dönerse (403) yetkisiz kullanıcıya net bir mesaj
+// göster. Varsayılan hata mesajı backend'den gelebilir; 403'te "yetkiniz yok"
+// açıkça söylenir ki MEMBER kullanıcı otomasyonu yönetmeye çalıştığında
+// ne olduğunu anlasın.
+function getAutomationError(
+  err: unknown,
+  fallback: string,
+  forbiddenMessage: string,
+): { message: string; isForbidden: boolean } {
+  const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
+  const status = (err as { status?: number })?.status;
+  if (status === 403) {
+    return { message: forbiddenMessage, isForbidden: true };
+  }
+  return { message: errData?.message || fallback, isForbidden: false };
+}
 
 const PRIORITY_LABEL: Record<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT', string> = {
   LOW: 'Düşük',
@@ -74,6 +94,8 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
   members,
 }) => {
   const confirm = useConfirm();
+  const { t } = useTranslation();
+  const forbiddenMessage = t('automationForbidden');
   const { data: rules = [], isLoading } = useGetAutomationRulesQuery(
     { orgId, projectId },
     { skip: !orgId || !projectId },
@@ -116,27 +138,27 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
     e.preventDefault();
     if (!name.trim()) return;
     if (trigger === 'CARD_MOVED_TO_COLUMN' && !triggerColumnId) {
-      toast.error('Bu tetikleyici için hedef sütun seçmelisin.');
+      toast.error(t('automationTriggerColumnRequired'));
       return;
     }
     if (trigger === 'CARD_DUE_SOON' && !dueSoonDays.trim()) {
-      toast.error('Kaç gün kala tetikleneceğini yazmalısın.');
+      toast.error(t('automationDueSoonRequired'));
       return;
     }
     if (actionType === 'ADD_LABEL' && !actionLabelId) {
-      toast.error('Eklenecek etiketi seçmelisin.');
+      toast.error(t('automationLabelRequired'));
       return;
     }
     if ((actionType === 'MOVE_TO_COLUMN' || actionType === 'CREATE_CARD') && !actionColumnId) {
-      toast.error('Hedef sütunu seçmelisin.');
+      toast.error(t('automationColumnRequired'));
       return;
     }
     if ((actionType === 'ASSIGN_USER' || actionType === 'SEND_NOTIFICATION') && !actionUserId) {
-      toast.error('Bir kişi seçmelisin.');
+      toast.error(t('automationPersonRequired'));
       return;
     }
     if ((actionType === 'SEND_NOTIFICATION' || actionType === 'CREATE_CARD') && !actionMessage.trim()) {
-      toast.error(actionType === 'CREATE_CARD' ? 'Yeni kartın başlığını yazmalısın.' : 'Bildirim mesajını yazmalısın.');
+      toast.error(actionType === 'CREATE_CARD' ? t('automationCardTitleRequired') : t('automationMessageRequired'));
       return;
     }
 
@@ -158,75 +180,77 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
         conditionPriority: conditionPriority ? (conditionPriority as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT') : null,
         conditionLabelId: conditionLabelId || null,
       }).unwrap();
-      toast.success('Otomasyon kuralı oluşturuldu.');
+      toast.success(t('automationCreated'));
       resetForm();
     } catch (err: unknown) {
-      const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
-      toast.error(errData?.message || 'Kural oluşturulamadı.');
+      const { message, isForbidden } = getAutomationError(err, t('automationCreateError'), forbiddenMessage);
+      toast.error(message);
+      // Yetkisiz kullanıcıysa formu kapat - zaten kaydedemez.
+      if (isForbidden) setShowForm(false);
     }
   };
 
   const handleToggle = async (ruleId: string, isActive: boolean) => {
     try {
       await toggleRule({ ruleId, projectId, isActive: !isActive }).unwrap();
-    } catch {
-      toast.error('Kural güncellenemedi.');
+    } catch (err: unknown) {
+      toast.error(getAutomationError(err, t('automationToggleError'), forbiddenMessage).message);
     }
   };
 
   const handleDelete = async (ruleId: string) => {
     const ok = await confirm({
-      title: 'Kuralı Sil',
-      description: 'Bu otomasyon kuralını silmek istediğinizden emin misiniz?',
-      confirmText: 'Sil',
-      cancelText: 'İptal',
+      title: t('automationDeleteTitle'),
+      description: t('automationDeleteDesc'),
+      confirmText: t('automationDeleteTaskTitle'),
+      cancelText: t('automationCancel'),
       variant: 'destructive',
     });
     if (!ok) return;
     try {
       await deleteRule({ ruleId, projectId }).unwrap();
-    } catch {
-      toast.error('Kural silinemedi.');
+    } catch (err: unknown) {
+      toast.error(getAutomationError(err, t('automationDeleteError'), forbiddenMessage).message);
     }
   };
 
   const describeAction = (rule: (typeof rules)[number]) => {
     switch (rule.actionType) {
       case 'ADD_LABEL':
-        return `Etiket ekle: ${labels.find((l) => l.id === rule.actionLabelId)?.name ?? '—'}`;
+        return `${t('automationActionAddLabel')}: ${labels.find((l) => l.id === rule.actionLabelId)?.name ?? '—'}`;
       case 'MOVE_TO_COLUMN':
-        return `Sütuna taşı: ${columns.find((c) => c.id === rule.actionColumnId)?.title ?? '—'}`;
+        return `${t('automationActionMove')}: ${columns.find((c) => c.id === rule.actionColumnId)?.title ?? '—'}`;
       case 'ASSIGN_USER':
-        return `Kişiye ata: ${members.find((m) => m.userId === rule.actionUserId)?.user.name ?? '—'}`;
+        return `${t('automationActionAssign')}: ${members.find((m) => m.userId === rule.actionUserId)?.user.name ?? '—'}`;
       case 'SEND_NOTIFICATION':
-        return `Bildirim gönder: "${rule.actionMessage}"`;
+        return `${t('automationActionNotify')}: "${rule.actionMessage}"`;
       case 'CREATE_CARD':
-        return `Yeni kart oluştur: "${rule.actionMessage}" → ${columns.find((c) => c.id === rule.actionColumnId)?.title ?? '—'}`;
+        return `${t('automationActionCreateCard')}: "${rule.actionMessage}" → ${columns.find((c) => c.id === rule.actionColumnId)?.title ?? '—'}`;
     }
   };
 
   const describeTrigger = (rule: (typeof rules)[number]) => {
     if (rule.trigger === 'CARD_MOVED_TO_COLUMN') {
       const colTitle = columns.find((c) => c.id === rule.triggerColumnId)?.title ?? '—';
-      return `Kart "${colTitle}" sütununa taşınınca`;
+      return `${t('automationTriggerMoved')}: "${colTitle}"`;
     }
     if (rule.trigger === 'SCHEDULED') {
       return rule.scheduleDayOfWeek == null
-        ? 'Her gün gece taramasında'
-        : `Her ${DAY_OF_WEEK_LABEL[rule.scheduleDayOfWeek]} gece taramasında`;
+        ? t('automationScheduledNightly')
+        : `${t('automationScheduledWeekly')} ${DAY_OF_WEEK_LABEL[rule.scheduleDayOfWeek]} ${t('automationScheduledNightlyWeekly')}`;
     }
     if (rule.trigger === 'CARD_DUE_SOON') {
-      return `Teslim tarihine ${rule.dueSoonDays} gün kala`;
+      return `${t('automationDueSoonDesc')} ${rule.dueSoonDays} ${t('automationDueSoonDesc2')}`;
     }
-    return 'Kart oluşturulunca';
+    return t('automationTriggerCreated');
   };
 
   return (
     <div className="space-y-3">
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Yükleniyor...</p>
+        <p className="text-sm text-muted-foreground">{t('automationLoading')}</p>
       ) : rules.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Henüz bir otomasyon kuralı yok.</p>
+        <p className="text-sm text-muted-foreground">{t('automationNoRules')}</p>
       ) : (
         <div className="space-y-2">
           {rules.map((rule) => (
@@ -239,15 +263,17 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
                 <p className="text-xs text-muted-foreground">{describeTrigger(rule)}</p>
                 {(rule.conditionPriority || rule.conditionLabelId) && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
-                    Koşul:{' '}
+                    {t('automationConditionSectionLabel')}:{' '}
                     {[
-                      rule.conditionPriority ? `öncelik = ${PRIORITY_LABEL[rule.conditionPriority]}` : null,
+                      rule.conditionPriority
+                        ? `${t('automationConditionPriority')} ${PRIORITY_LABEL[rule.conditionPriority]}`
+                        : null,
                       rule.conditionLabelId
-                        ? `etiket = ${labels.find((l) => l.id === rule.conditionLabelId)?.name ?? '—'}`
+                        ? `${t('automationConditionLabelEquals')} ${labels.find((l) => l.id === rule.conditionLabelId)?.name ?? '—'}`
                         : null,
                     ]
                       .filter(Boolean)
-                      .join(' VE ')}
+                      .join(` ${t('automationConditionAnd')} `)}
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">→ {describeAction(rule)}</p>
@@ -262,13 +288,12 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
                       : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {rule.isActive ? 'Aktif' : 'Pasif'}
+                  {rule.isActive ? t('automationActive') : t('automationInactive')}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(rule.id)}
                   className="text-muted-foreground hover:text-destructive"
-                  title="Kuralı sil"
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -280,27 +305,27 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
       {!showForm ? (
         <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(true)}>
-          <Plus className="size-3.5" /> Yeni Kural
+          <Plus className="size-3.5" /> {t('automationNewRule')}
         </Button>
       ) : (
         <form onSubmit={handleCreate} className="max-w-2xl space-y-3 rounded-xl border border-border p-4">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Kural adı (örn: Testing'e girince QA'ya ata)"
+            placeholder={t('automationRuleNamePlaceholder')}
           />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Tetikleyici</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationTriggerLabel')}</label>
               <select
                 value={trigger}
                 onChange={(e) => setTrigger(e.target.value as AutomationTrigger)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
               >
-                {(Object.keys(TRIGGER_LABEL) as AutomationTrigger[]).map((t) => (
-                  <option key={t} value={t} className="bg-popover">
-                    {TRIGGER_LABEL[t]}
+                {TRIGGER_KEYS.map((trig) => (
+                  <option key={trig} value={trig} className="bg-popover">
+                    {t(TRIGGER_I18N_KEY[trig])}
                   </option>
                 ))}
               </select>
@@ -308,13 +333,13 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
             {trigger === 'CARD_MOVED_TO_COLUMN' && (
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Hedef Sütun</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationTargetColumn')}</label>
                 <select
                   value={triggerColumnId}
                   onChange={(e) => setTriggerColumnId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
                 >
-                  <option value="" className="bg-popover">Seç...</option>
+                  <option value="" className="bg-popover">{t('automationSelect')}</option>
                   {columns.map((c) => (
                     <option key={c.id} value={c.id} className="bg-popover">{c.title}</option>
                   ))}
@@ -324,13 +349,13 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
             {trigger === 'SCHEDULED' && (
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Hangi gün</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationDayOfWeek')}</label>
                 <select
                   value={scheduleDayOfWeek}
                   onChange={(e) => setScheduleDayOfWeek(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
                 >
-                  <option value="" className="bg-popover">Her gün</option>
+                  <option value="" className="bg-popover">{t('automationEveryDay')}</option>
                   {DAY_OF_WEEK_LABEL.map((label, i) => (
                     <option key={i} value={i} className="bg-popover">{label}</option>
                   ))}
@@ -340,7 +365,7 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
             {trigger === 'CARD_DUE_SOON' && (
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Kaç gün kala</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationDueSoonDays')}</label>
                 <Input
                   type="number"
                   min={0}
@@ -354,15 +379,15 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Aksiyon</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationActionLabel')}</label>
               <select
                 value={actionType}
                 onChange={(e) => setActionType(e.target.value as AutomationActionType)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
               >
-                {(Object.keys(ACTION_LABEL) as AutomationActionType[]).map((a) => (
+                {ACTION_KEYS.map((a) => (
                   <option key={a} value={a} className="bg-popover">
-                    {ACTION_LABEL[a]}
+                    {t(ACTION_I18N_KEY[a])}
                   </option>
                 ))}
               </select>
@@ -370,13 +395,13 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
             {actionType === 'ADD_LABEL' && (
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Etiket</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationActionAddLabel')}</label>
                 <select
                   value={actionLabelId}
                   onChange={(e) => setActionLabelId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
                 >
-                  <option value="" className="bg-popover">Etiket seç...</option>
+                  <option value="" className="bg-popover">{t('automationLabelSelect')}</option>
                   {labels.map((l) => (
                     <option key={l.id} value={l.id} className="bg-popover">{l.name}</option>
                   ))}
@@ -386,13 +411,13 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
             {actionType === 'MOVE_TO_COLUMN' && (
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Hedef sütun</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationTargetColumn')}</label>
                 <select
                   value={actionColumnId}
                   onChange={(e) => setActionColumnId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
                 >
-                  <option value="" className="bg-popover">Sütun seç...</option>
+                  <option value="" className="bg-popover">{t('automationColumnSelect')}</option>
                   {columns.map((c) => (
                     <option key={c.id} value={c.id} className="bg-popover">{c.title}</option>
                   ))}
@@ -402,13 +427,13 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
             {(actionType === 'ASSIGN_USER' || actionType === 'SEND_NOTIFICATION') && (
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Kişi</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationActionAssign')}</label>
                 <select
                   value={actionUserId}
                   onChange={(e) => setActionUserId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
                 >
-                  <option value="" className="bg-popover">Kişi seç...</option>
+                  <option value="" className="bg-popover">{t('automationPersonSelect')}</option>
                   {members.map((m) => (
                     <option key={m.userId} value={m.userId} className="bg-popover">{m.user.name}</option>
                   ))}
@@ -418,13 +443,13 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
 
             {actionType === 'CREATE_CARD' && (
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Kartın açılacağı sütun</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">{t('automationTargetColumn')}</label>
                 <select
                   value={actionColumnId}
                   onChange={(e) => setActionColumnId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
                 >
-                  <option value="" className="bg-popover">Sütun seç...</option>
+                  <option value="" className="bg-popover">{t('automationCardColumnSelect')}</option>
                   {columns.map((c) => (
                     <option key={c.id} value={c.id} className="bg-popover">{c.title}</option>
                   ))}
@@ -437,13 +462,13 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
             <Input
               value={actionMessage}
               onChange={(e) => setActionMessage(e.target.value)}
-              placeholder={actionType === 'CREATE_CARD' ? 'Yeni kartın başlığı...' : 'Bildirim mesajı...'}
+              placeholder={actionType === 'CREATE_CARD' ? t('automationCardTitlePlaceholder') : t('automationMessagePlaceholder')}
             />
           )}
 
           <div className="border-t border-border pt-3">
             <label className="block text-xs font-medium text-muted-foreground mb-1">
-              Koşul (opsiyonel) — ikisi de doluysa ikisi de sağlanmalı
+              {t('automationConditionSectionLabel')}
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <select
@@ -451,9 +476,9 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
                 onChange={(e) => setConditionPriority(e.target.value)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
               >
-                <option value="" className="bg-popover">Öncelik filtresi yok</option>
+                <option value="" className="bg-popover">{t('automationPriorityFilterNone')}</option>
                 {(Object.keys(PRIORITY_LABEL) as (keyof typeof PRIORITY_LABEL)[]).map((p) => (
-                  <option key={p} value={p} className="bg-popover">Sadece {PRIORITY_LABEL[p]}</option>
+                  <option key={p} value={p} className="bg-popover">{t('automationOnlyPriority')} {PRIORITY_LABEL[p]}</option>
                 ))}
               </select>
               <select
@@ -461,17 +486,17 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
                 onChange={(e) => setConditionLabelId(e.target.value)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
               >
-                <option value="" className="bg-popover">Etiket filtresi yok</option>
+                <option value="" className="bg-popover">{t('automationLabelFilterNone')}</option>
                 {labels.map((l) => (
-                  <option key={l.id} value={l.id} className="bg-popover">Sadece &quot;{l.name}&quot; etiketliler</option>
+                  <option key={l.id} value={l.id} className="bg-popover">{t('automationOnlyLabel')} &quot;{l.name}&quot;</option>
                 ))}
               </select>
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={resetForm}>İptal</Button>
-            <Button type="submit" size="sm" disabled={isCreating}>Kaydet</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={resetForm}>{t('automationCancel')}</Button>
+            <Button type="submit" size="sm" disabled={isCreating}>{t('automationSave')}</Button>
           </div>
         </form>
       )}

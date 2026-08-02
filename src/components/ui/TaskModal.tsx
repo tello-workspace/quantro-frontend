@@ -33,6 +33,7 @@ import {
   useUploadAttachmentMutation,
   useDeleteAttachmentMutation,
 } from '@/features/attachments/attachmentsApi';
+import { compressImageClient } from '@/features/attachments/imageCompression';
 import {
   useGetChecklistQuery,
   useCreateChecklistItemMutation,
@@ -393,13 +394,17 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
     const file = files[0];
     if (!file) return;
 
-    if (file.size > MAX_ATTACHMENT_SIZE) {
+    // On-sikistirma: jpeg/png ve 1.5MB+ ise tarayicida WebP'e cevirip
+    // yuklemeden once boyutu azalt. Fayda yoksa orijinal dosya doner.
+    const processed = await compressImageClient(file);
+
+    if (processed.size > MAX_ATTACHMENT_SIZE) {
       toast.error(t('attachmentLimitError'));
       return;
     }
 
     try {
-      await uploadAttachment({ cardId, file }).unwrap();
+      await uploadAttachment({ cardId, file: processed }).unwrap();
     } catch (err: unknown) {
       const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
       toast.error(errData?.message || t('attachmentUploadError'));
@@ -941,7 +946,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="sm:max-w-3xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
         {loading ? (
           <div className="text-center py-10 text-muted-foreground">{t('loading')}</div>
         ) : task ? (
@@ -1635,7 +1640,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </form>
             )}
 
-            <DialogFooter className="mt-8 pt-4 border-t border-border">
+            <DialogFooter className="mt-8 pt-4 border-t border-border flex-wrap">
               {taskId !== 'new' && (
                 <Button
                   type="button"

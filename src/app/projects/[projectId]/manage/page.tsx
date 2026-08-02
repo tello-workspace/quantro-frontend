@@ -17,6 +17,7 @@ import { SprintsSection } from '@/features/sprints/components/SprintsSection';
 import { AutomationRulesSection } from '@/features/automations/components/AutomationRulesSection';
 import { CustomFieldsSection } from '@/features/customFields/components/CustomFieldsSection';
 import { ChangeRequestsSection } from '@/features/requests/components/ChangeRequestsDialog';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type TabKey = 'sprints' | 'automations' | 'fields' | 'triage';
 
@@ -30,6 +31,7 @@ export default function ProjectManagePage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
   const projectId = params?.projectId as string;
   const orgId = searchParams.get('orgId') ?? '';
 
@@ -103,7 +105,7 @@ export default function ProjectManagePage() {
             </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="automations" className="gap-1.5 py-1.5">
-                <Zap className="size-4" /> Otomasyonlar
+                <Zap className="size-4" /> {t('automations')}
               </TabsTrigger>
             )}
             {isAdmin && (
@@ -131,10 +133,7 @@ export default function ProjectManagePage() {
 
           {isAdmin && (
             <TabsContent value="automations" className="mt-5">
-              <SectionShell
-                title="Otomasyon Kuralları"
-                description="Belirli bir olay gerçekleştiğinde otomatik olarak bir aksiyon çalıştır."
-              >
+              <SectionShell title={t('automationRules')} description={t('automationRulesDesc')}>
                 <AutomationRulesSection
                   orgId={orgId}
                   projectId={projectId}

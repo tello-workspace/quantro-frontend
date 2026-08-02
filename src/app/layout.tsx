@@ -7,6 +7,8 @@ import { Toaster } from 'sonner'
 import './globals.css'
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { cookies } from 'next/headers';
+import AuthenticatedShell from '@/components/AuthenticatedShell';
 
 // Plus Jakarta Sans: SaaS/pano arayuzleri icin onerilen, Geist'e gore
 // daha karakterli ve basliklarda daha iyi duran bir govde yazi tipi.
@@ -35,7 +37,11 @@ export const metadata: Metadata = {
   description: 'Sana konuşan proje panosu — stale kartları, iş yükünü ve darboğazları kendisi tespit eder.',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const sidebarCookie = cookieStore.get('sidebar_state')?.value;
+  const defaultSidebarOpen = sidebarCookie === 'true';
+
   return (
     <html lang="tr" suppressHydrationWarning={true} className={cn("font-sans", jakarta.variable)}>
       <head>
@@ -45,7 +51,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <StoreProvider>
           <SocketProvider>
             <ConfirmProvider>
-              {children}
+              <AuthenticatedShell defaultSidebarOpen={defaultSidebarOpen}>
+                {children}
+              </AuthenticatedShell>
               <NotificationListener />
             </ConfirmProvider>
           </SocketProvider>
