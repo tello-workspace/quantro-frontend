@@ -82,12 +82,18 @@ export default function ProjectManagePage() {
   return (
     <main className="min-h-[calc(100vh-56px)] bg-background px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl">
-        <Link
-          href={boardHref}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> Panoya dön
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          <Link
+            href={`/projects${orgId ? `?orgId=${orgId}` : ''}`}
+            className="transition-colors hover:text-foreground"
+          >
+            {org?.name ?? 'Organizasyon'}
+          </Link>
+          <span aria-hidden>/</span>
+          <Link href={boardHref} className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
+            <ArrowLeft className="size-4" /> {project?.name ?? 'Panoya dön'}
+          </Link>
+        </div>
 
         <div className="mt-3 mb-6">
           <h1 className="text-2xl font-bold text-foreground">Proje Yönetimi</h1>
@@ -149,7 +155,7 @@ export default function ProjectManagePage() {
             <TabsContent value="fields" className="mt-5">
               <SectionShell
                 title="Ek Alanlar"
-                description="Kartlara projene özel alanlar ekle (Jira'daki Custom Fields)."
+                description="Kartlara projene özel alanlar ekle."
               >
                 <CustomFieldsSection orgId={orgId} projectId={projectId} />
               </SectionShell>

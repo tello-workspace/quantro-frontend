@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useConfirm } from '@/hooks/useConfirm';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Bot } from 'lucide-react';
+import { ArrowLeft, Bot } from 'lucide-react';
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -94,9 +94,20 @@ export default function ProjectDetailPage() {
                 <Button type="button" variant="ghost" onClick={() => setIsEditing(false)} size="sm">İptal</Button>
               </form>
             ) : (
-              <h1 className="text-2xl font-bold text-foreground">
-                {project?.name ?? 'Proje Panosu'}
-              </h1>
+              <>
+                {/* Projeye girince organizasyona donus yolu yoktu; sidebar'i
+                    acmadan tek tikla org sekmesine donmek icin kirinti. */}
+                <Link
+                  href={`/projects${orgId ? `?orgId=${orgId}` : ''}`}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <ArrowLeft className="size-3.5" />
+                  {org?.name ?? 'Organizasyon'}
+                </Link>
+                <h1 className="text-2xl font-bold text-foreground">
+                  {project?.name ?? 'Proje Panosu'}
+                </h1>
+              </>
             )}
             {errorMsg && <p className="text-xs text-destructive mt-1">{errorMsg}</p>}
           </div>
