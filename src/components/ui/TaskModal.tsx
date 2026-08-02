@@ -2,9 +2,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, EyeIcon } from '@heroicons/react/24/outline';
-import { EyeIcon as EyeIconSolid } from '@heroicons/react/24/solid';
-import { useGetWatchStatusQuery, useWatchCardMutation, useUnwatchCardMutation } from '@/features/watchers/watchApi';
+import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
 import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType } from '@/features/board/services/boardService';
@@ -251,42 +249,6 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const WatchToggle: React.FC<{ cardId: string }> = ({ cardId }) => {
-  const { t } = useTranslation();
-  const { data: status } = useGetWatchStatusQuery(cardId);
-  const [watchCard, { isLoading: isWatching }] = useWatchCardMutation();
-  const [unwatchCard, { isLoading: isUnwatching }] = useUnwatchCardMutation();
-
-  const handleToggle = async () => {
-    try {
-      if (status?.isWatching) {
-        await unwatchCard(cardId).unwrap();
-      } else {
-        await watchCard(cardId).unwrap();
-      }
-    } catch {
-      toast.error(t('watchToggleError'));
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleToggle}
-      disabled={isWatching || isUnwatching}
-      title={status?.isWatching ? t('watchCardTitleUnwatch') : t('watchCardTitleWatch')}
-      className={`flex items-center gap-1.5 shrink-0 text-xs font-medium py-1 px-2.5 rounded-lg border transition-colors ${
-        status?.isWatching
-          ? 'bg-primary/10 text-primary border-primary/30'
-          : 'text-muted-foreground border-border hover:bg-accent/40'
-      }`}
-    >
-      {status?.isWatching ? <EyeIconSolid className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
-      <span>{status?.isWatching ? t('watching') : t('watch')}</span>
-      {!!status?.watcherCount && <span className="opacity-70">({status.watcherCount})</span>}
-    </button>
-  );
-};
 
 const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
   const { t } = useTranslation();
@@ -964,7 +926,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     placeholder={t('taskTitleLabel')}
                   />
                 </div>
-                {taskId !== 'new' && <WatchToggle cardId={task.id} />}
                 <Button
                   type="button"
                   variant="outline"

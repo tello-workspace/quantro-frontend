@@ -309,7 +309,13 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "relative flex w-full flex-1 flex-col bg-background",
+        // min-w-0 + overflow-x-hidden kritik: flex ogelerinin varsayilan
+        // min-width:auto degeri yuzunden genis bir cocuk (pano sutunlari)
+        // inset'i ekrandan tasiriyordu; o zaman sutunlarin kendi yatay
+        // scroll'u devreye girmeden TUM sayfa yatay kayiyor ve icerik sabit
+        // sidebar'in uzerine biniyordu. Boylece kaydirma her zaman icerideki
+        // overflow-x-auto konteynerinde kaliyor.
+        "relative flex w-full min-w-0 flex-1 flex-col overflow-x-hidden bg-background",
         "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2",
         className
       )}
