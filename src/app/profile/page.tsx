@@ -295,7 +295,7 @@ export default function ProfilePage() {
         </TabsList>
 
         <TabsContent value="profile">
-          <Card>
+          <Card className="mx-auto w-full max-w-3xl">
             <CardHeader>
               <CardTitle>{t('profileInfo')}</CardTitle>
               <CardDescription>
@@ -409,7 +409,7 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="ai">
-          <Card>
+          <Card className="mx-auto w-full max-w-3xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="size-5 text-primary" />
@@ -552,7 +552,7 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="notifications">
-          <Card>
+          <Card className="mx-auto w-full max-w-3xl">
             <CardHeader>
               <CardTitle>{t('notificationPrefs')}</CardTitle>
               <CardDescription>
