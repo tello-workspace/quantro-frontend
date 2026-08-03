@@ -12,7 +12,7 @@ import {
 } from '@/features/auth/meApi';
 import { useTestAiConfigurationMutation } from '@/features/ai/aiApi';
 import { NotificationPrefsSection } from '@/features/notifications/NotificationPrefsSection';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -294,15 +294,20 @@ export default function ProfilePage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile">
-          <Card>
+        {/* Sabit yukseklikli govde: uc sekmenin icerik boyu cok farkli
+            (profil formu uzun, bildirim tercihleri kisa) ve sekme
+            degistirirken sayfa boyu zipliyordu. Kapsayici sabit kalir,
+            tasan icerik kartin kendi icinde kayar. */}
+        <div className="h-[clamp(24rem,60vh,42rem)]">
+        <TabsContent value="profile" className="h-full">
+          <Card className="h-full">
             <CardHeader>
               <CardTitle>{t('profileInfo')}</CardTitle>
               <CardDescription>
                 {t('profileDesc')}
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="title">{t('title')}</Label>
@@ -394,22 +399,25 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              <div className="mt-2 flex justify-end">
-                <MotionButton
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
-                  {isSaving ? t('saving') : t('save')}
-                </MotionButton>
-              </div>
             </CardContent>
+            {/* Kaydet kayan alanin disinda: icerik uzun oldugu icin
+                CardContent'in icinde kalsaydi asagi kayip gozden
+                kaybolurdu. */}
+            <CardFooter className="justify-end">
+              <MotionButton
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? t('saving') : t('save')}
+              </MotionButton>
+            </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="ai">
-          <Card>
+        <TabsContent value="ai" className="h-full">
+          <Card className="h-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="size-5 text-primary" />
@@ -419,7 +427,7 @@ export default function ProfilePage() {
                 {t('aiSettingsDesc')}
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-5">
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="aiProvider">{t('aiProvider')}</Label>
                 <Select
@@ -528,42 +536,43 @@ export default function ProfilePage() {
                 <AlertDescription>{t('aiInfoDesc')}</AlertDescription>
               </Alert>
 
-              <div className="mt-2 flex items-center justify-between gap-3 border-t pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleTestConnection}
-                  disabled={isTesting}
-                >
-                  {isTesting ? t('aiTestingBtn') : t('aiTestBtn')}
-                </Button>
-
-                <MotionButton
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
-                  {isSaving ? t('saving') : t('save')}
-                </MotionButton>
-              </div>
             </CardContent>
+            <CardFooter className="justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleTestConnection}
+                disabled={isTesting}
+              >
+                {isTesting ? t('aiTestingBtn') : t('aiTestBtn')}
+              </Button>
+
+              <MotionButton
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? t('saving') : t('save')}
+              </MotionButton>
+            </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications">
-          <Card>
+        <TabsContent value="notifications" className="h-full">
+          <Card className="h-full">
             <CardHeader>
               <CardTitle>{t('notificationPrefs')}</CardTitle>
               <CardDescription>
                 {t('notificationPrefsDesc')}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-h-0 flex-1 overflow-y-auto">
               <NotificationPrefsSection />
             </CardContent>
           </Card>
         </TabsContent>
+        </div>
       </Tabs>
     </main>
   );
