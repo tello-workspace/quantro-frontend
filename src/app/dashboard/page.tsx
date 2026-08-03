@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const { data: cards = [], isLoading } = useGetMyAssignedCardsQuery();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center gap-2 mb-6">
         <ListChecks className="size-5 text-primary" />
         <h1 className="text-xl font-semibold text-foreground">Bana Atananlar</h1>
