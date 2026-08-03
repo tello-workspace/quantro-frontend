@@ -98,6 +98,9 @@ const translations = {
     welcome: "Quantro'ya hoş geldin",
     welcomeDesc: "Başlamak için bir organizasyon oluştur. Ekibini davet edip projelerini aynı pano üzerinden yürütebilirsin.",
     createOrg: "Organizasyon Oluştur",
+    createOrgDesc: "Kendi çalışma alanını aç ya da ekibin için yeni bir organizasyon kur. İstediğin kadar oluşturabilirsin.",
+    orgNamePlaceholder: "Örn: Kişisel Çalışma Alanım",
+    orgCreated: "Organizasyon oluşturuldu",
     orgName: "Organizasyon adı",
     descriptionOpt: "Açıklama (opsiyonel)",
     
@@ -480,6 +483,9 @@ const translations = {
     welcome: "Welcome to Quantro",
     welcomeDesc: "Create an organization to start. You can invite your team and run your projects from the same board.",
     createOrg: "Create Organization",
+    createOrgDesc: "Open your own workspace or set up a new organization for your team. You can create as many as you like.",
+    orgNamePlaceholder: "e.g. My Personal Workspace",
+    orgCreated: "Organization created",
     orgName: "Organization name",
     descriptionOpt: "Description (optional)",
     

@@ -7,7 +7,7 @@ import {
 } from '@/features/organizations/organizationsApi';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { OrgChatPanel } from '@/features/chat/OrgChatPanel';
 import { OrgMembersDialog } from '@/features/organizations/components/OrgMembersDialog';
 import { OrgSettingsDialog } from '@/features/organizations/components/OrgSettingsDialog';
+import { CreateOrganizationDialog } from '@/features/organizations/components/CreateOrganizationDialog';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -27,8 +28,6 @@ export default function ProjectsPage() {
   const { t } = useTranslation();
   const { data: orgs, isLoading, error } = useGetMyOrganizationsQuery();
   const [showCreateOrg, setShowCreateOrg] = useState(false);
-  const [orgName, setOrgName] = useState('');
-  const [orgDesc, setOrgDesc] = useState('');
 
   if (isLoading) {
     return (
@@ -73,59 +72,12 @@ export default function ProjectsPage() {
             {t('welcomeDesc')}
           </p>
 
-          {showCreateOrg ? (
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const token = localStorage.getItem('token');
-              if (!token) return;
-
-              try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({ name: orgName, description: orgDesc || undefined }),
-                });
-
-                if (res.ok) {
-                  setOrgName('');
-                  setOrgDesc('');
-                  setShowCreateOrg(false);
-                  window.location.reload();
-                } else {
-                  const data = await res.json();
-                  toast.error(data?.error?.message || t('orgCreateError'));
-                }
-              } catch {
-                toast.error(t('genericError'));
-              }
-            }} className="max-w-md mx-auto space-y-4">
-              <Input
-                type="text"
-                placeholder={t('orgName')}
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                required
-              />
-              <Input
-                type="text"
-                placeholder={t('descriptionOpt')}
-                value={orgDesc}
-                onChange={(e) => setOrgDesc(e.target.value)}
-              />
-              <Button type="submit" className="w-full">{t('create')}</Button>
-              <Button type="button" variant="ghost" onClick={() => setShowCreateOrg(false)} className="w-full">
-                {t('cancel')}
-              </Button>
-            </form>
-          ) : (
-            <Button onClick={() => setShowCreateOrg(true)} size="lg">
-              + {t('createOrg')}
-            </Button>
-          )}
+          <Button onClick={() => setShowCreateOrg(true)} size="lg">
+            <Plus className="size-4" /> {t('createOrg')}
+          </Button>
         </div>
+
+        <CreateOrganizationDialog open={showCreateOrg} onOpenChange={setShowCreateOrg} />
       </main>
     );
   }
@@ -140,6 +92,7 @@ export default function ProjectsPage() {
 function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: number; role: 'ADMIN' | 'MEMBER' }[] }) {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeOrgId, setActiveOrgId] = useState(orgs[0]?.id);
   const activeOrg = orgs.find((o) => o.id === activeOrgId) || orgs[0];
 
@@ -151,6 +104,14 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const [showChat, setShowChat] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
+
+  // Secim URL'e de yaziliyor: yalnizca state'te tutuldugunda sayfa
+  // yenilendiginde secim kaybolup listenin ilk organizasyonuna donuyordu.
+  const selectOrg = (orgId: string) => {
+    setActiveOrgId(orgId);
+    router.replace(`/projects?orgId=${orgId}`, { scroll: false });
+  };
 
   useEffect(() => {
     const queryOrgId = searchParams.get('orgId');
@@ -200,24 +161,34 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
       </div>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        {/* Organizasyon secimi: dagilmis dugmeler yerine segment kontrolu */}
-        {orgs.length > 1 && (
-          <div className="flex gap-1 rounded-xl border border-border bg-muted/50 p-1">
-            {orgs.map((org) => (
-              <button
-                key={org.id}
-                onClick={() => setActiveOrgId(org.id)}
-                className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
-                  activeOrgId === org.id
-                    ? 'bg-card text-foreground shadow-soft'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {org.name}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Organizasyon secimi + yeni olusturma. Serit onceden yalnizca
+            orgs.length > 1 iken ciziliyordu; tek organizasyonu olan kullanici
+            ikinci bir tane (orn. kendi kisisel calisma alani) acabilecegini
+            hicbir yerden goremiyordu. */}
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-muted/50 p-1">
+          {orgs.map((org) => (
+            <button
+              key={org.id}
+              onClick={() => selectOrg(org.id)}
+              className={`cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                activeOrgId === org.id
+                  ? 'bg-card text-foreground shadow-soft'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {org.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowCreateOrg(true)}
+            title={t('createOrg')}
+            aria-label={t('createOrg')}
+            className="cursor-pointer rounded-lg px-2 py-1.5 text-muted-foreground transition-colors hover:bg-card hover:text-foreground"
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
 
         <div className="ml-auto flex flex-wrap gap-2">
           <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setShowMembers(true)}>
@@ -280,6 +251,8 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
       )}
 
       <ProjectList orgId={activeOrg.id} />
+
+      <CreateOrganizationDialog open={showCreateOrg} onOpenChange={setShowCreateOrg} />
 
       <OrgMembersDialog orgId={activeOrg.id} open={showMembers} onOpenChange={setShowMembers} />
 
