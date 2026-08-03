@@ -43,6 +43,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Markdown } from '@/components/ui/markdown';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -512,6 +513,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [showDependencyPicker, setShowDependencyPicker] = useState(false);
   const [dependencyRelationType, setDependencyRelationType] = useState<DependencyRelationType>('BLOCKS');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  // Aciklama markdown: yazma / onizleme kipi
+  const [descPreview, setDescPreview] = useState(false);
   // Kart detayinda ayar bolumleri (etiket/bagimlilik/ozel alan/checklist/ek)
   // varsayilan olarak gizli; yalnizca baslik + aciklama + tarih/atanan gorunur.
   // Cark (ayarlar) butonuyla acilir.
@@ -1437,10 +1440,41 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               )}
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-muted-foreground mb-1">
-                  {t('descriptionLabel')}
-                </label>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label htmlFor="description" className="block text-sm font-medium text-muted-foreground">
+                    {t('descriptionLabel')}
+                  </label>
+                  {/* Yaz / Onizle: aciklama artik markdown. Onizleme yalnizca
+                      icerik varsa anlamli, bos aciklamada dugmeyi gostermiyoruz. */}
+                  {(task.description ?? '').trim().length > 0 && (
+                    <div className="flex gap-0.5 rounded-md border border-border p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setDescPreview(false)}
+                        className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                          !descPreview ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {t('descWrite')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDescPreview(true)}
+                        className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                          descPreview ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {t('descPreview')}
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="relative">
+                  {descPreview && (task.description ?? '').trim().length > 0 ? (
+                    <div className="min-h-16 rounded-lg border border-input px-2.5 py-2">
+                      <Markdown>{task.description ?? ''}</Markdown>
+                    </div>
+                  ) : (
                   <Textarea
                     id="description"
                     name="description"
@@ -1451,6 +1485,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     placeholder={t('descriptionPlaceholder')}
                     className={isFilling ? "opacity-30" : ""}
                   />
+                  )}
                   {isFilling && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 rounded-md backdrop-blur-[1px] border border-dashed border-blue-300 dark:border-blue-800 animate-pulse">
                       <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium text-sm">
