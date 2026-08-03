@@ -18,7 +18,7 @@ import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { CalendarView } from './CalendarView';
-import { boardService, calculateFractionalPosition, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
+import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery, useAttachLabelMutation } from '@/features/labels/labelsApi';
@@ -26,7 +26,7 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Table2, SlidersHorizontal } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
@@ -804,6 +804,44 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   };
 
+  const handleArchiveTask = async (taskId: string) => {
+    try {
+      await boardService.archiveTask(taskId);
+      setBoardData((prev) => {
+        if (!prev) return prev;
+        const newColumns = removeCard(prev.columns, taskId);
+        const newTasks = { ...prev.tasks };
+        delete newTasks[taskId];
+        return { ...prev, columns: newColumns, tasks: newTasks };
+      });
+    } catch (error) {
+      console.error("Görev arşivlenirken hata:", error);
+    }
+  };
+
+  // Board'u CSV olarak indirir. Backend /export route'u auth + erisim
+  // kontrolu yapar ve attachment olarak CSV doner.
+  const handleExport = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}/export?format=csv`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error('Board dışa aktarılamadı.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `board-${projectId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Board dışa aktarılırken hata:', error);
+      toast.error(t('exportBoardError'));
+    }
+  };
+
   const handleCreateColumn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newColumnName.trim() || isCreatingColumn) return;
@@ -945,6 +983,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             </span>
           )}
         </Link>
+
+        <button
+          type="button"
+          onClick={handleExport}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
+          title={t('exportBoard')}
+        >
+          <Download className="size-3.5" /> {t('exportBoard')}
+        </button>
 
         <div className="flex-1 min-w-0">
           <BoardFilters
@@ -1162,6 +1209,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         fetchTaskDetails={handleFetchTaskDetails}
         onUpdateTask={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
+        onArchiveTask={isAdmin ? handleArchiveTask : undefined}
         columnId={createRequestColumnId}
         initialTitle={initialTitle}
         initialDueDate={initialDueDate}

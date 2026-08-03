@@ -11,6 +11,7 @@ import {
   useRemoveAvatarMutation,
 } from '@/features/auth/meApi';
 import { useTestAiConfigurationMutation } from '@/features/ai/aiApi';
+import { NotificationPrefsSection } from '@/features/notifications/NotificationPrefsSection';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,7 @@ import { MotionButton } from '@/components/ui/motion-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TagInput } from '@/components/ui/TagInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera } from 'lucide-react';
+import { Camera, Bell } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Eye, EyeOff, Sparkles, Cpu, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -283,10 +284,13 @@ export default function ProfilePage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="mb-6 grid w-full grid-cols-2">
+        <TabsList className="mb-6 grid w-full grid-cols-3">
           <TabsTrigger value="profile">{t('profileInfo')}</TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center gap-1.5">
             <Sparkles className="size-4 text-primary" /> {t('aiSettings')}
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-1.5">
+            <Bell className="size-4 text-primary" /> {t('notificationPrefs')}
           </TabsTrigger>
         </TabsList>
 
@@ -543,6 +547,20 @@ export default function ProfilePage() {
                   {isSaving ? t('saving') : t('save')}
                 </MotionButton>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('notificationPrefs')}</CardTitle>
+              <CardDescription>
+                {t('notificationPrefsDesc')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NotificationPrefsSection />
             </CardContent>
           </Card>
         </TabsContent>
