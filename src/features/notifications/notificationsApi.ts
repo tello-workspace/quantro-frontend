@@ -43,6 +43,19 @@ export const notificationsApi = api.injectEndpoints({
       }),
       invalidatesTags: ['Notification'],
     }),
+    getNotificationPrefs: builder.query<{ type: string; enabled: boolean }[], void>({
+      query: () => '/me/notification-preferences',
+      transformResponse: (response: ApiEnvelope<{ type: string; enabled: boolean }[]>) => response.data,
+    }),
+    setNotificationPref: builder.mutation<{ type: string; enabled: boolean }, { type: string; enabled: boolean }>({
+      query: (body) => ({
+        url: '/me/notification-preferences',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (response: ApiEnvelope<{ type: string; enabled: boolean }>) => response.data,
+      invalidatesTags: ['Notification'],
+    }),
   }),
 });
 
@@ -51,4 +64,6 @@ export const {
   useGetUnreadCountQuery,
   useMarkAsReadMutation,
   useMarkAllAsReadMutation,
+  useGetNotificationPrefsQuery,
+  useSetNotificationPrefMutation,
 } = notificationsApi;

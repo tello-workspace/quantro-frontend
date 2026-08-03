@@ -2,7 +2,7 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-function getAuthHeaders(): Record<string, string> {
+export function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
@@ -295,6 +295,15 @@ export const boardService = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Görev silinemedi.');
+  },
+
+  // Karti arsivle (soft-delete): veri silinmez, board'dan gizlenir.
+  async archiveTask(taskId: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/cards/${taskId}/archive`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Görev arşivlenemedi.');
   },
 
   async updateColumn(columnId: string, data: { name?: string; wipLimit?: number | null }): Promise<void> {

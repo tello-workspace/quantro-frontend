@@ -34,6 +34,7 @@ import {
   useDeleteAttachmentMutation,
 } from '@/features/attachments/attachmentsApi';
 import { compressImageClient } from '@/features/attachments/imageCompression';
+import { ActivitySection } from '@/features/activity/ActivitySection';
 import {
   useGetChecklistQuery,
   useCreateChecklistItemMutation,
@@ -499,6 +500,7 @@ interface TaskModalProps {
   projectId: string;
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
+  onArchiveTask?: (taskId: string) => void;
   fetchTaskDetails: (taskId: string) => Promise<Task>;
   availableCards?: DependencyCard[];
   columnId?: string | null;
@@ -516,6 +518,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   projectId,
   onUpdateTask,
   onDeleteTask,
+  onArchiveTask,
   fetchTaskDetails,
   availableCards = [],
   columnId,
@@ -928,6 +931,25 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     });
     if (ok) {
       onDeleteTask(task.id);
+      onClose();
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!task) return;
+    if (!isAdmin) {
+      toast.error(t('archiveRequiresAdmin'));
+      return;
+    }
+    const ok = await confirm({
+      title: t('archiveTaskTitle'),
+      description: t('archiveTaskDesc'),
+      confirmText: t('archive'),
+      cancelText: t('cancel'),
+      variant: 'destructive',
+    });
+    if (ok) {
+      onArchiveTask?.(task.id);
       onClose();
     }
   };
@@ -1616,6 +1638,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               )}
 
               {taskId !== 'new' && (
+                <ActivitySection cardId={task.id} />
+              )}
+
+              {taskId !== 'new' && (
                 <CommentsSection cardId={task.id} members={members} />
               )}
 
@@ -1651,6 +1677,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 >
                   <TrashIcon className="h-4 w-4 mr-1" />
                   {isAdmin ? t('deleteTaskTitle') : (lang === 'en' ? 'Send Delete Request' : 'Silme Talebi Gönder')}
+                </Button>
+              )}
+              {taskId !== 'new' && isAdmin && onArchiveTask && (
+                <Button type="button" variant="outline" size="sm" onClick={handleArchive} disabled={isFilling}>
+                  {t('archive')}
                 </Button>
               )}
               {taskId !== 'new' && isAdmin && !showSaveTemplate && (
