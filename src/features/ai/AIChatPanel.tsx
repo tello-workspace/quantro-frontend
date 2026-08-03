@@ -303,6 +303,46 @@ interface AIChatPanelProps {
   isMobile?: boolean;
 }
 
+// Uzun notu AI'ya sigacak parcalara boler. Onceden metin 4000 karakterde
+// KESILIYORDU ve gerisi sessizce dusuyordu - uzun bir toplanti notunun sonu
+// hic islenmiyordu. Simdi tamami isleniyor, sirayla.
+//
+// Bolme paragraf sinirindan yapiliyor: cumlenin ortasindan kesmek AI'ya
+// yarim madde gonderip anlamsiz kart urettirirdi. Tek bir paragraf sinirdan
+// buyukse mecburen sert bolunur.
+const PARCA_BOYUTU = 3500;
+
+export function splitNotes(text: string, boyut = PARCA_BOYUTU): string[] {
+  if (text.length <= boyut) return [text];
+
+  const parcalar: string[] = [];
+  let mevcut = '';
+
+  for (const paragraf of text.split(/\n\s*\n/)) {
+    // Tek basina sigmayan dev paragraf: sert bol
+    if (paragraf.length > boyut) {
+      if (mevcut) {
+        parcalar.push(mevcut);
+        mevcut = '';
+      }
+      for (let i = 0; i < paragraf.length; i += boyut) {
+        parcalar.push(paragraf.slice(i, i + boyut));
+      }
+      continue;
+    }
+
+    if ((mevcut + '\n\n' + paragraf).length > boyut) {
+      parcalar.push(mevcut);
+      mevcut = paragraf;
+    } else {
+      mevcut = mevcut ? mevcut + '\n\n' + paragraf : paragraf;
+    }
+  }
+
+  if (mevcut) parcalar.push(mevcut);
+  return parcalar;
+}
+
 export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName, onClose, isMobile }) => {
   const { t, lang } = useTranslation();
   const confirm = useConfirm();
@@ -470,47 +510,71 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
     setImporting(true);
     try {
       const text = await file.text();
+      // Metin artik KESILMIYOR, parcalara bolunup sirayla isleniyor.
+      // Onceden slice(0, 4000) vardi ve uzun bir notun sonu sessizce
+      // dusuyordu - kullanici eksigi fark etmiyordu bile.
+      const parcalar = splitNotes(text);
 
-      // Switch to chat tab
       setTab('chat');
 
-      // User message showing what was imported
       const userMsg: Message = {
         role: 'user',
-        content: `${t('importNotesPrefix')}: ${file.name}\n\n\`\`\`\n${text.slice(0, 4000)}\`\`\``,
+        content:
+          `${t('importNotesPrefix')}: ${file.name}` +
+          (parcalar.length > 1 ? ` (${parcalar.length} parça)` : '') +
+          `\n\n\`\`\`\n${text.slice(0, 1500)}${text.length > 1500 ? '\n…' : ''}\`\`\``,
         id: `import-${Date.now()}`,
       };
       setMessages((prev) => [...prev, userMsg]);
 
-      // Send to AI with create_card instruction
-      const apiMessages = [
-        ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-        {
-          role: 'user' as const,
-          content: lang === 'en' ? `Read the following meeting notes and create cards in the appropriate columns for each item/topic. Card titles should be clear and concise. Add descriptions if necessary.
+      // Parcalar SIRAYLA gonderiliyor, paralel degil: her istek panoyu
+      // degistiriyor ve model bir sonraki parcada mevcut kolonlari/kartlari
+      // gormeli. Ayrica paralel gonderim saglayicinin dakikalik token
+      // limitini aninda doldurur (bkz. Groq 6000 TPM).
+      let islenen = 0;
+      for (let i = 0; i < parcalar.length; i++) {
+        const parcaBilgisi =
+          parcalar.length > 1 ? ` (Parça ${i + 1}/${parcalar.length})` : '';
+
+        const talimat =
+          lang === 'en'
+            ? `Read the following meeting notes and create cards in the appropriate columns for each item/topic. Card titles should be clear and concise. Add descriptions if necessary.
 If you cannot decide which column to place it in, put it in the "To Do" column.
+Do not re-create cards you already created from earlier parts of this file.
 
-FILE NAME: ${file.name}
+FILE NAME: ${file.name}${parcaBilgisi}
 
-${text.slice(0, 4000)}` : `Aşağıdaki toplantı notlarını oku ve her bir madde/konu için uygun kolonlara kart oluştur. Kart başlıkları net ve kısa olsun. Gerekli görürsen açıklama ekle.
+${parcalar[i]}`
+            : `Aşağıdaki toplantı notlarını oku ve her bir madde/konu için uygun kolonlara kart oluştur. Kart başlıkları net ve kısa olsun. Gerekli görürsen açıklama ekle.
 Eğer hangi kolona koyacağını kestiremezsen "To Do" kolonuna koy.
+Bu dosyanın önceki parçalarında oluşturduğun kartları tekrar oluşturma.
 
-DOSYA ADI: ${file.name}
+DOSYA ADI: ${file.name}${parcaBilgisi}
 
-${text.slice(0, 4000)}`,
-        },
-      ];
+${parcalar[i]}`;
 
-      const reply = await sendMessage({ projectId, messages: apiMessages }).unwrap();
-      const replyId = `import-reply-${Date.now()}`;
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: reply, id: replyId },
-      ]);
-      // Typing efektini başlat
-      setTypingId(replyId);
-      setTimeout(() => setTypingId(null), Math.min(reply.length * 18, 4000));
+        const reply = await sendMessage({
+          projectId,
+          messages: [{ role: 'user' as const, content: talimat }],
+        }).unwrap();
+
+        islenen++;
+        const replyId = `import-reply-${Date.now()}-${i}`;
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: parcaBilgisi ? `**${parcaBilgisi.trim()}**\n\n${reply}` : reply, id: replyId },
+        ]);
+        setTypingId(replyId);
+        setTimeout(() => setTypingId(null), Math.min(reply.length * 18, 4000));
+      }
+
+      if (parcalar.length > 1) {
+        toast.success(`${parcalar.length} parçanın tamamı işlendi`);
+      }
     } catch {
+      // Parcali islemede yarida kalinmis olabilir; olusturulan kartlar
+      // panoda duruyor, kullanici kaldigi yerden devam edebilsin diye
+      // hatayi yutmuyoruz.
       toast.error(t('fileProcessingError'));
     } finally {
       setImporting(false);

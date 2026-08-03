@@ -204,7 +204,14 @@ export const BoardCard: React.FC<BoardCardProps> = ({
         </div>
       )}
 
-      <h4 className="mb-1 flex items-start gap-1.5 text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
+      {/* line-clamp: kartlarin boyu icerige gore savrulmasin. Basliksiz bir
+          ust sinir yokken AI'nin urettigi uzun bir baslik (ornekte 631
+          karakter) karti sutunun tamamina yayiyordu. Tam metin karti acinca
+          gorunuyor; burada tooltip'te de var. */}
+      <h4
+        title={task.title}
+        className="mb-1 line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary"
+      >
         {task.title}
       </h4>
 
@@ -216,7 +223,10 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       )}
 
       {task.description && (
-        <p className="text-xs text-muted-foreground whitespace-pre-wrap mb-2">
+        // whitespace-pre-wrap kaldirildi: aciklama artik markdown ve satir
+        // sonlari kartta uc satirlik onizlemeyi bosuna sisiriyordu. Tam metin
+        // (bicimlendirilmis haliyle) kart acilinca gorunuyor.
+        <p className="mb-2 line-clamp-3 text-xs text-muted-foreground">
           {task.description}
         </p>
       )}
