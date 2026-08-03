@@ -17,6 +17,7 @@ export interface StaleCard {
 export interface WorkloadEntry {
   userId: string;
   userName: string;
+  avatarUrl?: string | null;
   cardCount: number;
   weightedLoad: number;
   overloaded: boolean;

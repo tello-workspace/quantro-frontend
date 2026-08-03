@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../services/boardService';
 import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export interface CardConflictInfo {
@@ -223,6 +223,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
                   className="border-2 border-background"
                   title={badgeList ? `${a.name}\n${badgeList}` : a.name}
                 >
+                  {a.avatarUrl && <AvatarImage src={a.avatarUrl} alt={a.name} />}
                   <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
                     {initials(a.name)}
                   </AvatarFallback>
