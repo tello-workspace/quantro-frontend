@@ -848,17 +848,20 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       });
       if (!newTask) return;
 
-      const updatedFields: Partial<Task> = {
+      const updatedFields: Task = {
         id: newTask.id,
         columnId,
         title: payload.title,
-        description: payload.description || undefined,
+        description: payload.description ?? undefined,
         priority: payload.priority ?? 'MEDIUM',
-        dueDate: payload.dueDate || undefined,
+        dueDate: payload.dueDate ?? undefined,
         assignees: payload.assigneeIds?.map((id) => {
           const m = members.find((mem) => mem.userId === id);
           return { id, name: m?.user.name || 'Bilinmeyen' };
         }) ?? [],
+        labels: [],
+        blockedBy: [],
+        blocking: [],
       };
 
       await boardService.updateTask(projectId, updatedFields, { includeAssignees: true });
