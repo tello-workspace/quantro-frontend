@@ -3,7 +3,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../services/boardService';
-import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon, CheckCircleIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -19,6 +19,13 @@ interface BoardCardProps {
   onClick: () => void;
   isDoneColumn?: boolean;
   conflict?: CardConflictInfo;
+  /** Kart toplu islem icin secili mi */
+  selected?: boolean;
+  /** Panoda en az bir kart secili mi - secim modundayken kart govdesine
+   *  tiklamak karti acmak yerine secimi degistirir (Trello/Linear davranisi;
+   *  toplu secim yaparken yanlislikla kart acmayi onler) */
+  selectionActive?: boolean;
+  onToggleSelect?: () => void;
 }
 
 function initials(name: string): string {
@@ -53,7 +60,15 @@ function formatDate(dateStr: string, lang: string): string {
   }
 }
 
-export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColumn = false, conflict }) => {
+export const BoardCard: React.FC<BoardCardProps> = ({
+  task,
+  onClick,
+  isDoneColumn = false,
+  conflict,
+  selected = false,
+  selectionActive = false,
+  onToggleSelect,
+}) => {
   const { t, lang } = useTranslation();
   const {
     attributes,
@@ -87,7 +102,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
       style={style}
       {...attributes}
       {...listeners}
-      onClick={onClick}
+      onClick={selectionActive && onToggleSelect ? onToggleSelect : onClick}
       title={
         [
           task.priority ? `${t('priorityLabel')}: ${priorityLabel}` : null,
@@ -100,6 +115,8 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
           .join(' · ') || undefined
       }
       className={`group relative cursor-pointer overflow-hidden rounded-xl border p-3 pl-4 transition-all duration-200 shrink-0 ${
+        selected ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''
+      } ${
         isDragging
           ? 'border-dashed border-primary/40 bg-muted/20 shadow-none'
           : `bg-card shadow-soft hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-soft-md active:translate-y-0 ${
@@ -111,6 +128,29 @@ export const BoardCard: React.FC<BoardCardProps> = ({ task, onClick, isDoneColum
             }`
       }`}
     >
+      {/* Secim kutusu: normalde gizli, kartin uzerine gelince veya kart
+          seciliyken gorunur. onPointerDown durduruluyor cunku surukleme
+          dinleyicileri kok elemanda: durdurulmazsa kutuya tiklamak
+          sürükleme baslatiyor. */}
+      {onToggleSelect && (
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect();
+          }}
+          aria-label={selected ? t('deselectCard') : t('selectCard')}
+          aria-pressed={selected}
+          className={`absolute right-2 top-2 z-10 flex size-4 items-center justify-center rounded border transition-all ${
+            selected
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-border bg-card opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+          }`}
+        >
+          {selected && <CheckIcon className="size-3" strokeWidth={3} />}
+        </button>
+      )}
       {/* Oncelik solda ince bir serit: nokta yerine kart taranirken
           uzaktan okunabilen bir sinyal veriyor. Done sütununda oncelik
           sinyali anlamsiz oldugundan yerine yesil "tamamlandi" seridi

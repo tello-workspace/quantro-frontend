@@ -17,6 +17,7 @@ import {
 import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
+import { BulkActionBar } from './BulkActionBar';
 import { CalendarView } from './CalendarView';
 import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
@@ -161,6 +162,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // Toplu islem secimi. Set kullaniliyor: secim kart basina sorgulaniyor
+  // (her BoardCard render'inda) ve dizide arama kart sayisiyla buyurdu.
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
   const [initialTitle, setInitialTitle] = useState('');
   // Takvimden boş güne tıklanınca yeni kartın önceden dolu geleceği tarih
@@ -907,6 +912,76 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     [projectId],
   );
 
+  // ─── Toplu islem ──────────────────────────────────────────────────
+
+  const toggleCardSelection = useCallback((taskId: string) => {
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedCardIds(new Set()), []);
+
+  // Panoda gercekten var olan secimler. State'i efektle budamak yerine
+  // turetiyoruz: kart baska bir kullanici tarafindan silinip socket ile
+  // dustugunde sayac var olmayan kartlari saymasin, ama bunun icin fazladan
+  // bir render dongusu odemeyelim.
+  const effectiveSelectedIds = useMemo(() => {
+    if (selectedCardIds.size === 0 || !boardData) return selectedCardIds;
+    const kalan = [...selectedCardIds].filter((id) => boardData.tasks[id]);
+    return kalan.length === selectedCardIds.size ? selectedCardIds : new Set(kalan);
+  }, [selectedCardIds, boardData]);
+
+  // Escape secimi bosaltir: secim modundan cikmanin en hizli yolu ve
+  // kullanicinin refleks olarak denedigi tus.
+  useEffect(() => {
+    if (effectiveSelectedIds.size === 0) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') clearSelection();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [effectiveSelectedIds.size, clearSelection]);
+
+  const runBulkAction = useCallback(
+    async (payload: Parameters<typeof boardService.bulkCardAction>[1]) => {
+      const ids = payload.cardIds;
+      if (ids.length === 0) return;
+
+      setIsBulkRunning(true);
+      try {
+        const sonuc = await boardService.bulkCardAction(projectId, payload);
+
+        // Pano durumunu sunucudan tazeliyoruz. Optimistic guncelleme yerine
+        // yeniden cekmenin sebebi: kismi basari mumkun (bazi kartlarda yetki
+        // yetmeyebilir) ve hangi kartin gercekten degistigini tahmin etmek
+        // yerine dogrusunu almak daha guvenli.
+        const taze = await boardService.getBoardData(projectId);
+        if (taze) setBoardData(taze);
+
+        const basariliSayi = sonuc.basarili.length;
+        const basarisizSayi = sonuc.basarisiz.length;
+
+        if (basariliSayi > 0) toast.success(`${basariliSayi} kart güncellendi`);
+        if (basarisizSayi > 0) {
+          // Ilk hatanin sebebini gosteriyoruz - hepsini listelemek toast'i
+          // okunmaz yapardi, sebep tipik olarak hepsinde ayni oluyor.
+          toast.error(`${basarisizSayi} kart atlandı: ${sonuc.basarisiz[0].sebep}`);
+        }
+
+        clearSelection();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Toplu işlem uygulanamadı.');
+      } finally {
+        setIsBulkRunning(false);
+      }
+    },
+    [projectId, clearSelection],
+  );
+
   const handleRenameColumn = useCallback(async (columnId: string, newName: string) => {
     if (!isAdmin) return;
     try {
@@ -1092,6 +1167,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
                   conflicts={conflicts}
                   templates={isAdmin ? templates : []}
                   onCreateFromTemplate={handleCreateFromTemplate}
+                  selectedIds={effectiveSelectedIds}
+                  onToggleSelect={toggleCardSelection}
                 />
               );
             })}
@@ -1215,6 +1292,27 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           }
         `}</style>
       </div>
+
+      <BulkActionBar
+        selectedCount={effectiveSelectedIds.size}
+        columns={Object.values(boardData.columns).map((c) => ({ id: c.id, title: c.title }))}
+        members={members}
+        labels={labels}
+        isAdmin={!!isAdmin}
+        isRunning={isBulkRunning}
+        onMove={(columnId) =>
+          runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'move', columnId })
+        }
+        onAssign={(assigneeIds) =>
+          runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'assign', assigneeIds })
+        }
+        onLabel={(labelId) =>
+          runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'label', labelId })
+        }
+        onArchive={() => runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'archive' })}
+        onDelete={() => runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'delete' })}
+        onClear={clearSelection}
+      />
 
       <TaskModal
         isOpen={isModalOpen}

@@ -28,6 +28,9 @@ interface BoardColumnProps {
   conflicts?: Record<string, CardConflictInfo>;
   templates?: CardTemplate[];
   onCreateFromTemplate?: (templateId: string, columnId: string) => void;
+  /** Toplu islem icin secili kart id'leri */
+  selectedIds?: Set<string>;
+  onToggleSelect?: (taskId: string) => void;
 }
 
 export const BoardColumn: React.FC<BoardColumnProps> = ({
@@ -46,6 +49,8 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   conflicts,
   templates = [],
   onCreateFromTemplate,
+  selectedIds,
+  onToggleSelect,
 }) => {
   const { t } = useTranslation();
   // Card drop zone — main column body
@@ -207,6 +212,9 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               isDoneColumn={isDone ?? (title.toLowerCase() === 'done' || title.toLowerCase() === 'tamamlandı')}
               onClick={() => onTaskClick(task.id)}
               conflict={conflicts?.[task.id]}
+              selected={selectedIds?.has(task.id) ?? false}
+              selectionActive={(selectedIds?.size ?? 0) > 0}
+              onToggleSelect={onToggleSelect ? () => onToggleSelect(task.id) : undefined}
             />
           ))}
         </SortableContext>
