@@ -967,9 +967,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     placeholder={t('taskTitleLabel')}
                   />
                 </div>
-                {/* Sag ust eylem kumesi: AI + ayarlar carki yan yana, kapat (X)
-                    butonunun altina girmesin diye sagdan (mr-7) bosluk birakilir. */}
+                {/* Sag ust eylem kumesi: ayarlar carki + AI ile doldur yan yana, kapat
+                    (X) butonunun altina girmesin diye sagdan (mr-7) bosluk birakilir. */}
                 <div className="flex items-center gap-1.5 shrink-0 mr-7">
+                  {/* Ayar bolumlerini ac/kapat (etiket, bagimlilik, ozel alan vb.) */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setShowSettings((v) => !v)}
+                    title={showSettings ? t('hideSettings') : t('showSettings')}
+                    aria-label={showSettings ? t('hideSettings') : t('showSettings')}
+                  >
+                    <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
+                  </Button>
+
                   <Button
                     type="button"
                     variant="outline"
@@ -992,18 +1004,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         <span>{t('aiFillBtn')}</span>
                       </>
                     )}
-                  </Button>
-
-                  {/* Ayar bolumlerini ac/kapat (etiket, bagimlilik, ozel alan vb.) */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setShowSettings((v) => !v)}
-                    title={showSettings ? t('hideSettings') : t('showSettings')}
-                    aria-label={showSettings ? t('hideSettings') : t('showSettings')}
-                  >
-                    <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
