@@ -968,7 +968,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   />
                 </div>
                 {/* Sag ust eylem kumesi: AI + ayarlar carki yan yana, kapat (X)
-                    butonu icin sagda boş/yik braktiklar düzgün bi cluster halinde. */}
+                    butonunun altina girmesin diye sagdan (mr-7) bosluk birakilir. */}
                 <div className="flex items-center gap-1.5 shrink-0 mr-7">
                   <Button
                     type="button"
