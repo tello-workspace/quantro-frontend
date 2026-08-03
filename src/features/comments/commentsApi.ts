@@ -6,7 +6,7 @@ export interface Comment {
   authorId: string;
   text: string;
   createdAt: string;
-  author: { id: string; name: string; email: string };
+  author: { id: string; name: string; email: string; avatarUrl?: string | null };
 }
 
 interface ApiEnvelope<T> {

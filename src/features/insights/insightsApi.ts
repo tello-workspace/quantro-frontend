@@ -17,6 +17,7 @@ export interface StaleCard {
 export interface WorkloadEntry {
   userId: string;
   userName: string;
+  avatarUrl?: string | null;
   cardCount: number;
   weightedLoad: number;
   overloaded: boolean;
@@ -55,18 +56,6 @@ export interface WeeklySummary {
   pendingStaleCount: number;
 }
 
-export interface CumulativeFlowPoint {
-  date: string;
-  created: number;
-  completed: number;
-  active: number;
-}
-
-export interface CumulativeFlow {
-  projectId: string;
-  series: CumulativeFlowPoint[];
-}
-
 export const insightsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getProjectInsights: builder.query<ProjectInsights, { projectId: string }>({
@@ -79,12 +68,7 @@ export const insightsApi = api.injectEndpoints({
       transformResponse: (response: { success: boolean; data: WeeklySummary }) => response.data,
       providesTags: (_result, _error, { projectId }) => [{ type: 'Insight', id: projectId }],
     }),
-    getCumulativeFlow: builder.query<CumulativeFlow, { projectId: string; days?: number }>({
-      query: ({ projectId, days }) => `/projects/${projectId}/cumulative-flow${days ? `?days=${days}` : ''}`,
-      transformResponse: (response: { success: boolean; data: CumulativeFlow }) => response.data,
-      providesTags: (_result, _error, { projectId }) => [{ type: 'Insight', id: projectId }],
-    }),
   }),
 });
 
-export const { useGetProjectInsightsQuery, useGetWeeklySummaryQuery, useGetCumulativeFlowQuery } = insightsApi;
+export const { useGetProjectInsightsQuery, useGetWeeklySummaryQuery } = insightsApi;

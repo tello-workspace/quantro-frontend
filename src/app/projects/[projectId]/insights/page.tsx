@@ -6,11 +6,9 @@ import { useParams, useSearchParams } from 'next/navigation';
 import {
   useGetProjectInsightsQuery,
   useGetWeeklySummaryQuery,
-  useGetCumulativeFlowQuery,
 } from '@/features/insights/insightsApi';
 import { WorkloadBarChart } from '@/features/insights/components/WorkloadBarChart';
 import { WipMeter } from '@/features/insights/components/WipMeter';
-import { SimpleLineChart } from '@/components/ui/SimpleLineChart';
 
 function timeAgo(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / (24 * 60 * 60 * 1000));
@@ -33,7 +31,6 @@ export default function ProjectInsightsPage() {
 
   const { data: insights, isLoading: insightsLoading } = useGetProjectInsightsQuery({ projectId });
   const { data: summary, isLoading: summaryLoading } = useGetWeeklySummaryQuery({ projectId });
-  const { data: cumulativeFlow } = useGetCumulativeFlowQuery({ projectId, days: 14 });
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
@@ -78,25 +75,6 @@ export default function ProjectInsightsPage() {
             </div>
           ) : null}
         </section>
-
-        {/* Kümülatif akış (basitleştirilmiş) */}
-        {cumulativeFlow && cumulativeFlow.series.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
-              Kümülatif Akış (son 14 gün)
-            </h2>
-            <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-              <SimpleLineChart
-                labels={cumulativeFlow.series.map((p) => p.date.slice(5))}
-                series={[
-                  { label: 'Oluşturulan (toplam)', color: '#3B82F6', values: cumulativeFlow.series.map((p) => p.created) },
-                  { label: 'Tamamlanan (toplam)', color: '#10B981', values: cumulativeFlow.series.map((p) => p.completed) },
-                  { label: 'Aktif', color: '#F59E0B', values: cumulativeFlow.series.map((p) => p.active), dashed: true },
-                ]}
-              />
-            </div>
-          </section>
-        )}
 
         {insightsLoading ? (
           <p className="text-sm text-zinc-400">Yükleniyor...</p>

@@ -47,6 +47,7 @@ export interface BadgeInfo {
 export interface TaskAssignee {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   badges?: BadgeInfo[];
 }
 
@@ -104,7 +105,7 @@ export interface RawCard {
   priority?: Priority;
   storyPoints?: number | null;
   lastActivityAt?: string;
-  assignees?: { user: { id: string; name: string; badges?: { badge: BadgeInfo }[] } }[];
+  assignees?: { user: { id: string; name: string; avatarUrl?: string | null; badges?: { badge: BadgeInfo }[] } }[];
   labels?: { label: { id: string; name: string; color: string } }[];
   blockedBy?: { blocker: DependencyCard; relationType?: DependencyRelationType }[];
   blocking?: { blocked: DependencyCard; relationType?: DependencyRelationType }[];

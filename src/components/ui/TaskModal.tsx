@@ -44,7 +44,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { FileUpload } from '@/components/ui/file-upload';
 import { TriangleAlert as TriangleAlertIcon } from 'lucide-react';
@@ -76,6 +76,15 @@ function timeAgo(dateStr: string, t: any): string {
   if (hours < 24) return `${hours} ${t('hoursAgo')}`;
   const days = Math.floor(hours / 24);
   return `${days} ${t('daysAgo')}`;
+}
+
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
 }
 
 interface CommentMember {
@@ -163,6 +172,10 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
         {comments.map((c) => (
           <div key={c.id} className="text-sm">
             <div className="flex items-center gap-2">
+              <Avatar size="sm" className="border border-border">
+                {c.author.avatarUrl && <AvatarImage src={c.author.avatarUrl} alt={c.author.name} />}
+                <AvatarFallback className="text-[9px]">{initials(c.author.name)}</AvatarFallback>
+              </Avatar>
               <span className="font-medium text-foreground text-xs">{c.author.name}</span>
               <span className="text-xs text-muted-foreground">{timeAgo(c.createdAt, t)}</span>
             </div>
@@ -1532,8 +1545,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       <Badge
                         key={a.id}
                         variant="secondary"
-                        className="flex items-center gap-1 pl-2 pr-1"
+                        className="flex items-center gap-1 pl-1.5 pr-1"
                       >
+                        <span className="flex size-4 items-center justify-center overflow-hidden rounded-full bg-primary/10">
+                          {a.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={a.avatarUrl} alt={a.name} className="size-4 object-cover" />
+                          ) : (
+                            <span className="text-[8px] font-medium text-primary">{initials(a.name)}</span>
+                          )}
+                        </span>
                         {a.name}
                         <button
                           type="button"

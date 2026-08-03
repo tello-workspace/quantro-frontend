@@ -38,7 +38,11 @@ export const WorkloadBarChart: React.FC<WorkloadBarChartProps> = ({ workload }) 
 
           return (
             <div key={w.userId} className="flex items-center gap-3">
-              <span className="w-28 text-sm text-zinc-700 dark:text-zinc-300 truncate shrink-0">
+              <span className="w-28 text-sm text-zinc-700 dark:text-zinc-300 truncate shrink-0 flex items-center gap-1.5">
+                {w.avatarUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={w.avatarUrl} alt={w.userName} className="size-5 rounded-full object-cover shrink-0" />
+                )}
                 {w.userName}
               </span>
 
