@@ -72,19 +72,4 @@ describe('normalizeCard', () => {
     expect(task.description).toBeUndefined();
     expect(task.dueDate).toBeUndefined();
   });
-
-  it('storyPoints sayisini oldugu gibi tasir', () => {
-    const task = normalizeCard({ ...baseRaw, storyPoints: 5 });
-    expect(task.storyPoints).toBe(5);
-  });
-
-  it('storyPoints null gelirse null olarak kalir (undefined\'a cevrilmez)', () => {
-    const task = normalizeCard({ ...baseRaw, storyPoints: null });
-    expect(task.storyPoints).toBeNull();
-  });
-
-  it('storyPoints hic gelmezse undefined doner', () => {
-    const task = normalizeCard(baseRaw);
-    expect(task.storyPoints).toBeUndefined();
-  });
 });

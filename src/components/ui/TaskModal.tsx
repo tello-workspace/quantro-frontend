@@ -1554,7 +1554,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </select>
                   </div>
 
-                  
                   {taskId !== 'new' && sprints.length > 0 && (
                     <div>
                       <label htmlFor="sprintId" className="block text-sm font-medium text-muted-foreground mb-1">

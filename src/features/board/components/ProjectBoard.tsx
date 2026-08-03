@@ -18,6 +18,7 @@ import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { BulkActionBar } from './BulkActionBar';
+import { TimelineView } from '@/features/roadmap/components/TimelineView';
 import { useSavedFilters } from '../hooks/useSavedFilters';
 import { CalendarView } from './CalendarView';
 import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
@@ -28,7 +29,7 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal, GanttChartSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
@@ -156,7 +157,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
   const { filters: savedFilters, saveFilter, removeFilter } = useSavedFilters(projectId);
 
-  const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table'>('board');
+  const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table' | 'timeline'>('board');
+  // Swimlane: kartlari yatay seritlere ayirir. 'none' klasik tek satir pano.
+  const [groupBy, setGroupBy] = useState<'none' | 'assignee' | 'priority' | 'epic'>('none');
   // Yonetim sayfasina giden butonda gosterilecek bekleyen triage sayisi
   const { data: changeRequests = [] } = useGetChangeRequestsQuery({ orgId }, { skip: !orgId || !isAdmin });
   const triagePendingCount = changeRequests.filter(
@@ -213,6 +216,55 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     selectedPriorities.size > 0 ||
     selectedAssigneeIds.size > 0 ||
     selectedLabelIds.size > 0;
+
+  // Swimlane seritleri. Her serit bir anahtar + baslik + kartin o seride
+  // olup olmadigini soyleyen bir yuklem. Kart birden fazla kisiye atanmis
+  // olabilir; o durumda her atananin seridinde gorunur (Jira da boyle yapar)
+  // - tek bir seride zorlamak "bu kart bende degil" izlenimi verirdi.
+  const lanes = useMemo(() => {
+    if (!boardData || groupBy === 'none') return null;
+
+    if (groupBy === 'priority') {
+      const sira: Priority[] = ['URGENT', 'HIGH', 'MEDIUM', 'LOW'];
+      const etiket: Record<Priority, string> = {
+        URGENT: 'Acil', HIGH: 'Yüksek', MEDIUM: 'Orta', LOW: 'Düşük',
+      };
+      return sira.map((p) => ({
+        key: p,
+        label: etiket[p],
+        icerir: (task: Task) => (task.priority ?? 'MEDIUM') === p,
+      }));
+    }
+
+    if (groupBy === 'assignee') {
+      const seritler = members.map((m) => ({
+        key: m.userId,
+        label: m.user.name,
+        icerir: (task: Task) => (task.assignees ?? []).some((a) => a.id === m.userId),
+      }));
+      return [
+        ...seritler,
+        { key: '__atanmamis__', label: 'Atanmamış', icerir: (task: Task) => (task.assignees ?? []).length === 0 },
+      ];
+    }
+
+    // epic: ust karti olanlar o kartin basligi altinda toplanir
+    const epicler = new Map<string, string>();
+    for (const task of Object.values(boardData.tasks)) {
+      if (task.parentCardId) {
+        const ust = boardData.tasks[task.parentCardId];
+        epicler.set(task.parentCardId, ust?.title ?? 'Üst kart');
+      }
+    }
+    return [
+      ...[...epicler].map(([id, baslik]) => ({
+        key: id,
+        label: baslik,
+        icerir: (task: Task) => task.parentCardId === id,
+      })),
+      { key: '__bagimsiz__', label: 'Bağımsız', icerir: (task: Task) => !task.parentCardId },
+    ];
+  }, [boardData, groupBy, members]);
 
   const matchesFilters = (task: Task): boolean => {
     if (search.trim() && !task.title.toLowerCase().includes(search.trim().toLowerCase())) {
@@ -480,7 +532,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     if (!over || !boardData) return;
 
     const activeIdStr = active.id as string;
-    const overId = over.id as string;
+    // Swimlane modunda sutunlarin droppable id'si "<columnId>::lane::<key>"
+    // seklinde benzersizlestiriliyor (ayni sutun her seritte bir kez ciziliyor).
+    // Buradan gercek sutun id'sini geri cikariyoruz; kart id'leri zaten
+    // benzersiz oldugu icin kart uzerine birakma etkilenmiyor.
+    const rawOverId = over.id as string;
+    const overId = rawOverId.includes('::lane::') ? rawOverId.split('::lane::')[0] : rawOverId;
     if (activeIdStr === overId) return;
 
     // --- KOLON SÜRÜKLEME ---
@@ -1129,6 +1186,53 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     Object.values(boardData.columns).filter((c) => c.isDone).map((c) => c.id),
   );
 
+  // Sutunlari cizer. Swimlane modunda her serit icin bir kez cagrilir:
+  // laneTaskIds o seride ait kart id'leri, laneKey ise droppable id'lerini
+  // benzersizlestirmek icin (ayni sutun her seritte tekrar ciziliyor).
+  const renderColumns = (laneTaskIds?: Set<string>, laneKey?: string) => {
+    if (!boardData) return null;
+
+    return Object.values(boardData.columns).map((column) => {
+      // Guvenlik agi: placeCard/removeCard zaten tekrari engelliyor ama
+      // acik bir oturumda state bozulmussa React'in "same key" uyarisi
+      // yerine kart tek kez cizilsin.
+      const allColumnTasks = Array.from(new Set(column.taskIds))
+        .map((taskId) => boardData.tasks[taskId])
+        .filter((task): task is Task => task !== undefined);
+
+      const filtrelenmis = hasActiveFilters
+        ? allColumnTasks.filter(matchesFilters)
+        : allColumnTasks;
+      const columnTasks = laneTaskIds
+        ? filtrelenmis.filter((task) => laneTaskIds.has(task.id))
+        : filtrelenmis;
+
+      return (
+        <BoardColumn
+          key={laneKey ? `${column.id}-${laneKey}` : column.id}
+          id={column.id}
+          title={column.title}
+          tasks={columnTasks}
+          totalCount={hasActiveFilters && !laneTaskIds ? allColumnTasks.length : undefined}
+          wipLimit={column.wipLimit}
+          isDone={column.isDone}
+          canAddTask={canAddTask}
+          isAdmin={!!isAdmin}
+          onAddTask={handleAddTask}
+          onTaskClick={handleTaskClick}
+          onRenameColumn={isAdmin ? handleRenameColumn : undefined}
+          onDeleteColumn={isAdmin ? handleDeleteColumn : undefined}
+          conflicts={conflicts}
+          templates={isAdmin ? templates : []}
+          onCreateFromTemplate={handleCreateFromTemplate}
+          selectedIds={effectiveSelectedIds}
+          onToggleSelect={toggleCardSelection}
+          laneKey={laneKey}
+        />
+      );
+    });
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center gap-3 px-4 pt-1">
@@ -1160,7 +1264,31 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           >
             <Table2 className="size-3.5" /> Tablo
           </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('timeline')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'timeline' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <GanttChartSquare className="size-3.5" /> Zaman Çizelgesi
+          </button>
         </div>
+
+        {/* Swimlane: yalnizca pano gorunumunde anlamli */}
+        {viewMode === 'board' && (
+          <select
+            value={groupBy}
+            onChange={(e) => setGroupBy(e.target.value as typeof groupBy)}
+            title="Kartları yatay şeritlere ayır"
+            className="shrink-0 rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:border-ring"
+          >
+            <option value="none">Gruplama yok</option>
+            <option value="assignee">Atanana göre</option>
+            <option value="priority">Önceliğe göre</option>
+            <option value="epic">Epic&apos;e göre</option>
+          </select>
+        )}
 
         {/* Sprintler / Otomasyonlar / Ek Alanlar / Triage tek bir yonetim
             sayfasinda toplandi - ust bar bu dort butonla cok sikisiyordu. */}
@@ -1226,7 +1354,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       </div>
 
       <div className="flex-1 min-h-0 flex gap-4 sm:gap-6 relative overflow-hidden">
-        {viewMode === 'table' ? (
+        {viewMode === 'timeline' ? (
+          <TimelineView projectId={projectId} onCardClick={handleTaskClick} />
+        ) : viewMode === 'table' ? (
           <TableView
             tasks={calendarTasks}
             columns={boardData.columns}
@@ -1248,43 +1378,43 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex-1 min-h-0 flex gap-4 overflow-x-auto pt-1 pb-4 px-4 no-scrollbar">
-            {Object.values(boardData.columns).map((column) => {
-              // Guvenlik agi: placeCard/removeCard zaten tekrari engelliyor ama
-              // acik bir oturumda state bozulmussa React'in "same key" uyarisi
-              // yerine kart tek kez cizilsin.
-              const allColumnTasks = Array.from(new Set(column.taskIds))
-                .map((taskId) => boardData.tasks[taskId])
-                .filter((task): task is Task => task !== undefined);
-              const columnTasks = hasActiveFilters
-                ? allColumnTasks.filter(matchesFilters)
-                : allColumnTasks;
+          {/* Serit modunda seritler alt alta dizilir (dikey akis) ve her
+              seridin kendi yatay kaydirmasi olur; klasik modda tek bir
+              yatay sutun satiri var. */}
+          <div
+            className={`flex-1 min-h-0 pt-1 pb-4 px-4 no-scrollbar ${
+              lanes ? 'overflow-auto' : 'flex gap-4 overflow-x-auto'
+            }`}
+          >
+            {lanes
+              ? lanes.map((lane) => {
+                  // Bos seritleri gizliyoruz: 12 uyeli bir organizasyonda
+                  // atanana gore gruplarken cogu serit bos kalir ve panoyu
+                  // okunmaz hale getirir.
+                  const laneTasks = Object.values(boardData.tasks).filter(
+                    (task) => lane.icerir(task) && (!hasActiveFilters || matchesFilters(task)),
+                  );
+                  if (laneTasks.length === 0) return null;
+                  const laneTaskIds = new Set(laneTasks.map((task) => task.id));
 
-              return (
-                <BoardColumn
-                  key={column.id}
-                  id={column.id}
-                  title={column.title}
-                  tasks={columnTasks}
-                  totalCount={hasActiveFilters ? allColumnTasks.length : undefined}
-                  wipLimit={column.wipLimit}
-                  isDone={column.isDone}
-                  canAddTask={canAddTask}
-                  isAdmin={!!isAdmin}
-                  onAddTask={handleAddTask}
-                  onTaskClick={handleTaskClick}
-                  onRenameColumn={isAdmin ? handleRenameColumn : undefined}
-                  onDeleteColumn={isAdmin ? handleDeleteColumn : undefined}
-                  conflicts={conflicts}
-                  templates={isAdmin ? templates : []}
-                  onCreateFromTemplate={handleCreateFromTemplate}
-                  selectedIds={effectiveSelectedIds}
-                  onToggleSelect={toggleCardSelection}
-                />
-              );
-            })}
+                  return (
+                    <div key={lane.key} className="mb-6 last:mb-0">
+                      <div className="mb-2 flex items-center gap-2 px-1">
+                        <h3 className="text-sm font-semibold text-foreground">{lane.label}</h3>
+                        <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums text-muted-foreground">
+                          {laneTasks.length}
+                        </span>
+                        <span className="h-px flex-1 bg-border" />
+                      </div>
+                      <div className="flex gap-4">
+                        {renderColumns(laneTaskIds, lane.key)}
+                      </div>
+                    </div>
+                  );
+                })
+              : renderColumns()}
 
-            {isAdmin && (
+            {isAdmin && !lanes && (
               <div className="w-72 shrink-0 select-none">
                 {isAddingColumn ? (
                   <form onSubmit={handleCreateColumn} className="bg-background/80 backdrop-blur-md rounded-xl p-3 border border-border/80 shadow-md space-y-2">
