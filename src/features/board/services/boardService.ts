@@ -24,6 +24,18 @@ async function readApiError(res: Response, fallback: string): Promise<string> {
     const json = await res.json();
     const err = json?.error;
     if (typeof err === 'string') return err;
+
+    // Dogrulama hatalarinda sunucu alan bazli sebepleri `fields` icinde
+    // yolluyor ama message sabit "Geçersiz veri" oluyordu. Sadece message'i
+    // okumak kullaniciyi da bizi de cikmaza sokuyordu: hangi alanin neden
+    // reddedildigi hicbir yerde gorunmuyordu.
+    if (err?.fields && typeof err.fields === 'object') {
+      const detay = Object.entries(err.fields as Record<string, string>)
+        .map(([alan, mesaj]) => `${alan}: ${mesaj}`)
+        .join(' · ');
+      if (detay) return err.message ? `${err.message} (${detay})` : detay;
+    }
+
     if (err?.message) return err.message;
   } catch {
     // JSON olmayan cevap - fallback kullanilir
