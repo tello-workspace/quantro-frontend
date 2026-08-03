@@ -31,6 +31,12 @@ interface BoardColumnProps {
   /** Toplu islem icin secili kart id'leri */
   selectedIds?: Set<string>;
   onToggleSelect?: (taskId: string) => void;
+  /** Swimlane modunda ayni sutun birden fazla seritte cizilir; dnd-kit
+   *  droppable id'leri benzersiz olmak zorunda oldugu icin serit anahtari
+   *  id'ye ekleniyor. Verilmezse sade sutun id'si kullanilir. */
+  laneKey?: string;
+  /** Swimlane basliginda kolon basligi tekrar etmesin diye gizlenebilir */
+  hideHeader?: boolean;
 }
 
 export const BoardColumn: React.FC<BoardColumnProps> = ({
@@ -51,12 +57,17 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   onCreateFromTemplate,
   selectedIds,
   onToggleSelect,
+  laneKey,
+  hideHeader = false,
 }) => {
   const { t } = useTranslation();
   // Card drop zone — main column body
-  const { setNodeRef: cardDropRef, isOver: cardIsOver } = useDroppable({ id });
+  // Serit anahtari varsa droppable id'si ona gore benzersizlesiyor.
+  // handleDragEnd bu id'yi ayristirip gercek sutun id'sini cikariyor.
+  const cardDropId = laneKey ? `${id}::lane::${laneKey}` : id;
+  const { setNodeRef: cardDropRef, isOver: cardIsOver } = useDroppable({ id: cardDropId });
   // Column drop zone — separate element in the header area
-  const { setNodeRef: colDropRef, isOver: colIsOver } = useDroppable({ id: `col-drop-${id}` });
+  const { setNodeRef: colDropRef, isOver: colIsOver } = useDroppable({ id: `col-drop-${id}`, disabled: !!laneKey });
   // Column grip drag handle
   const { attributes, listeners, setNodeRef: dragRef, isDragging } = useDraggable({
     id: `col-grip-${id}`,
