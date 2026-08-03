@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check } from 'lucide-react';
+import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check, SlidersHorizontal } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useGetMyOrganizationsQuery } from '@/features/organizations/organizationsApi';
+import { useGetMyOrganizationsQuery, useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,8 @@ export function AppSidebar() {
   const orgId = searchParams?.get('orgId');
 
   const { data: orgs = [] } = useGetMyOrganizationsQuery();
+  const { data: org } = useGetOrganizationByIdQuery({ orgId: orgId ?? '' }, { skip: !orgId });
+  const isAdmin = org?.myRole === 'ADMIN';
   const { data: projects = [] } = useGetProjectsQuery({ orgId: orgId ?? '' }, { skip: !orgId });
 
   // Aktif org secimi: query'deki orgId yoksa ilk organizasyon
@@ -118,14 +120,25 @@ export function AppSidebar() {
                   const isActive =
                     pathname === `/projects/${project.id}` ||
                     pathname?.startsWith(`/projects/${project.id}/`);
+                  const isOnManagePage = pathname === `/projects/${project.id}/manage`;
                   return (
                     <SidebarMenuItem key={project.id}>
-                      <SidebarMenuButton asChild isActive={isActive} tooltip={project.name}>
+                      <SidebarMenuButton asChild isActive={isActive && !isOnManagePage} tooltip={project.name}>
                         <Link href={`/projects/${project.id}?orgId=${activeOrgId}`}>
                           <FolderKanban />
                           <span>{project.name}</span>
                         </Link>
                       </SidebarMenuButton>
+
+                      {/* Proje secildiginde yonetici perm'i varsa Yönetim linki */}
+                      {isAdmin && isActive && (
+                        <SidebarMenuButton asChild isActive={isOnManagePage} tooltip="Yönetim" className="ml-3">
+                          <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}`}>
+                            <SlidersHorizontal />
+                            <span>Yönetim</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      )}
                     </SidebarMenuItem>
                   );
                 })}
