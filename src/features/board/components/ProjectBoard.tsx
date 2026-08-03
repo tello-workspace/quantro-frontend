@@ -1,7 +1,7 @@
 // src/features/board/components/ProjectBoard.tsx
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   closestCenter,
   DndContext,
@@ -28,6 +28,7 @@ import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
 import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { TableView } from './TableView';
@@ -158,6 +159,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     (r) => r.status === 'PENDING' && r.type === 'CARD_CREATE' && r.projectId === projectId,
   ).length;
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const router = useRouter();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createRequestColumnId, setCreateRequestColumnId] = useState<string | null>(null);
   const [initialTitle, setInitialTitle] = useState('');
@@ -256,12 +258,29 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       .finally(() => setLoading(false));
   }, [projectId]);
 
-  // Org-genelinde aramadan gelen deep-link: pano yuklenince o karti direkt ac
+  // Org-genelinde aramadan gelen deep-link: pano yuklenince o karti direkt ac.
+  // Bagimliliklarda boardData var ve boardData HER kart isleminde (silme,
+  // tasima, socket olayi) yeniden olusuyor. Guard olmadan bu efekt her
+  // mutasyondan sonra tekrar calisip modali yeniden aciyordu: kart silindiyse
+  // artik var olmayan bir id ile acilip "Görev yüklenemedi veya bulunamadı"
+  // hatasi veriyordu - hem silme sonrasinda hem de sonraki her surukle-birak
+  // sonrasinda. Deep-link kart basina yalnizca bir kez onurlandiriliyor.
+  const acilanDeepLinkRef = useRef<string | null>(null);
   useEffect(() => {
     if (!initialOpenCardId || !boardData) return;
+    if (acilanDeepLinkRef.current === initialOpenCardId) return;
+    acilanDeepLinkRef.current = initialOpenCardId;
     setSelectedTaskId(initialOpenCardId);
     setIsModalOpen(true);
-  }, [initialOpenCardId, boardData]);
+
+    // Tuketilen openCard parametresi URL'den siliniyor: kalirsa sayfa
+    // yenilendiginde (kart bu arada silinmis olabilir) ayni hataya dusuluyor
+    // ve adres cubugu artik dogru olmayan bir durumu gosteriyor.
+    const kalanParams = new URLSearchParams(window.location.search);
+    kalanParams.delete('openCard');
+    const sorgu = kalanParams.toString();
+    router.replace(`/projects/${projectId}${sorgu ? `?${sorgu}` : ''}`, { scroll: false });
+  }, [initialOpenCardId, boardData, projectId, router]);
 
   // Board'u ayni anda acmis diger kullanicilarin kart/kolon islemlerini anlik yansit.
   // Kendi eylemlerimiz zaten optimistic olarak uygulandigi icin handler'lar idempotent:
@@ -799,8 +818,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           tasks: newTasks,
         };
       });
+      toast.success(t('taskDeleted'));
     } catch (error) {
+      // Onceden sessizce yutuluyordu: silme basarisiz olsa bile kullanici
+      // hicbir sey gormuyor, kart panoda duruyordu.
       console.error("Görev silinirken hata:", error);
+      toast.error(t('taskDeleteError'));
     }
   };
 
