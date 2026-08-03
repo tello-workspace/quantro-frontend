@@ -1601,7 +1601,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </form>
             )}
 
-            <DialogFooter className="mt-8 pt-4 border-t border-border flex-wrap">
+            {/* sticky: modal uzun icerikte kaydirilirken Kaydet/Iptal her zaman
+                gorunur kalsin. mb-0, DialogFooter'in -mb-4 tasmasini iptal
+                ederek bottom-0'in scroll kabinin altina oturmasini saglar. */}
+            <DialogFooter className="sticky bottom-0 z-10 mt-8 mb-0 flex-wrap border-t border-border bg-popover pt-4">
               {taskId !== 'new' && (
                 <Button
                   type="button"
