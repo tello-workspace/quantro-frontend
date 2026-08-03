@@ -163,6 +163,24 @@ export const BoardCard: React.FC<BoardCardProps> = ({
         )
       )}
 
+      {/* Kapak gorseli: kartin ilk gorsel eki. Kartin ic dolgusunu asmak icin
+          negatif margin - gorsel kenarlara dayanmali, cerceve icinde
+          yuzmemeli. Yuklenemezse (imzali URL suresi dolmus olabilir) eleman
+          gizleniyor, kirik gorsel ikonu gosterilmiyor. */}
+      {task.coverUrl && (
+        // next/image kullanilmiyor: imzali URL her saat degistigi icin
+        // optimizasyon onbellegi tutmaz ve her yeni imza yeni bir kaynak
+        // sayilir - kazanc yerine ek yuk olurdu.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={task.coverUrl}
+          alt=""
+          loading="lazy"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          className="-mt-3 -mr-3 mb-2.5 -ml-4 h-28 w-[calc(100%+1.75rem)] object-cover"
+        />
+      )}
+
       {conflict && (
         <span
           aria-hidden

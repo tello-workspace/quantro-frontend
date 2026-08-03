@@ -80,6 +80,8 @@ export interface Task {
   // sayim) - tam liste TaskModal acilinca checklistApi'den ayrica cekilir.
   checklistTotal?: number;
   checklistDone?: number;
+  /** Kartin ilk gorsel ekinin imzali URL'i - panoda kapak olarak gosterilir */
+  coverUrl?: string | null;
   // undefined = bu Task'i doldururken backend'den hic secilmedi (orn. board
   // liste endpoint'i), null = secildi ama deger yok. Bu ayrim onemli:
   // sprintId'yi kasitsizce null'a cevirip mevcut atamayi silmemek icin
