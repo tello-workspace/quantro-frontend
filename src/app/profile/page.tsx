@@ -8,6 +8,7 @@ import {
   useUpdateProfileMutation,
   useUploadAvatarMutation,
   useSetPresetAvatarMutation,
+  useSyncGithubProfileMutation,
   useRemoveAvatarMutation,
 } from '@/features/auth/meApi';
 import { useTestAiConfigurationMutation } from '@/features/ai/aiApi';
@@ -64,6 +65,7 @@ export default function ProfilePage() {
   const [testAiConfig, { isLoading: isTesting }] = useTestAiConfigurationMutation();
   const [uploadAvatar, { isLoading: isUploadingAvatar }] = useUploadAvatarMutation();
   const [setPresetAvatar, { isLoading: isSettingPreset }] = useSetPresetAvatarMutation();
+  const [syncGithubProfile, { isLoading: isSyncingGithub }] = useSyncGithubProfileMutation();
   const [removeAvatar] = useRemoveAvatarMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -162,6 +164,38 @@ export default function ProfilePage() {
       await removeAvatar().unwrap();
     } catch {
       toast.error(t('avatarRemoveError'));
+    }
+  };
+
+  // GitHub profilini cekip formu doldurur. BILEREK kaydetmiyor: kullanici
+  // geleni gorup istemedigini geri alabilsin. Dogrudan kaydetmek elle
+  // girilmis dogru bilgiyi sessizce ezme riski tasirdi.
+  const handleGithubSync = async () => {
+    try {
+      const veri = await syncGithubProfile(githubUrl.trim()).unwrap();
+
+      // Bos alanlar doldurulur, dolu olanlara dokunulmaz - kullanicinin
+      // kendi yazdigi bio GitHub'daki tek satirlik bio ile degistirilmemeli.
+      if (veri.bio && !bio.trim()) setBio(veri.bio);
+
+      // Diller birlestiriliyor: GitHub yalnizca repo dillerini biliyor,
+      // kullanici SQL/Docker gibi repo dili olarak gorunmeyen seyler eklemis
+      // olabilir; onlari silmek bilgi kaybi olurdu.
+      if (veri.languages.length > 0) {
+        setLanguages((mevcut) => {
+          const birlesik = new Set([...mevcut, ...veri.languages]);
+          return [...birlesik].slice(0, 20);
+        });
+      }
+
+      toast.success(
+        veri.languages.length > 0
+          ? `@${veri.username} okundu · ${veri.languages.length} dil eklendi`
+          : `@${veri.username} okundu`,
+      );
+    } catch (err) {
+      const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+      toast.error(mesaj || t('githubSyncError'));
     }
   };
 
@@ -346,12 +380,25 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="githubUrl">{t('githubPlaceholder')}</Label>
-                  <Input
-                    id="githubUrl"
-                    value={githubUrl}
-                    onChange={(e) => setGithubUrl(e.target.value)}
-                    placeholder="https://github.com/kullanici-adi"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="githubUrl"
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      placeholder="https://github.com/kullanici-adi"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleGithubSync}
+                      disabled={isSyncingGithub || !githubUrl.trim()}
+                      className="shrink-0"
+                      title={t('githubSyncHint')}
+                    >
+                      {isSyncingGithub ? t('loading') : t('githubSync')}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('githubSyncHint')}</p>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="linkedinUrl">{t('linkedinPlaceholder')}</Label>

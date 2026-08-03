@@ -30,6 +30,9 @@ const translations = {
     avatarUploadError: "Profil fotoğrafı yüklenemedi.",
     avatarRemoveError: "Profil fotoğrafı kaldırılamadı.",
     presetAvatars: "Ya da hazır bir avatar seç",
+    githubSync: "Getir",
+    githubSyncHint: "GitHub profilinden biyografi ve kullandığın dilleri getirir.",
+    githubSyncError: "GitHub profili alınamadı.",
     // Komut paleti
     commandPalette: "Komut paleti",
     commandPalettePlaceholder: "Kart ara veya bir sayfaya git...",
@@ -447,6 +450,9 @@ const translations = {
     avatarUploadError: "Could not upload profile photo.",
     avatarRemoveError: "Could not remove profile photo.",
     presetAvatars: "Or pick a ready-made avatar",
+    githubSync: "Fetch",
+    githubSyncHint: "Pulls your bio and languages from your GitHub profile.",
+    githubSyncError: "Could not fetch GitHub profile.",
     // Command palette
     commandPalette: "Command palette",
     commandPalettePlaceholder: "Search cards or jump to a page...",

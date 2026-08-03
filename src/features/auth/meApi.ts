@@ -67,6 +67,26 @@ export const meApi = api.injectEndpoints({
       transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
       invalidatesTags: ['Me'],
     }),
+    syncGithubProfile: builder.mutation<
+      {
+        username: string;
+        name: string | null;
+        bio: string | null;
+        avatarUrl: string | null;
+        company: string | null;
+        location: string | null;
+        publicRepos: number;
+        languages: string[];
+      },
+      string
+    >({
+      query: (githubUrl) => ({ url: '/me/github-sync', method: 'POST', body: { githubUrl } }),
+      transformResponse: (response: ApiEnvelope<{
+        username: string; name: string | null; bio: string | null; avatarUrl: string | null;
+        company: string | null; location: string | null; publicRepos: number; languages: string[];
+      }>) => response.data,
+      // Kaydetmiyor, yalnizca okuyor - cache invalidate etmeye gerek yok.
+    }),
     setPresetAvatar: builder.mutation<{ id: string; avatarUrl: string | null }, string>({
       query: (preset) => ({ url: '/me/avatar', method: 'PUT', body: { preset } }),
       transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
@@ -85,5 +105,6 @@ export const {
   useUpdateProfileMutation,
   useUploadAvatarMutation,
   useSetPresetAvatarMutation,
+  useSyncGithubProfileMutation,
   useRemoveAvatarMutation,
 } = meApi;
