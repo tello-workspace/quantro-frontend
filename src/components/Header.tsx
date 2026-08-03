@@ -1,5 +1,5 @@
 'use client';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useDispatch } from 'react-redux';
 import { api } from '@/lib/api';
@@ -15,6 +15,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { LogOut, Search, ListChecks } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { QuantroMark, QUANTRO_MARK_COLOR } from '@/components/ui/quantro-logo';
+import { CommandPalette } from '@/components/CommandPalette';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import { useGetMyOrganizationsQuery, useLazySearchOrganizationQuery } from '@/features/organizations/organizationsApi';
@@ -25,6 +26,16 @@ const PRIORITY_LABEL: Record<string, string> = {
   HIGH: 'Yüksek',
   URGENT: 'Acil',
 };
+
+// /projects/<id>/... altindaysak proje id'si. Palet proje-kapsamli
+// komutlari (Yonetim/Icgoruler/Aktivite) yalnizca o zaman gosteriyor.
+function projectIdFromPath(pathname: string | null): string | undefined {
+  if (!pathname) return undefined;
+  const parcalar = pathname.split('/').filter(Boolean);
+  if (parcalar[0] !== 'projects' || parcalar.length < 2) return undefined;
+  if (parcalar[1] === 'new') return undefined;
+  return parcalar[1];
+}
 
 function initials(name: string) {
     return name
@@ -41,11 +52,13 @@ export default function Header(){
     const dispatch = useDispatch();
     const { toggleSidebar } = useSidebar();
     const searchParams = useSearchParams();
+    const pathname = usePathname();
     const { data: me } = useGetMeQuery();
     const { data: orgs } = useGetMyOrganizationsQuery();
     const [trigger, { data: results, isFetching }] = useLazySearchOrganizationQuery();
     
     const [q, setQ] = useState('');
+    const [isPaletteOpen, setIsPaletteOpen] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
 
     const queryOrgId = searchParams?.get('orgId');
@@ -82,8 +95,9 @@ export default function Header(){
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
-                inputRef.current?.focus();
-                setIsFocused(true);
+                // Ctrl+K onceden yalnizca ustteki arama kutusuna odaklaniyordu;
+                // artik komut paletini aciyor (arama + sayfalar arasi gecis).
+                setIsPaletteOpen(true);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -233,6 +247,13 @@ export default function Header(){
               </Button>
             </div>
           </div>
+
+          <CommandPalette
+            open={isPaletteOpen}
+            onOpenChange={setIsPaletteOpen}
+            orgId={activeOrgId}
+            projectId={projectIdFromPath(pathname)}
+          />
         </header>
     );
 }

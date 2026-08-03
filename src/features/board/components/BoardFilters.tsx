@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
-import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { MagnifyingGlassIcon, XMarkIcon, BookmarkIcon } from '@heroicons/react/24/outline';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { Priority } from '../services/boardService';
 import type { Label } from '@/features/labels/labelsApi';
+import type { SavedFilter } from '../hooks/useSavedFilters';
 
 const PRIORITIES: { value: Priority; label: string; dot: string }[] = [
   { value: 'URGENT', label: 'Acil', dot: 'bg-red-500' },
@@ -30,6 +32,10 @@ interface BoardFiltersProps {
   onToggleLabel: (labelId: string) => void;
   hasActiveFilters: boolean;
   onClear: () => void;
+  savedFilters?: SavedFilter[];
+  onSaveFilter?: (name: string) => void;
+  onApplyFilter?: (filter: SavedFilter) => void;
+  onRemoveFilter?: (id: string) => void;
 }
 
 function initials(name: string): string {
@@ -49,7 +55,21 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
   onToggleLabel,
   hasActiveFilters,
   onClear,
+  savedFilters = [],
+  onSaveFilter,
+  onApplyFilter,
+  onRemoveFilter,
 }) => {
+  const [menuAcik, setMenuAcik] = useState(false);
+  const [yeniAd, setYeniAd] = useState('');
+
+  const kaydet = () => {
+    if (!yeniAd.trim() || !onSaveFilter) return;
+    onSaveFilter(yeniAd);
+    setYeniAd('');
+    setMenuAcik(false);
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-1.5 shrink-0">
       <div className="relative">
@@ -140,6 +160,89 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
           <XMarkIcon className="h-3.5 w-3.5" />
           Filtreleri temizle
         </button>
+      )}
+
+      {/* Kayitli filtreler: sik kullanilan bir gorunumu ("Bana atanan acil
+          isler") her seferinde elle kurmak yerine bir kez kaydedip cagirmak. */}
+      {onSaveFilter && (
+        <Popover open={menuAcik} onOpenChange={setMenuAcik}>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <BookmarkIcon className="size-3.5" />
+                Kayıtlı filtreler
+                {savedFilters.length > 0 && (
+                  <span className="tabular-nums">({savedFilters.length})</span>
+                )}
+              </button>
+            }
+          />
+          <PopoverContent className="w-64 p-2" align="start">
+            <div className="flex flex-col gap-1">
+              {savedFilters.length === 0 && (
+                <p className="px-1 py-2 text-xs text-muted-foreground">
+                  Henüz kayıtlı filtre yok. Filtreleri ayarlayıp aşağıdan kaydet.
+                </p>
+              )}
+
+              {savedFilters.map((f) => (
+                <div key={f.id} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onApplyFilter?.(f);
+                      setMenuAcik(false);
+                    }}
+                    className="flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                  >
+                    {f.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveFilter?.(f.id)}
+                    aria-label={`${f.name} filtresini sil`}
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                  >
+                    <XMarkIcon className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {hasActiveFilters ? (
+                <div className="mt-1 flex gap-1 border-t border-border pt-2">
+                  <input
+                    type="text"
+                    value={yeniAd}
+                    onChange={(e) => setYeniAd(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        kaydet();
+                      }
+                    }}
+                    placeholder="Filtre adı"
+                    className="min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 py-1 text-sm outline-none focus-visible:border-ring"
+                  />
+                  <button
+                    type="button"
+                    onClick={kaydet}
+                    disabled={!yeniAd.trim()}
+                    className="shrink-0 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground transition-opacity disabled:opacity-40"
+                  >
+                    Kaydet
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-1 border-t border-border px-1 pt-2 text-xs text-muted-foreground">
+                  Kaydetmek için önce bir filtre seç.
+                </p>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
     </div>
   );

@@ -18,6 +18,7 @@ import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { BulkActionBar } from './BulkActionBar';
+import { useSavedFilters } from '../hooks/useSavedFilters';
 import { CalendarView } from './CalendarView';
 import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
@@ -152,6 +153,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const { data: labels = [], refetch: refetchLabels } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
   const { data: templates = [] } = useGetTemplatesQuery({ orgId, projectId }, { skip: !orgId || !projectId });
   const [createCardFromTemplate] = useCreateCardFromTemplateMutation();
+
+  const { filters: savedFilters, saveFilter, removeFilter } = useSavedFilters(projectId);
 
   const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table'>('board');
   // Yonetim sayfasina giden butonda gosterilecek bekleyen triage sayisi
@@ -539,10 +542,34 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
     const isColumnChange = sourceColumn.id !== destinationColumn.id;
 
+    // Suruklenen kart secimin parcasiysa TUM secim birlikte tasinir. Ayri bir
+    // "Tasi" menusu yerine bu: kullanici zaten karti tutup birakiyor, ayni
+    // hareketin secimin tamamina uygulanmasi beklenen davranis.
+    // Yalnizca sutun degisiminde: ayni sutun icinde coklu yeniden siralama
+    // kullanicinin ne beklediginin belirsiz oldugu bir durum.
+    const cokluTasima =
+      isColumnChange && effectiveSelectedIds.has(activeTaskId) && effectiveSelectedIds.size > 1;
+
+    // Suruklenen kart basta, digerleri mevcut sirasini koruyarak arkasindan.
+    const tasinacakIds = cokluTasima
+      ? [
+          activeTaskId,
+          ...[...effectiveSelectedIds]
+            .filter((id) => id !== activeTaskId && boardData.tasks[id])
+            .sort((a, b) => (boardData.tasks[a].position ?? 0) - (boardData.tasks[b].position ?? 0)),
+        ]
+      : [activeTaskId];
+
+    // WIP kontrolu tasinan kart sayisini hesaba katiyor: tek kart icin
+    // "doluysa engelle", N kart icin "N tanesi sigmiyorsa engelle".
+    const hedefeGirecekSayi = tasinacakIds.filter(
+      (id) => !destinationColumn.taskIds.includes(id),
+    ).length;
+
     if (
       isColumnChange &&
       destinationColumn.wipLimit &&
-      destinationColumn.taskIds.length >= destinationColumn.wipLimit
+      destinationColumn.taskIds.length + hedefeGirecekSayi > destinationColumn.wipLimit
     ) {
       toast.warning(`Bu sütun için WIP limiti (${destinationColumn.wipLimit}) doludur!`);
       return;
@@ -566,6 +593,74 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     const newPosition = calculateFractionalPosition(prevPos, nextPos);
 
     const previousBoardData = boardData;
+
+    if (cokluTasima) {
+      // prevPos ile nextPos arasina N kart icin esit araliklı yuva aciyoruz;
+      // tek kartlik calculateFractionalPosition bir orta nokta veriyor,
+      // burada N tanesi gerekiyor ve aralarindaki sira korunmali.
+      const pozisyonlar: Record<string, number> = {};
+      const n = tasinacakIds.length;
+      if (nextPos !== undefined && prevPos !== undefined) {
+        const adim = (nextPos - prevPos) / (n + 1);
+        tasinacakIds.forEach((id, i) => { pozisyonlar[id] = prevPos + adim * (i + 1); });
+      } else if (prevPos !== undefined) {
+        tasinacakIds.forEach((id, i) => { pozisyonlar[id] = prevPos + i + 1; });
+      } else if (nextPos !== undefined) {
+        const adim = nextPos / (n + 1);
+        tasinacakIds.forEach((id, i) => { pozisyonlar[id] = adim * (i + 1); });
+      } else {
+        tasinacakIds.forEach((id, i) => { pozisyonlar[id] = i + 1; });
+      }
+
+      setBoardData((prev) => {
+        if (!prev) return prev;
+        const guncelHedef = prev.columns[destinationColumn.id];
+        if (!guncelHedef) return prev;
+
+        const hedefListe = guncelHedef.taskIds.filter((id) => !tasinacakIds.includes(id));
+        const overIdx = overIsColumn ? hedefListe.length : hedefListe.indexOf(overId);
+        const baslangic = overIdx === -1 ? hedefListe.length : overIdx;
+
+        // Kartlari tek tek yerlestiriyoruz: placeCard her cagrida id'yi tum
+        // sutunlardan temizleyip hedefe koydugu icin tekrar riski yok.
+        let kolonlar = prev.columns;
+        tasinacakIds.forEach((id, i) => {
+          kolonlar = placeCard(kolonlar, id, destinationColumn.id, baslangic + i);
+        });
+
+        const gorevler = { ...prev.tasks };
+        for (const id of tasinacakIds) {
+          if (gorevler[id]) {
+            gorevler[id] = { ...gorevler[id], columnId: destinationColumn.id, position: pozisyonlar[id] };
+          }
+        }
+
+        return { ...prev, tasks: gorevler, columns: kolonlar };
+      });
+
+      try {
+        const sonuc = await boardService.bulkCardAction(projectId, {
+          cardIds: tasinacakIds,
+          action: 'move',
+          columnId: destinationColumn.id,
+          positions: pozisyonlar,
+        });
+
+        if (sonuc.basarisiz.length > 0) {
+          toast.error(`${sonuc.basarisiz.length} kart taşınamadı: ${sonuc.basarisiz[0].sebep}`);
+          const taze = await boardService.getBoardData(projectId);
+          if (taze) setBoardData(taze);
+        } else {
+          toast.success(`${sonuc.basarili.length} kart taşındı`);
+        }
+        clearSelection();
+      } catch (error) {
+        console.error('Toplu taşımada hata, değişiklik geri alınıyor:', error);
+        setBoardData(previousBoardData);
+        toast.error(error instanceof Error ? error.message : 'Kartlar taşınamadı.');
+      }
+      return;
+    }
 
     setBoardData((prev) => {
       if (!prev) return prev;
@@ -1110,6 +1205,22 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               setSelectedAssigneeIds(new Set());
               setSelectedLabelIds(new Set());
             }}
+            savedFilters={savedFilters}
+            onSaveFilter={(name) =>
+              saveFilter(name, {
+                search,
+                priorities: [...selectedPriorities],
+                assigneeIds: [...selectedAssigneeIds],
+                labelIds: [...selectedLabelIds],
+              })
+            }
+            onApplyFilter={(f) => {
+              setSearch(f.search);
+              setSelectedPriorities(new Set(f.priorities));
+              setSelectedAssigneeIds(new Set(f.assigneeIds));
+              setSelectedLabelIds(new Set(f.labelIds));
+            }}
+            onRemoveFilter={removeFilter}
           />
         </div>
       </div>
@@ -1295,14 +1406,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
       <BulkActionBar
         selectedCount={effectiveSelectedIds.size}
-        columns={Object.values(boardData.columns).map((c) => ({ id: c.id, title: c.title }))}
         members={members}
         labels={labels}
         isAdmin={!!isAdmin}
         isRunning={isBulkRunning}
-        onMove={(columnId) =>
-          runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'move', columnId })
-        }
         onAssign={(assigneeIds) =>
           runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'assign', assigneeIds })
         }
