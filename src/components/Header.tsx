@@ -12,8 +12,10 @@ import { disconnectSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { LayoutGrid, LogOut, Search, ListChecks } from 'lucide-react';
+import { LogOut, Search, ListChecks } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
+import { QuantroMark, QUANTRO_MARK_COLOR } from '@/components/ui/quantro-logo';
+import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import { useGetMyOrganizationsQuery, useLazySearchOrganizationQuery } from '@/features/organizations/organizationsApi';
 
@@ -117,10 +119,17 @@ export default function Header(){
                 aria-label="Menü"
                 className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:text-primary"
               >
-                <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:-rotate-6">
-                  <LayoutGrid className="size-4" />
+                <span
+                  className={cn(
+                    'flex size-8 items-center justify-center rounded-lg border border-border bg-background p-1.5 shadow-soft transition-transform duration-200 group-hover:-rotate-6',
+                    QUANTRO_MARK_COLOR,
+                  )}
+                >
+                  <QuantroMark />
                 </span>
-                <span className="hidden text-sm font-bold tracking-tight text-foreground sm:inline">Quantro</span>
+                <span className="hidden text-sm font-medium tracking-[-0.02em] text-foreground sm:inline">
+                  Quantro
+                </span>
               </button>
             </div>
 

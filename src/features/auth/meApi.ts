@@ -67,6 +67,11 @@ export const meApi = api.injectEndpoints({
       transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
       invalidatesTags: ['Me'],
     }),
+    setPresetAvatar: builder.mutation<{ id: string; avatarUrl: string | null }, string>({
+      query: (preset) => ({ url: '/me/avatar', method: 'PUT', body: { preset } }),
+      transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
+      invalidatesTags: ['Me'],
+    }),
     removeAvatar: builder.mutation<{ id: string; avatarUrl: string | null }, void>({
       query: () => ({ url: '/me/avatar', method: 'DELETE' }),
       transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
@@ -75,4 +80,10 @@ export const meApi = api.injectEndpoints({
   }),
 });
 
-export const { useGetMeQuery, useUpdateProfileMutation, useUploadAvatarMutation, useRemoveAvatarMutation } = meApi;
+export const {
+  useGetMeQuery,
+  useUpdateProfileMutation,
+  useUploadAvatarMutation,
+  useSetPresetAvatarMutation,
+  useRemoveAvatarMutation,
+} = meApi;
