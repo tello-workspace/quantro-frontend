@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
-import { useGetMeQuery, useUpdateProfileMutation, useUploadAvatarMutation, useRemoveAvatarMutation } from '@/features/auth/meApi';
+import {
+  useGetMeQuery,
+  useUpdateProfileMutation,
+  useUploadAvatarMutation,
+  useSetPresetAvatarMutation,
+  useRemoveAvatarMutation,
+} from '@/features/auth/meApi';
 import { useTestAiConfigurationMutation } from '@/features/ai/aiApi';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -37,6 +43,10 @@ const LANGUAGE_SUGGESTIONS = [
   'Ruby', 'Swift', 'Kotlin', 'C++', 'SQL', 'HTML/CSS',
 ];
 
+// public/avatars/ altindaki hazir avatarlar. Backend'deki AVATAR_PRESETS
+// beyaz listesiyle birebir ayni olmali - oradaki dogrulama bu isimlere bakiyor.
+const AVATAR_PRESETS = ['nova', 'orbit', 'prism', 'pulse', 'ridge', 'flux', 'arc', 'quartz', 'slate'];
+
 function initials(name: string) {
   return name
     .split(' ')
@@ -52,6 +62,7 @@ export default function ProfilePage() {
   const [updateProfile, { isLoading: isSaving }] = useUpdateProfileMutation();
   const [testAiConfig, { isLoading: isTesting }] = useTestAiConfigurationMutation();
   const [uploadAvatar, { isLoading: isUploadingAvatar }] = useUploadAvatarMutation();
+  const [setPresetAvatar, { isLoading: isSettingPreset }] = useSetPresetAvatarMutation();
   const [removeAvatar] = useRemoveAvatarMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,6 +139,16 @@ export default function ProfilePage() {
 
     try {
       await uploadAvatar(file).unwrap();
+      toast.success(t('profileSuccess'));
+    } catch (err) {
+      const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+      toast.error(mesaj || t('avatarUploadError'));
+    }
+  };
+
+  const handlePresetSelect = async (preset: string) => {
+    try {
+      await setPresetAvatar(preset).unwrap();
       toast.success(t('profileSuccess'));
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
@@ -228,6 +249,36 @@ export default function ProfilePage() {
               {t('removeAvatar')}
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Hazir avatarlar: fotograf yuklemek istemeyen ya da yukleyemeyen
+          kullanicilar icin. Dosya degil, beyaz listedeki bir isim gonderilir. */}
+      <div className="mb-6">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">{t('presetAvatars')}</p>
+        <div className="flex flex-wrap gap-2">
+          {AVATAR_PRESETS.map((preset) => {
+            const src = `/avatars/${preset}.svg`;
+            const isActive = me.avatarUrl === src;
+            return (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => handlePresetSelect(preset)}
+                disabled={isSettingPreset || isActive}
+                aria-pressed={isActive}
+                aria-label={preset}
+                className={`size-10 overflow-hidden rounded-full ring-offset-2 ring-offset-background transition-all hover:scale-105 disabled:hover:scale-100 ${
+                  isActive ? 'ring-2 ring-primary' : 'ring-1 ring-border'
+                }`}
+              >
+                {/* Statik, sabit boyutlu SVG - next/image'in optimizasyonundan
+                    fayda gormez, o yuzden dogrudan img. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="size-full" />
+              </button>
+            );
+          })}
         </div>
       </div>
 
