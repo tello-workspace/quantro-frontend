@@ -204,7 +204,7 @@ export const CreateCardRequestDialog: React.FC<Props> = ({
           <div className="grid grid-cols-2 gap-4 items-start">
             <div className="space-y-4">
               <div>
-                <label htmlFor="req-dueDate" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                <label htmlFor="req-dueDate" className="inline-flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
                   <CalendarDaysIcon className="h-4 w-4" />
                   Son Teslim Tarihi
                 </label>

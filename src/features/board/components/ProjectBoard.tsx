@@ -833,11 +833,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     payload: {
       title: string;
       description?: string | null;
-      priority?: string;
+      priority?: Priority;
       dueDate?: string | null;
       assigneeIds?: string[];
-      labels?: any[];
-      blockers?: any[];
+      labelIds?: string[];
+      blockerIds?: string[];
     }
   ) => {
     try {
@@ -848,12 +848,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       });
       if (!newTask) return;
 
-      const updatedFields: any = {
+      const updatedFields: Partial<Task> = {
         id: newTask.id,
         columnId,
         title: payload.title,
         description: payload.description || undefined,
-        priority: payload.priority as any,
+        priority: payload.priority ?? 'MEDIUM',
         dueDate: payload.dueDate || undefined,
         assignees: payload.assigneeIds?.map((id) => {
           const m = members.find((mem) => mem.userId === id);
@@ -863,15 +863,16 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
       await boardService.updateTask(projectId, updatedFields, { includeAssignees: true });
 
-      if (payload.labels && payload.labels.length > 0) {
-        for (const label of payload.labels) {
+      if (payload.labelIds && payload.labelIds.length > 0) {
+        const selectedLabels = labels.filter((label) => payload.labelIds?.includes(label.id));
+        for (const label of selectedLabels) {
           await attachLabel({ cardId: newTask.id, labelId: label.id }).unwrap().catch(console.error);
         }
       }
 
-      if (payload.blockers && payload.blockers.length > 0) {
-        for (const blocker of payload.blockers) {
-          await addDependency({ cardId: newTask.id, blockerId: blocker.id }).unwrap().catch(console.error);
+      if (payload.blockerIds && payload.blockerIds.length > 0) {
+        for (const blockerId of payload.blockerIds) {
+          await addDependency({ cardId: newTask.id, blockerId }).unwrap().catch(console.error);
         }
       }
 
@@ -1469,7 +1470,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               </div>
             ) : null}
             {activeId && isColumnGrip(activeId as string) ? (
-              <div className="w-80 lg:w-[350px] rounded-2xl border-2 border-primary/50 bg-primary/5 p-3 shadow-2xl backdrop-blur-sm cursor-grabbing">
+              <div className="w-80 lg:w-87.5 rounded-2xl border-2 border-primary/50 bg-primary/5 p-3 shadow-2xl backdrop-blur-sm cursor-grabbing">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground/70">
                   <GripVerticalIcon className="h-4 w-4 text-primary" />
                   {boardData.columns[gripToColumnId(activeId as string)]?.title || 'Sütun'}
@@ -1483,7 +1484,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         {/* AI Chat drawer overlay (desktop) */}
         {isDesktopChatOpen && (
           <div className="hidden sm:block shrink-0 h-full pt-1 pb-4 pr-4 sm:pr-6 pl-0">
-            <div className="h-full w-80 lg:w-[420px] xl:w-[480px] shadow-2xl rounded-xl overflow-hidden border border-border">
+            <div className="h-full w-80 lg:w-105 xl:w-120 shadow-2xl rounded-xl overflow-hidden border border-border">
               <AIChatPanel
                 projectId={projectId}
                 projectName={projectName}

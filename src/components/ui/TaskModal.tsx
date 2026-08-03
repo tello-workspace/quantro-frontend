@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
-import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType } from '@/features/board/services/boardService';
+import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType, Priority } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import { useFillCardWithAiMutation } from '@/features/ai/aiApi';
@@ -23,7 +23,6 @@ import {
   useDeleteCommentMutation,
 } from '@/features/comments/commentsApi';
 import { useAddDependencyMutation, useRemoveDependencyMutation } from '@/features/dependencies/dependenciesApi';
-import { useGetSprintsQuery } from '@/features/sprints/sprintsApi';
 import { useGetCustomFieldsQuery, useSetCustomFieldValueMutation } from '@/features/customFields/customFieldsApi';
 import { extractMentionQuery, filterMentionCandidates, insertMention } from '@/features/comments/mentionUtils';
 import {
@@ -53,8 +52,6 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -68,7 +65,7 @@ const RELATION_TYPE_LABELS: Record<DependencyRelationType, string> = {
   CLONES: 'Klonu',
 };
 
-function timeAgo(dateStr: string, t: any): string {
+function timeAgo(dateStr: string, t: (key: Parameters<ReturnType<typeof useTranslation>['t']>[0]) => string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return t('justNow');
@@ -467,6 +464,16 @@ interface TaskModalConflictInfo {
   otherUserName: string;
 }
 
+interface CreateTaskPayload {
+  title: string;
+  description?: string | null;
+  priority?: Priority;
+  dueDate?: string | null;
+  assigneeIds?: string[];
+  labelIds?: string[];
+  blockerIds?: string[];
+}
+
 interface TaskModalProps {
   taskId: string | null;
   isOpen: boolean;
@@ -481,7 +488,7 @@ interface TaskModalProps {
   columnId?: string | null;
   initialTitle?: string;
   initialDueDate?: string;
-  onCreateTask?: (columnId: string, payload: any) => Promise<void>;
+  onCreateTask?: (columnId: string, payload: CreateTaskPayload) => Promise<void>;
   conflict?: TaskModalConflictInfo;
 }
 
@@ -532,10 +539,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [createLabel, { isLoading: isCreatingLabel }] = useCreateLabelMutation();
   const [attachLabel] = useAttachLabelMutation();
   const [detachLabel] = useDetachLabelMutation();
-  const { data: sprints = [] } = useGetSprintsQuery(
-    { orgId, projectId },
-    { skip: !orgId || !projectId || !isOpen },
-  );
   const { data: customFields = [] } = useGetCustomFieldsQuery(
     { orgId, projectId },
     { skip: !orgId || !projectId || !isOpen },
@@ -567,7 +570,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       const result = await fillCardWithAi({ projectId, title: task.title.trim() }).unwrap();
       const updatedFields: Partial<Task> = {
         description: result.description,
-        priority: result.priority as any,
+        priority: result.priority,
       };
 
       if (result.dueDate && result.dueDate !== 'null' && result.dueDate !== 'undefined') {
@@ -597,14 +600,33 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
+    let cancelled = false;
+
+    const loadTask = async () => {
+      if (!isOpen) {
+        setTask(null);
+        setLoading(false);
+        return;
+      }
+
       if (taskId && taskId !== 'new') {
         setLoading(true);
-        fetchTaskDetails(taskId)
-          .then((data) => setTask(data))
-          .catch((err) => console.error(t('taskLoadError'), err))
-          .finally(() => setLoading(false));
-      } else if (taskId === 'new') {
+        try {
+          const data = await fetchTaskDetails(taskId);
+          if (!cancelled) {
+            setTask(data);
+          }
+        } catch (err) {
+          console.error(t('taskLoadError'), err);
+        } finally {
+          if (!cancelled) {
+            setLoading(false);
+          }
+        }
+        return;
+      }
+
+      if (taskId === 'new') {
         setLoading(false);
         setTask({
           id: 'new',
@@ -620,9 +642,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           lastActivityAt: new Date().toISOString(),
         });
       }
-    } else {
-      setTask(null);
-    }
+    };
+
+    void loadTask();
+
+    return () => {
+      cancelled = true;
+    };
   }, [taskId, isOpen, fetchTaskDetails, columnId, initialTitle, initialDueDate, t]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -1505,7 +1531,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <div className="grid grid-cols-2 gap-4 items-start">
                 <div className="space-y-4">
                   <div>
-                    <label htmlFor="startDate" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                    <label htmlFor="startDate" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
                       <CalendarDaysIcon className="h-4 w-4" />
                       Başlangıç Tarihi
                     </label>
@@ -1520,7 +1546,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   </div>
 
                   <div>
-                    <label htmlFor="dueDate" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                    <label htmlFor="dueDate" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
                       <CalendarDaysIcon className="h-4 w-4" />
                       {t('dueDateLabel')}
                     </label>
@@ -1535,7 +1561,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   </div>
 
                   <div>
-                    <label htmlFor="priority" className="block text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                    <label htmlFor="priority" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
                       {t('priorityLabel')}
                     </label>
                     <select
@@ -1554,27 +1580,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </select>
                   </div>
 
-                  {taskId !== 'new' && sprints.length > 0 && (
-                    <div>
-                      <label htmlFor="sprintId" className="block text-sm font-medium text-muted-foreground mb-1">
-                        Sprint
-                      </label>
-                      <select
-                        id="sprintId"
-                        value={task.sprintId ?? ''}
-                        onChange={(e) => setTask({ ...task, sprintId: e.target.value || null })}
-                        disabled={isFilling}
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm text-foreground"
-                      >
-                        <option value="" className="bg-popover">Sprint yok</option>
-                        {sprints.map((s) => (
-                          <option key={s.id} value={s.id} className="bg-popover">
-                            {s.name} ({s.status === 'ACTIVE' ? 'Aktif' : s.status === 'COMPLETED' ? 'Tamamlandı' : 'Planlandı'})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                 </div>
 
                 <div>
