@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
@@ -13,7 +13,15 @@ import {
   LinkIcon,
   UsersIcon,
 } from '@heroicons/react/24/outline';
+import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useGetProjectActivitiesQuery, ActivityEntry, ActivityType } from '@/features/activity/activityApi';
+
+// Ilk ekranda gosterilecek kayit sayisi. Gerisi "Daha eskilerini goster"
+// arkasinda duruyor - akis 50 kayda kadar cikabiliyor ve tamami birden
+// basildiginda sayfa okunaksiz uzunlukta oluyordu.
+const INITIAL_VISIBLE = 12;
 
 const ICONS: Record<ActivityType, React.ComponentType<{ className?: string }>> = {
   CARD_CREATED: PlusCircleIcon,
@@ -26,44 +34,146 @@ const ICONS: Record<ActivityType, React.ComponentType<{ className?: string }>> =
   DEPENDENCY_ADDED: LinkIcon,
 };
 
-function timeAgo(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'az önce';
-  if (mins < 60) return `${mins} dk önce`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} sa önce`;
-  const days = Math.floor(hours / 24);
-  return `${days} gün önce`;
+// Tasarim sistemi semantik renkleri "yalnizca durum gostergeleri icin"
+// ayiriyor. Bu yuzden akisin tamami notr; sadece gercek bir durum degisikligi
+// olan tamamlanma ve akisi engelleyen bagimlilik renk aliyor.
+const ICON_TONE: Partial<Record<ActivityType, string>> = {
+  CARD_COMPLETED: 'text-emerald-600 dark:text-emerald-400',
+  DEPENDENCY_ADDED: 'text-amber-600 dark:text-amber-500',
+  CARD_CREATED: 'text-primary',
+};
+
+function initials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
 }
 
-function describeActivity(entry: ActivityEntry): string {
-  const userName = entry.user.name;
-  const cardTitle = entry.card?.title;
+// Gun basligi: bugun/dun ozel olarak adlandiriliyor, digerleri tam tarih.
+function dayLabel(iso: string): string {
+  const date = new Date(iso);
+  const today = new Date();
+  const dun = new Date();
+  dun.setDate(today.getDate() - 1);
+
+  const ayniGun = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  if (ayniGun(date, today)) return 'Bugün';
+  if (ayniGun(date, dun)) return 'Dün';
+  return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function timeLabel(iso: string): string {
+  return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Aktivite metni iki parcaya ayriliyor: baslik ve (varsa) detay. Kisi adi
+// basliktan cikarildi cunku islemi yapan zaten altta avatariyla gosteriliyor.
+function describeActivity(entry: ActivityEntry): { title: string; detail?: string } {
+  const cardTitle = entry.card?.title ?? 'kart';
   const data = entry.data ?? {};
 
   switch (entry.type) {
     case 'CARD_CREATED':
-      return `${userName}, "${cardTitle}" kartını oluşturdu`;
+      return { title: `"${cardTitle}" kartını oluşturdu` };
     case 'CARD_UPDATED':
-      return `${userName}, "${cardTitle}" kartını güncelledi`;
+      return { title: `"${cardTitle}" kartını güncelledi` };
     case 'CARD_MOVED':
-      return `${userName}, "${cardTitle}" kartını ${data.from ?? '?'} → ${data.to ?? '?'} taşıdı`;
+      return {
+        title: `"${cardTitle}" kartını taşıdı`,
+        detail: `${data.from ?? '?'} → ${data.to ?? '?'}`,
+      };
     case 'CARD_ASSIGNED': {
       const names = Array.isArray(data.assignedTo) ? (data.assignedTo as string[]).join(', ') : '';
-      return `${userName}, "${cardTitle}" kartını ${names} kişisine atadı`;
+      return { title: `"${cardTitle}" kartını atadı`, detail: names || undefined };
     }
     case 'CARD_COMPLETED':
-      return `${userName}, "${cardTitle}" kartını tamamladı`;
+      return { title: `"${cardTitle}" kartını tamamladı` };
     case 'COMMENT_ADDED':
-      return `${userName}, "${cardTitle}" kartına yorum yaptı: "${data.preview ?? ''}"`;
+      return {
+        title: `"${cardTitle}" kartına yorum yaptı`,
+        detail: typeof data.preview === 'string' && data.preview ? `"${data.preview}"` : undefined,
+      };
     case 'DEPENDENCY_ADDED':
-      return `${userName}, "${data.blockedTitle ?? cardTitle}" kartını "${data.blockerTitle ?? ''}" kartına bağımlı yaptı`;
+      return {
+        title: `"${data.blockedTitle ?? cardTitle}" kartını bağımlı yaptı`,
+        detail: data.blockerTitle ? `Engelleyen: "${data.blockerTitle}"` : undefined,
+      };
     case 'MEMBER_JOINED':
-      return `${userName} projeye katıldı`;
+      return { title: 'Projeye katıldı' };
     default:
-      return `${userName} bir işlem yaptı`;
+      return { title: 'Bir işlem yaptı' };
   }
+}
+
+interface TimelineItemProps {
+  entry: ActivityEntry;
+  projectId: string;
+  orgId: string;
+  isLast: boolean;
+}
+
+function TimelineItem({ entry, projectId, orgId, isLast }: TimelineItemProps) {
+  const Icon = ICONS[entry.type] ?? PencilSquareIcon;
+  const { title, detail } = describeActivity(entry);
+  const href = entry.card
+    ? `/projects/${projectId}?orgId=${orgId}&openCard=${entry.card.id}`
+    : null;
+
+  const content = (
+    <div className="flex gap-x-3">
+      {/* Ikon sutunu: dikey baglanti cizgisi ::after ile ciziliyor, son
+          kayitta bosluga sarkmamasi icin gizleniyor. */}
+      <div
+        className={`relative ${
+          isLast
+            ? ''
+            : 'after:absolute after:top-8 after:bottom-0 after:start-3.5 after:-translate-x-[0.5px] after:border-s after:border-border'
+        }`}
+      >
+        <div className="relative z-10 flex size-7 items-center justify-center rounded-full border border-border bg-card">
+          {/* stroke-2: tasarim sistemi ikon konturunu tipografinin gorsel
+              agirligiyla esitliyor (heroicons varsayilani 1.5). */}
+          <Icon className={`size-3.5 stroke-2 ${ICON_TONE[entry.type] ?? 'text-muted-foreground'}`} />
+        </div>
+      </div>
+
+      <div className="grow pb-5">
+        <h3 className="text-sm leading-5 font-medium text-foreground">{title}</h3>
+
+        {detail && (
+          <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">{detail}</p>
+        )}
+
+        <div className="mt-2 flex items-center gap-x-2 text-xs leading-4 text-muted-foreground">
+          <Avatar size="sm">
+            {entry.user.avatarUrl && <AvatarImage src={entry.user.avatarUrl} alt={entry.user.name} />}
+            <AvatarFallback className="text-[10px]">{initials(entry.user.name)}</AvatarFallback>
+          </Avatar>
+          <span className="font-medium text-foreground/80">{entry.user.name}</span>
+          <span aria-hidden>·</span>
+          <time dateTime={entry.createdAt}>{timeLabel(entry.createdAt)}</time>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Karta baglanabilen kayitlar satir olarak tiklanabilir; hover geri
+  // bildirimi tasarim sisteminin liste davranisi.
+  return href ? (
+    <Link
+      href={href}
+      className="-mx-2 block rounded-lg px-2 pt-2 transition-colors hover:bg-muted/60"
+    >
+      {content}
+    </Link>
+  ) : (
+    <div className="-mx-2 px-2 pt-2">{content}</div>
+  );
 }
 
 export default function ProjectActivityPage() {
@@ -73,38 +183,105 @@ export default function ProjectActivityPage() {
   const orgId = searchParams.get('orgId') ?? '';
 
   const { data: activities, isLoading } = useGetProjectActivitiesQuery({ projectId });
+  const [showAll, setShowAll] = useState(false);
+
+  // Kayitlar gune gore gruplaniyor; API zaten createdAt'e gore azalan
+  // sirada donduruyor, o yuzden ek bir siralamaya gerek yok.
+  const groups = useMemo(() => {
+    const visible = showAll ? activities ?? [] : (activities ?? []).slice(0, INITIAL_VISIBLE);
+    const map = new Map<string, ActivityEntry[]>();
+    for (const entry of visible) {
+      const key = dayLabel(entry.createdAt);
+      const bucket = map.get(key);
+      if (bucket) bucket.push(entry);
+      else map.set(key, [entry]);
+    }
+    return [...map.entries()];
+  }, [activities, showAll]);
+
+  const total = activities?.length ?? 0;
+  const hasMore = !showAll && total > INITIAL_VISIBLE;
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Aktivite Akışı</h1>
-          <Link href={`/projects/${projectId}?orgId=${orgId}`} className="text-sm text-blue-600 hover:underline">
-            ← Panoya dön
-          </Link>
-        </div>
-
-        {isLoading ? (
-          <p className="text-sm text-zinc-400">Yükleniyor...</p>
-        ) : !activities || activities.length === 0 ? (
-          <p className="text-sm text-zinc-400">Henüz hiçbir aktivite yok.</p>
-        ) : (
-          <ol className="relative border-l border-zinc-200 dark:border-zinc-800 ml-3">
-            {activities.map((entry) => {
-              const Icon = ICONS[entry.type] ?? PencilSquareIcon;
-              return (
-                <li key={entry.id} className="mb-4 ml-6">
-                  <span className="absolute flex items-center justify-center w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 ring-4 ring-zinc-50 dark:ring-zinc-950 -left-3">
-                    <Icon className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                  </span>
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300">{describeActivity(entry)}</p>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500">{timeAgo(entry.createdAt)}</p>
-                </li>
-              );
-            })}
-          </ol>
-        )}
+    <main className="mx-auto w-full max-w-2xl p-4 sm:p-8">
+      <div className="mb-6">
+        <Link
+          href={`/projects/${projectId}${orgId ? `?orgId=${orgId}` : ''}`}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" />
+          Panoya dön
+        </Link>
+        <h1 className="mt-1 text-2xl leading-8 font-semibold tracking-[-0.01em] text-foreground">
+          Aktivite Akışı
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Projede yapılan son {total > 0 ? total : ''} işlem
+        </p>
       </div>
+
+      {/* Level 1 yuzey: 1px kenarlik, golgesiz - tasarim sistemi hiyerarsiyi
+          golgeyle degil tonal katmanlamayla kuruyor. */}
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-6">
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex gap-x-3">
+                <Skeleton className="size-7 shrink-0 rounded-full" />
+                <div className="grow space-y-2 pb-4">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : total === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-sm text-foreground">Henüz hiçbir aktivite yok.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Kart oluşturup taşıdıkça buraya düşecek.
+            </p>
+          </div>
+        ) : (
+          <div className="w-full">
+            {groups.map(([label, entries], groupIndex) => (
+              <React.Fragment key={label}>
+                {/* label-bold: 12px/700/0.02em - tasarim sistemi bolum
+                    basliklarini bu sekilde "metadata" olarak isaretliyor. */}
+                <div className="mb-2 ps-1 not-first:mt-4">
+                  <h2 className="text-xs leading-4 font-bold tracking-[0.02em] uppercase text-muted-foreground">
+                    {label}
+                  </h2>
+                </div>
+                {entries.map((entry, index) => (
+                  <TimelineItem
+                    key={entry.id}
+                    entry={entry}
+                    projectId={projectId}
+                    orgId={orgId}
+                    // Cizgi yalnizca en son grubun en son kaydinda kesiliyor;
+                    // gruplar arasinda akisin devam ettigi gorunmeli.
+                    isLast={
+                      !hasMore && groupIndex === groups.length - 1 && index === entries.length - 1
+                    }
+                  />
+                ))}
+              </React.Fragment>
+            ))}
+
+            {hasMore && (
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="ms-10 inline-flex items-center gap-x-1.5 rounded-md border border-border px-3 py-1 text-xs leading-4 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ChevronDown className="size-3.5 shrink-0" />
+                Daha eskilerini göster ({total - INITIAL_VISIBLE})
+              </button>
+            )}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

@@ -15,7 +15,7 @@ export interface ActivityEntry {
   type: ActivityType;
   createdAt: string;
   data: Record<string, unknown> | null;
-  user: { id: string; name: string };
+  user: { id: string; name: string; avatarUrl: string | null };
   card: { id: string; title: string } | null;
 }
 
