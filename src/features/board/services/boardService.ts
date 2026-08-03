@@ -93,11 +93,6 @@ export interface Task {
   checklistDone?: number;
   /** Kartin ilk gorsel ekinin imzali URL'i - panoda kapak olarak gosterilir */
   coverUrl?: string | null;
-  // undefined = bu Task'i doldururken backend'den hic secilmedi (orn. board
-  // liste endpoint'i), null = secildi ama deger yok. Bu ayrim onemli:
-  // sprintId'yi kasitsizce null'a cevirip mevcut atamayi silmemek icin
-  // updateTask sadece "undefined degil" durumunda bu alani govdeye ekler.
-  sprintId?: string | null;
   parentCardId?: string | null;
   parent?: { id: string; title: string } | null;
   subtasks?: { id: string; title: string; done: boolean }[];
@@ -121,7 +116,6 @@ export interface RawCard {
   labels?: { label: { id: string; name: string; color: string } }[];
   blockedBy?: { blocker: DependencyCard; relationType?: DependencyRelationType }[];
   blocking?: { blocked: DependencyCard; relationType?: DependencyRelationType }[];
-  sprintId?: string | null;
   parentCardId?: string | null;
   parent?: { id: string; title: string } | null;
   subtasks?: { id: string; title: string; column?: { isDone: boolean } }[];
@@ -146,7 +140,6 @@ export function normalizeCard(raw: RawCard): Task {
     labels: raw.labels?.map((cl) => cl.label) ?? [],
     blockedBy: raw.blockedBy?.map((d) => ({ ...d.blocker, relationType: d.relationType ?? 'BLOCKS' })) ?? [],
     blocking: raw.blocking?.map((d) => ({ ...d.blocked, relationType: d.relationType ?? 'BLOCKS' })) ?? [],
-    sprintId: raw.sprintId,
     parentCardId: raw.parentCardId,
     parent: raw.parent,
     subtasks: raw.subtasks?.map((s) => ({ id: s.id, title: s.title, done: s.column?.isDone ?? false })),
@@ -286,7 +279,6 @@ export const boardService = {
     // undefined = bu Task bu alani hic fetch etmedi (orn. board listesi) ->
     // gonderme, mevcut degeri koru. null/string = kullanici gercekten
     // degistirdi (ya da fetch edilmis mevcut deger) -> gonder.
-    if (task.sprintId !== undefined) body.sprintId = task.sprintId;
     if (task.parentCardId !== undefined) body.parentCardId = task.parentCardId;
 
     const res = await fetch(`${API_BASE_URL}/cards/${task.id}`, {

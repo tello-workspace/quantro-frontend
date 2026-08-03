@@ -4,7 +4,7 @@ import { AuthShell } from "@/features/auth/components/AuthShell";
 
 export default function LoginPage() {
   return (
-    <AuthShell tagline="Projelerini, sprintlerini ve ekibini tek panoda yürüt.">
+    <AuthShell tagline="Projelerini ve ekibini tek panoda yürüt.">
       <LoginForm />
     </AuthShell>
   );

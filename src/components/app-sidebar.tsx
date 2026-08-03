@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check, Rocket, Zap, ListPlus, Inbox } from 'lucide-react';
+import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check, Zap, ListPlus, Inbox } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -41,8 +41,8 @@ export function AppSidebar() {
   // Aktif org degisince projeleri o org'un projeleriyle listele
   const activeOrgProjects = projects;
 
-  // Yonetim sayfasindaki aktif sekme (sprints/automations/fields/triage)
-  const activeManageTab = searchParams?.get('tab') ?? 'sprints';
+  // Yonetim sayfasindaki aktif sekme (automations/fields/triage)
+  const activeManageTab = searchParams?.get('tab') ?? 'automations';
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -136,17 +136,6 @@ export function AppSidebar() {
                       {/* Proje secildiginde yonetici perm'i varsa yonetim bolumleri */}
                       {isAdmin && isActive && (
                         <div className="flex flex-col">
-                          <SidebarMenuButton
-                            asChild
-                            isActive={isOnManagePage && activeManageTab === 'sprints'}
-                            tooltip="Sprintler"
-                            className="ml-3"
-                          >
-                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=sprints`}>
-                              <Rocket />
-                              <span>Sprintler</span>
-                            </Link>
-                          </SidebarMenuButton>
                           <SidebarMenuButton
                             asChild
                             isActive={isOnManagePage && activeManageTab === 'automations'}

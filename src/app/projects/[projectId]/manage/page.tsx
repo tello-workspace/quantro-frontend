@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Inbox, ListPlus, Rocket, Zap } from 'lucide-react';
+import { ArrowLeft, Inbox, ListPlus, Zap } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { boardService, type Column } from '@/features/board/services/boardService';
@@ -11,17 +11,15 @@ import { useGetOrganizationByIdQuery } from '@/features/organizations/organizati
 import { useGetProjectByIdQuery } from '@/features/projects/projectsApi';
 import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
-import { useGetSprintsQuery } from '@/features/sprints/sprintsApi';
 import { useGetCustomFieldsQuery } from '@/features/customFields/customFieldsApi';
-import { SprintsSection } from '@/features/sprints/components/SprintsSection';
 import { AutomationRulesSection } from '@/features/automations/components/AutomationRulesSection';
 import { CustomFieldsSection } from '@/features/customFields/components/CustomFieldsSection';
 import { ChangeRequestsSection } from '@/features/requests/components/ChangeRequestsDialog';
 import { useTranslation } from '@/hooks/useTranslation';
 
-type TabKey = 'sprints' | 'automations' | 'fields' | 'triage';
+type TabKey = 'automations' | 'fields' | 'triage';
 
-const TAB_KEYS: TabKey[] = ['sprints', 'automations', 'fields', 'triage'];
+const TAB_KEYS: TabKey[] = ['automations', 'fields', 'triage'];
 
 // Pano ust barinda yan yana duran Sprintler / Otomasyonlar / Ek Alanlar /
 // Triage butonlari filtrelerle birlikte sikisiyordu. Hepsi bu sayfada tek
@@ -41,7 +39,6 @@ export default function ProjectManagePage() {
   const members = org?.members ?? [];
 
   const { data: labels = [] } = useGetLabelsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
-  const { data: sprints = [] } = useGetSprintsQuery({ orgId, projectId }, { skip: !orgId || !projectId });
   const { data: customFields = [] } = useGetCustomFieldsQuery(
     { orgId, projectId },
     { skip: !orgId || !projectId || !isAdmin },
@@ -66,10 +63,10 @@ export default function ProjectManagePage() {
   }, [projectId]);
 
   const tabParam = searchParams.get('tab') as TabKey | null;
-  const requestedTab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'sprints';
-  // Uye kullanici yalnizca Sprintler sekmesini gorur; admin'e ozel bir
-  // sekmeye link ile gelirse sprintlere dusuruyoruz.
-  const activeTab: TabKey = isAdmin || requestedTab === 'sprints' ? requestedTab : 'sprints';
+  const requestedTab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'automations';
+  // Uye kullanici yalnizca Triage sekmesini gorur; admin'e ozel bir
+  // sekmeye link ile gelirse automations'a dusuruyoruz.
+  const activeTab: TabKey = isAdmin || requestedTab === 'triage' ? requestedTab : 'automations';
 
   const handleTabChange = (value: TabKey) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -104,11 +101,7 @@ export default function ProjectManagePage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as TabKey)}>
-          <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4">
-            <TabsTrigger value="sprints" className="gap-1.5 py-1.5">
-              <Rocket className="size-4" /> Sprintler
-              {sprints.length > 0 && <CountBadge value={sprints.length} />}
-            </TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-3">
             {isAdmin && (
               <TabsTrigger value="automations" className="gap-1.5 py-1.5">
                 <Zap className="size-4" /> {t('automations')}
@@ -127,15 +120,6 @@ export default function ProjectManagePage() {
               </TabsTrigger>
             )}
           </TabsList>
-
-          <TabsContent value="sprints" className="mt-5">
-            <SectionShell
-              title="Sprintler"
-              description="Kartları zaman kutulu iterasyonlara ayırıp ilerlemeyi burndown ile takip et."
-            >
-              <SprintsSection orgId={orgId} projectId={projectId} isAdmin={!!isAdmin} />
-            </SectionShell>
-          </TabsContent>
 
           {isAdmin && (
             <TabsContent value="automations" className="mt-5">
