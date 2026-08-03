@@ -18,6 +18,7 @@ import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { BulkActionBar } from './BulkActionBar';
+import { TimelineView } from '@/features/roadmap/components/TimelineView';
 import { useSavedFilters } from '../hooks/useSavedFilters';
 import { CalendarView } from './CalendarView';
 import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
@@ -28,7 +29,7 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal, GanttChartSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
@@ -156,7 +157,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
   const { filters: savedFilters, saveFilter, removeFilter } = useSavedFilters(projectId);
 
-  const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table'>('board');
+  const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table' | 'timeline'>('board');
   // Yonetim sayfasina giden butonda gosterilecek bekleyen triage sayisi
   const { data: changeRequests = [] } = useGetChangeRequestsQuery({ orgId }, { skip: !orgId || !isAdmin });
   const triagePendingCount = changeRequests.filter(
@@ -1160,6 +1161,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           >
             <Table2 className="size-3.5" /> Tablo
           </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('timeline')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'timeline' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <GanttChartSquare className="size-3.5" /> Zaman Çizelgesi
+          </button>
         </div>
 
         {/* Sprintler / Otomasyonlar / Ek Alanlar / Triage tek bir yonetim
@@ -1226,7 +1236,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       </div>
 
       <div className="flex-1 min-h-0 flex gap-4 sm:gap-6 relative overflow-hidden">
-        {viewMode === 'table' ? (
+        {viewMode === 'timeline' ? (
+          <TimelineView projectId={projectId} onCardClick={handleTaskClick} />
+        ) : viewMode === 'table' ? (
           <TableView
             tasks={calendarTasks}
             columns={boardData.columns}

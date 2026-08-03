@@ -258,11 +258,6 @@ export const BoardCard: React.FC<BoardCardProps> = ({
             </span>
           )}
 
-          {task.storyPoints != null && (
-            <span className="inline-flex items-center justify-center min-w-[18px] px-1 py-0.5 rounded-md font-semibold text-[10px] bg-primary/10 text-primary">
-              {task.storyPoints}
-            </span>
-          )}
         </div>
 
         {task.assignees && task.assignees.length > 0 ? (

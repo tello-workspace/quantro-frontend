@@ -1554,26 +1554,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </select>
                   </div>
 
-                  <div>
-                    <label htmlFor="storyPoints" className="block text-sm font-medium text-muted-foreground mb-1">
-                      {t('storyPointsLabel')}
-                    </label>
-                    <Input
-                      type="number"
-                      id="storyPoints"
-                      name="storyPoints"
-                      min={0}
-                      max={999}
-                      value={task.storyPoints ?? ''}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        setTask({ ...task, storyPoints: raw === '' ? null : Number(raw) });
-                      }}
-                      placeholder={t('priorityNone')}
-                      disabled={isFilling}
-                    />
-                  </div>
-
                   {taskId !== 'new' && sprints.length > 0 && (
                     <div>
                       <label htmlFor="sprintId" className="block text-sm font-medium text-muted-foreground mb-1">

@@ -70,7 +70,6 @@ export interface Task {
   columnId: string;
   position?: number;
   priority?: Priority;
-  storyPoints?: number | null;
   lastActivityAt?: string;
   assignees?: TaskAssignee[];
   labels?: TaskLabel[];
@@ -105,7 +104,6 @@ export interface RawCard {
   columnId: string;
   position?: number;
   priority?: Priority;
-  storyPoints?: number | null;
   lastActivityAt?: string;
   assignees?: { user: { id: string; name: string; avatarUrl?: string | null; badges?: { badge: BadgeInfo }[] } }[];
   labels?: { label: { id: string; name: string; color: string } }[];
@@ -128,7 +126,6 @@ export function normalizeCard(raw: RawCard): Task {
     columnId: raw.columnId,
     position: raw.position,
     priority: raw.priority,
-    storyPoints: raw.storyPoints,
     lastActivityAt: raw.lastActivityAt,
     assignees: raw.assignees?.map((a) => ({
       ...a.user,
@@ -263,7 +260,6 @@ export const boardService = {
       // priority eskiden gonderilmiyordu: AI'nin onerdigi (ya da elle
       // secilen) oncelik kaydedilmis gibi gorunup sessizce kayboluyordu
       priority: task.priority,
-      storyPoints: task.storyPoints ?? null,
     };
 
     // assigneeIds SADECE atama gercekten degistiyse gonderilir.

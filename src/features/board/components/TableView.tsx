@@ -11,7 +11,7 @@ interface TableViewProps {
   onTaskClick: (taskId: string) => void;
 }
 
-type SortKey = 'title' | 'columnId' | 'priority' | 'storyPoints' | 'dueDate';
+type SortKey = 'title' | 'columnId' | 'priority' | 'dueDate';
 type SortDir = 'asc' | 'desc';
 
 const PRIORITY_ORDER: Record<Priority, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, URGENT: 3 };
@@ -61,8 +61,6 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
         }
         case 'priority':
           return ((PRIORITY_ORDER[a.priority ?? 'MEDIUM']) - (PRIORITY_ORDER[b.priority ?? 'MEDIUM'])) * dirMul;
-        case 'storyPoints':
-          return ((a.storyPoints ?? -1) - (b.storyPoints ?? -1)) * dirMul;
         case 'dueDate': {
           const ad = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
           const bd = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
@@ -87,7 +85,6 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
     { key: 'title', label: 'Başlık' },
     { key: 'columnId', label: 'Sütun' },
     { key: 'priority', label: 'Öncelik' },
-    { key: 'storyPoints', label: 'Story Point' },
     { key: 'dueDate', label: 'Teslim Tarihi' },
   ];
 
@@ -124,7 +121,6 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
               <td className={`py-2 px-2 font-medium ${PRIORITY_COLOR[task.priority ?? 'MEDIUM']}`}>
                 {PRIORITY_LABEL[task.priority ?? 'MEDIUM']}
               </td>
-              <td className="py-2 px-2 text-muted-foreground">{task.storyPoints ?? '—'}</td>
               <td className="py-2 px-2 text-muted-foreground">
                 {task.dueDate ? new Date(task.dueDate).toLocaleDateString('tr-TR') : '—'}
               </td>
