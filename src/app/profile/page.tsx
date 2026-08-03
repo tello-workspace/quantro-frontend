@@ -283,7 +283,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs defaultValue="profile" className="w-full min-w-0">
         <TabsList className="mb-6 grid w-full grid-cols-3">
           <TabsTrigger value="profile">{t('profileInfo')}</TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center gap-1.5">
@@ -298,9 +298,9 @@ export default function ProfilePage() {
             (profil formu uzun, bildirim tercihleri kisa) ve sekme
             degistirirken sayfa boyu zipliyordu. Kapsayici sabit kalir,
             tasan icerik kartin kendi icinde kayar. */}
-        <div className="h-[clamp(24rem,60vh,42rem)]">
+        <div className="h-[clamp(24rem,60vh,42rem)] w-full min-w-0">
         <TabsContent value="profile" className="h-full">
-          <Card className="h-full">
+          <Card className="h-full min-w-0">
             <CardHeader>
               <CardTitle>{t('profileInfo')}</CardTitle>
               <CardDescription>
@@ -417,7 +417,7 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="ai" className="h-full">
-          <Card className="h-full">
+          <Card className="h-full min-w-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cpu className="size-5 text-primary" />
@@ -560,7 +560,7 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="notifications" className="h-full">
-          <Card className="h-full">
+          <Card className="h-full min-w-0">
             <CardHeader>
               <CardTitle>{t('notificationPrefs')}</CardTitle>
               <CardDescription>
