@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check, SlidersHorizontal } from 'lucide-react';
+import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check, Rocket, Zap, ListPlus, Inbox } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -40,6 +40,9 @@ export function AppSidebar() {
 
   // Aktif org degisince projeleri o org'un projeleriyle listele
   const activeOrgProjects = projects;
+
+  // Yonetim sayfasindaki aktif sekme (sprints/automations/fields/triage)
+  const activeManageTab = searchParams?.get('tab') ?? 'sprints';
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -130,14 +133,54 @@ export function AppSidebar() {
                         </Link>
                       </SidebarMenuButton>
 
-                      {/* Proje secildiginde yonetici perm'i varsa Yönetim linki */}
+                      {/* Proje secildiginde yonetici perm'i varsa yonetim bolumleri */}
                       {isAdmin && isActive && (
-                        <SidebarMenuButton asChild isActive={isOnManagePage} tooltip="Yönetim" className="ml-3">
-                          <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}`}>
-                            <SlidersHorizontal />
-                            <span>Yönetim</span>
-                          </Link>
-                        </SidebarMenuButton>
+                        <div className="flex flex-col">
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isOnManagePage && activeManageTab === 'sprints'}
+                            tooltip="Sprintler"
+                            className="ml-3"
+                          >
+                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=sprints`}>
+                              <Rocket />
+                              <span>Sprintler</span>
+                            </Link>
+                          </SidebarMenuButton>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isOnManagePage && activeManageTab === 'automations'}
+                            tooltip="Otomasyonlar"
+                            className="ml-3"
+                          >
+                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=automations`}>
+                              <Zap />
+                              <span>Otomasyonlar</span>
+                            </Link>
+                          </SidebarMenuButton>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isOnManagePage && activeManageTab === 'fields'}
+                            tooltip="Ek Alanlar"
+                            className="ml-3"
+                          >
+                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=fields`}>
+                              <ListPlus />
+                              <span>Ek Alanlar</span>
+                            </Link>
+                          </SidebarMenuButton>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isOnManagePage && activeManageTab === 'triage'}
+                            tooltip="Triage"
+                            className="ml-3"
+                          >
+                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=triage`}>
+                              <Inbox />
+                              <span>Triage</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </div>
                       )}
                     </SidebarMenuItem>
                   );
