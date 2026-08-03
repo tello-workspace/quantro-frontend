@@ -53,6 +53,11 @@ export const organizationsApi = api.injectEndpoints({
       transformResponse: (response: OrgsResponse) => response.data,
       providesTags: ['Project'],
     }),
+    createOrganization: builder.mutation<{ id: string; name: string }, { name: string; description?: string }>({
+      query: (body) => ({ url: '/organizations', method: 'POST', body }),
+      transformResponse: (response: { success: boolean; data: { id: string; name: string } }) => response.data,
+      invalidatesTags: ['Project'],
+    }),
     addMember: builder.mutation<{ id: string }, { orgId: string; email: string; role?: 'ADMIN' | 'MEMBER' }>({
       query: ({ orgId, ...body }) => ({
         url: `/organizations/${orgId}/members`,
@@ -217,6 +222,7 @@ export const organizationsApi = api.injectEndpoints({
 
 export const {
   useGetMyOrganizationsQuery,
+  useCreateOrganizationMutation,
   useAddMemberMutation,
   useGetOrganizationByIdQuery,
   useUpdateOrganizationMutation,
