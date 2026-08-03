@@ -887,12 +887,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       if (!prev || !prev.tasks[taskId]) return prev;
       return {
         ...prev,
-        tasks: { ...prev.tasks, [taskId]: { ...prev.tasks[taskId], dueDate: newDueDate } },
+        tasks: { ...prev.tasks, [taskId]: { ...prev.tasks[taskId], dueDate: newDueDate, startDate: previousTask.startDate ? newDueDate : undefined } },
       };
     });
 
     try {
-      await boardService.updateTask(projectId, { ...previousTask, dueDate: newDueDate });
+      await boardService.updateTask(projectId, { ...previousTask, dueDate: newDueDate, startDate: previousTask.startDate ? newDueDate : undefined });
     } catch (error) {
       console.error("Kart tarihi güncellenirken hata:", error);
       toast.error(error instanceof Error ? error.message : 'Tarih güncellenemedi.');
