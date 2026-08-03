@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
 import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType } from '@/features/board/services/boardService';
@@ -512,6 +512,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [showDependencyPicker, setShowDependencyPicker] = useState(false);
   const [dependencyRelationType, setDependencyRelationType] = useState<DependencyRelationType>('BLOCKS');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  // Kart detayinda ayar bolumleri (etiket/bagimlilik/ozel alan/checklist/ek)
+  // varsayilan olarak gizli; yalnizca baslik + aciklama + tarih/atanan gorunur.
+  // Cark (ayarlar) butonuyla acilir.
+  const [showSettings, setShowSettings] = useState(false);
   const [templateName, setTemplateName] = useState('');
 
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId || !isOpen });
@@ -983,6 +987,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </>
                   )}
                 </Button>
+
+                {/* Ayar bolumlerini ac/kapat (etiket, bagimlilik, ozel alan vb.) */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setShowSettings((v) => !v)}
+                  title={showSettings ? t('hideSettings') : t('showSettings')}
+                  className="flex items-center gap-1.5 shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </DialogHeader>
 
@@ -1010,6 +1026,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             )}
 
             <div className="space-y-5">
+              {/* AYAR BOLUMLERI: yalnizca cark (ayarlar) butonuna basilinca
+                  gorunur. Varsayilan gorunum: baslik + aciklama + tarih/atanan. */}
+              {showSettings && (
+              <>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                   {t('labelsLabel')}
@@ -1413,6 +1433,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
               )}
 
+              </>
+              )}
+
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-muted-foreground mb-1">
                   {t('descriptionLabel')}
@@ -1610,15 +1633,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
               </div>
 
-              {taskId !== 'new' && (
+              {showSettings && taskId !== 'new' && (
                 <ChecklistSection cardId={task.id} />
               )}
 
-              {taskId !== 'new' && (
+              {showSettings && taskId !== 'new' && (
                 <AttachmentsSection cardId={task.id} isAdmin={isAdmin} />
               )}
 
-              {taskId !== 'new' && (
+              {showSettings && taskId !== 'new' && (
                 <CommentsSection cardId={task.id} members={members} />
               )}
 
