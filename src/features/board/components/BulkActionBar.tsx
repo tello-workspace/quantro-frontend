@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowRightLeft, UserPlus, Tag, Archive, Trash2, X } from 'lucide-react';
+import { UserPlus, Tag, Archive, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -10,11 +10,6 @@ import {
 } from '@/components/ui/popover';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useTranslation } from '@/hooks/useTranslation';
-
-interface Kolon {
-  id: string;
-  title: string;
-}
 
 interface Uye {
   userId: string;
@@ -29,12 +24,10 @@ interface Etiket {
 
 interface Props {
   selectedCount: number;
-  columns: Kolon[];
   members: Uye[];
   labels: Etiket[];
   isAdmin: boolean;
   isRunning: boolean;
-  onMove: (columnId: string) => void;
   onAssign: (assigneeIds: string[]) => void;
   onLabel: (labelId: string) => void;
   onArchive: () => void;
@@ -46,12 +39,10 @@ interface Props {
 // kullanici panoyu kaydirirken secim baglami kaybolmasin.
 export const BulkActionBar: React.FC<Props> = ({
   selectedCount,
-  columns,
   members,
   labels,
   isAdmin,
   isRunning,
-  onMove,
   onAssign,
   onLabel,
   onArchive,
@@ -60,7 +51,7 @@ export const BulkActionBar: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation();
   const confirm = useConfirm();
-  const [acikMenu, setAcikMenu] = useState<'move' | 'assign' | 'label' | null>(null);
+  const [acikMenu, setAcikMenu] = useState<'assign' | 'label' | null>(null);
 
   if (selectedCount === 0) return null;
 
@@ -98,31 +89,6 @@ export const BulkActionBar: React.FC<Props> = ({
         </span>
 
         <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />
-
-        {/* Tasi */}
-        <Popover open={acikMenu === 'move'} onOpenChange={(a) => setAcikMenu(a ? 'move' : null)}>
-          <PopoverTrigger
-            render={
-              <Button variant="ghost" size="sm" disabled={isRunning}>
-                <ArrowRightLeft className="size-3.5" /> {t('bulkMove')}
-              </Button>
-            }
-          />
-          <PopoverContent className="w-52 p-1" align="center">
-            <div className="max-h-64 overflow-y-auto">
-              {columns.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => kapatVeCalistir(() => onMove(c.id))}
-                  className="w-full truncate rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                >
-                  {c.title}
-                </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
 
         {/* Ata - yalnizca admin, backend de ayni kurali uyguluyor */}
         {isAdmin && (

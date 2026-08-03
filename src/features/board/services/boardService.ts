@@ -318,6 +318,8 @@ export const boardService = {
       columnId?: string;
       assigneeIds?: string[];
       labelId?: string;
+      /** Tasima icin kart basina hedef pozisyon; verilmezse sutunun sonuna eklenir */
+      positions?: Record<string, number>;
     },
   ): Promise<{ basarili: string[]; basarisiz: { cardId: string; sebep: string }[] }> {
     const res = await fetch(`${API_BASE_URL}/projects/${projectId}/cards/bulk`, {
