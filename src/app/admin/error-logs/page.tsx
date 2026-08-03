@@ -68,7 +68,7 @@ export default function ErrorLogsPage() {
 
   return (
     <main className="min-h-screen bg-background p-6">
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
             <AlertTriangle className="h-5 w-5 text-destructive" />

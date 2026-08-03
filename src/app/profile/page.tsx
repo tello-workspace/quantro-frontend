@@ -202,7 +202,7 @@ export default function ProfilePage() {
 
   if (isLoading || !me) {
     return (
-      <main className="mx-auto max-w-3xl p-4 sm:p-6">
+      <main className="mx-auto max-w-5xl p-4 sm:p-6">
         <Skeleton className="mb-2 h-8 w-56" />
         <Skeleton className="h-64 w-full rounded-xl" />
       </main>
@@ -210,7 +210,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-4 sm:p-6">
+    <main className="mx-auto max-w-5xl p-4 sm:p-6">
       <div className="mb-6 flex items-center gap-4">
         <div className="relative group/avatar-upload">
           <Avatar size="lg">

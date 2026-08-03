@@ -67,7 +67,6 @@ export const NotificationPrefsSection: React.FC = () => {
           >
             <div>
               <p className="text-sm font-medium text-foreground">{label}</p>
-              <p className="text-[10px] text-muted-foreground font-mono uppercase">{type}</p>
             </div>
             <button
               type="button"
