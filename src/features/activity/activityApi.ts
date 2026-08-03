@@ -26,12 +26,7 @@ export const activityApi = api.injectEndpoints({
       transformResponse: (response: { success: boolean; data: ActivityEntry[] }) => response.data,
       providesTags: (_result, _error, { projectId }) => [{ type: 'Insight', id: `activity-${projectId}` }],
     }),
-    getCardActivities: builder.query<ActivityEntry[], string>({
-      query: (cardId) => `/cards/${cardId}/activities`,
-      transformResponse: (response: { success: boolean; data: ActivityEntry[] }) => response.data,
-      providesTags: (_result, _error, cardId) => [{ type: 'Card', id: `activities-${cardId}` }],
-    }),
   }),
 });
 
-export const { useGetProjectActivitiesQuery, useGetCardActivitiesQuery } = activityApi;
+export const { useGetProjectActivitiesQuery } = activityApi;

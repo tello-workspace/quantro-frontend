@@ -32,7 +32,6 @@ import {
   useDeleteAttachmentMutation,
 } from '@/features/attachments/attachmentsApi';
 import { compressImageClient } from '@/features/attachments/imageCompression';
-import { ActivitySection } from '@/features/activity/ActivitySection';
 import {
   useGetChecklistQuery,
   useCreateChecklistItemMutation,
@@ -1596,10 +1595,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
               {taskId !== 'new' && (
                 <AttachmentsSection cardId={task.id} isAdmin={isAdmin} />
-              )}
-
-              {taskId !== 'new' && (
-                <ActivitySection cardId={task.id} />
               )}
 
               {taskId !== 'new' && (
