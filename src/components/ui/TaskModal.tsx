@@ -998,10 +998,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="xs"
+                    size="icon-sm"
                     onClick={() => setShowSettings((v) => !v)}
                     title={showSettings ? t('hideSettings') : t('showSettings')}
-                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                    aria-label={showSettings ? t('hideSettings') : t('showSettings')}
                   >
                     <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
                   </Button>
