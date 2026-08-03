@@ -307,6 +307,29 @@ export const boardService = {
     if (!res.ok) throw new Error('Görev arşivlenemedi.');
   },
 
+  // Toplu islem: tek istek, kart basina bagimsiz sonuc. Basarili/basarisiz
+  // ayrimi doniyor cunku secimdeki bazi kartlarda yetki yetmeyebilir
+  // (orn. uye icin silme) ve kismi basariyi gizlemek yaniltici olur.
+  async bulkCardAction(
+    projectId: string,
+    payload: {
+      cardIds: string[];
+      action: 'move' | 'assign' | 'label' | 'archive' | 'delete';
+      columnId?: string;
+      assigneeIds?: string[];
+      labelId?: string;
+    },
+  ): Promise<{ basarili: string[]; basarisiz: { cardId: string; sebep: string }[] }> {
+    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/cards/bulk`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(await readApiError(res, 'Toplu işlem uygulanamadı.'));
+    const json = await res.json();
+    return json.data;
+  },
+
   async updateColumn(columnId: string, data: { name?: string; wipLimit?: number | null }): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/columns/${columnId}`, {
       method: 'PATCH',
