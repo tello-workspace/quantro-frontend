@@ -58,7 +58,7 @@ export const FileUpload = ({
       <motion.div
         onClick={handleClick}
         whileHover="animate"
-        className="group/file relative block w-full cursor-pointer overflow-hidden rounded-lg border border-dashed border-border bg-muted/30 p-6"
+        className="group/file relative isolate block w-full cursor-pointer overflow-hidden rounded-lg border border-dashed border-border bg-muted/30 p-6"
       >
         <input
           ref={fileInputRef}

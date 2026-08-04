@@ -1784,7 +1784,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       >
                         <span className="flex items-center gap-1.5">
                           {task.priority && <PriorityIcon priority={task.priority} />}
-                          <SelectValue />
+                          {/* SelectValue, ogeler karmasik cocuk (ikon + metin)
+                              icerdiginde etiketi cikaramiyor ve HAM DEGERI
+                              yaziyordu ("MEDIUM"). Bicimlendirici fonksiyonla
+                              cevrilmis metne esliyoruz. */}
+                          <SelectValue>
+                            {(deger: string | null) =>
+                              !deger || deger === 'NONE'
+                                ? t('priorityNone')
+                                : t(
+                                    `priority${deger.charAt(0)}${deger.slice(1).toLowerCase()}` as Parameters<
+                                      typeof t
+                                    >[0],
+                                  )
+                            }
+                          </SelectValue>
                         </span>
                       </SelectTrigger>
                       <SelectContent>
