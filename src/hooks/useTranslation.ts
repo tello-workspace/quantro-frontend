@@ -494,6 +494,7 @@ const translations = {
     // Sutun katlama
     doubleClickToCollapse: "Daraltmak için çift tıkla",
     doubleClickToExpand: "Genişletmek için çift tıkla",
+    assignToMe: "Bana ata",
   },
   en: {
     // General Buttons & Controls
@@ -987,6 +988,7 @@ const translations = {
     // Sutun katlama
     doubleClickToCollapse: "Double-click to collapse",
     doubleClickToExpand: "Double-click to expand",
+    assignToMe: "Assign to me",
   }
 };
 

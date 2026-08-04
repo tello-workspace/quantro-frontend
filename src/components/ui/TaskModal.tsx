@@ -511,6 +511,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 }) => {
   const confirm = useConfirm();
   const { t, lang } = useTranslation();
+  const { data: me } = useGetMeQuery();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
@@ -1622,6 +1623,25 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         </button>
                       </Badge>
                     ))}
+
+                    {/* "Bana ata" kisayolu: en sik yapilan atama kendine
+                        yapilan atama; listeyi acip kendini aramak gereksiz
+                        bir adim. Yalnizca kullanici HENUZ atanmamissa
+                        gosteriliyor - atanmisken buton bir sey yapmazdi.
+                        members kontrolu sart: handleToggleAssignee uye
+                        listesinde bulamadigi kisiyi sessizce yok sayiyor. */}
+                    {me && !(task.assignees ?? []).some((a) => a.id === me.id) &&
+                      members.some((m) => m.userId === me.id) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          onClick={() => handleToggleAssignee(me.id)}
+                          disabled={isFilling}
+                        >
+                          {t('assignToMe')}
+                        </Button>
+                      )}
 
                     <div className="relative">
                       <Button
