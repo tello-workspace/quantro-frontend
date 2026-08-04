@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/hooks/useConfirm';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CustomFieldsSectionProps {
   orgId: string;
@@ -29,6 +30,7 @@ const TYPE_LABEL: Record<CustomFieldType, string> = {
 // Projeye ozel kart alanlari (Jira'daki Custom Fields). Onceden panodaki
 // "Ek Alanlar" butonunun actigi dialog'du; artik yonetim sayfasinda sekme.
 export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId, projectId }) => {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const { data: fields = [], isLoading } = useGetCustomFieldsQuery(
     { orgId, projectId },
@@ -94,9 +96,9 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId,
   return (
     <div className="space-y-3">
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Yükleniyor...</p>
+        <p className="text-sm text-muted-foreground">{t('loading')}</p>
       ) : fields.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Henüz bir ek alan yok.</p>
+        <p className="text-sm text-muted-foreground">{t('noCustomFields')}</p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {fields.map((field) => (
@@ -115,7 +117,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId,
                 type="button"
                 onClick={() => handleDelete(field.id)}
                 className="text-muted-foreground hover:text-destructive shrink-0"
-                title="Alanı sil"
+                title={t('deleteFieldTitle')}
               >
                 <Trash2 className="size-4" />
               </button>
@@ -130,7 +132,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId,
         </Button>
       ) : (
         <form onSubmit={handleCreate} className="max-w-md space-y-2 rounded-xl border border-border p-4">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Alan adı (örn: Ortam)" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('fieldNamePlaceholder')} />
           <select
             value={type}
             onChange={(e) => setType(e.target.value as CustomFieldType)}
@@ -153,9 +155,9 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId,
                       addOption();
                     }
                   }}
-                  placeholder="Seçenek yaz, Enter'a bas"
+                  placeholder={t('fieldOptionPlaceholder')}
                 />
-                <Button type="button" variant="outline" size="sm" onClick={addOption}>Ekle</Button>
+                <Button type="button" variant="outline" size="sm" onClick={addOption}>{t('add')}</Button>
               </div>
               {options.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
@@ -173,8 +175,8 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId,
           )}
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={resetForm}>İptal</Button>
-            <Button type="submit" size="sm" disabled={isCreating}>Kaydet</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={resetForm}>{t('cancel')}</Button>
+            <Button type="submit" size="sm" disabled={isCreating}>{t('save')}</Button>
           </div>
         </form>
       )}

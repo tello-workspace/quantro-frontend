@@ -16,8 +16,10 @@ import { useConfirm } from '@/hooks/useConfirm';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Bot } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function ProjectDetailPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -91,7 +93,7 @@ export default function ProjectDetailPage() {
                   autoFocus
                 />
                 <Button type="submit" disabled={isUpdating} size="sm">Kaydet</Button>
-                <Button type="button" variant="ghost" onClick={() => setIsEditing(false)} size="sm">İptal</Button>
+                <Button type="button" variant="ghost" onClick={() => setIsEditing(false)} size="sm">{t('cancel')}</Button>
               </form>
             ) : (
               <>

@@ -17,6 +17,7 @@ import {
 import { useGetMyOrganizationsQuery, useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const NAV_ITEMS = [
   { href: '/projects', label: 'Panolarım', icon: LayoutGrid },
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
 ];
 
 export function AppSidebar() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const orgId = searchParams?.get('orgId');
@@ -87,7 +89,7 @@ export function AppSidebar() {
 
         {/* Ana menü */}
         <SidebarGroup>
-          <SidebarGroupLabel>Menü</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('menuLabel')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {

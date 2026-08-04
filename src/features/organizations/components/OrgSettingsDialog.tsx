@@ -27,6 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useConfirm } from '@/hooks/useConfirm';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface OrgSettingsDialogProps {
   orgId: string;
@@ -55,6 +56,7 @@ const renderBadgeIcon = (icon: string | null, className: string = "size-4") => {
 };
 
 export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isAdmin, open, onOpenChange }) => {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const { data: org, isLoading: orgLoading } = useGetOrganizationByIdQuery({ orgId }, { skip: !open || !orgId });
   const { data: badges = [], isLoading: badgesLoading } = useListBadgesQuery({ orgId }, { skip: !open || !orgId });
@@ -245,8 +247,8 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                               : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
                           }`}
                         >
-                          <option value="MEMBER" className="bg-background text-foreground text-xs font-normal">Üye</option>
-                          <option value="ADMIN" className="bg-background text-foreground text-xs font-normal">Admin</option>
+                          <option value="MEMBER" className="bg-background text-foreground text-xs font-normal">{t('roleMember')}</option>
+                          <option value="ADMIN" className="bg-background text-foreground text-xs font-normal">{t('roleAdmin')}</option>
                         </select>
                       ) : (
                         !isOwner && (
@@ -286,7 +288,7 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                           </PopoverTrigger>
                           <PopoverContent align="start" className="w-60 p-2 border border-border/85 bg-popover text-popover-foreground rounded-xl shadow-lg">
                             <div className="space-y-1.5">
-                              <p className="text-[11px] font-semibold text-muted-foreground px-2 py-1">Rozetleri Aç / Kapat</p>
+                              <p className="text-[11px] font-semibold text-muted-foreground px-2 py-1">{t('toggleBadges')}</p>
                               <div className="max-h-48 overflow-y-auto no-scrollbar space-y-0.5">
                                 {badges.map(b => {
                                   const isAssigned = userBadges.some((ub: any) => ub.id === b.id);
@@ -316,7 +318,7 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                                   );
                                 })}
                                 {badges.length === 0 && (
-                                  <p className="text-xs text-muted-foreground text-center py-4">Henüz rozet oluşturulmamış.</p>
+                                  <p className="text-xs text-muted-foreground text-center py-4">{t('noBadgesYetDot')}</p>
                                 )}
                               </div>
                             </div>
@@ -330,7 +332,7 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                     <button
                       onClick={() => handleRemoveMember(m.userId, m.user.name)}
                       className="shrink-0 size-8 flex items-center justify-center rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all ml-2 cursor-pointer"
-                      title="Üyeyi Organizasyondan Çıkar"
+                      title={t('removeMemberFromOrg')}
                     >
                       <X className="size-4" />
                     </button>
@@ -348,10 +350,10 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
             {showNewBadgeForm ? (
               <form onSubmit={handleCreateBadge} className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Rozet Adı</label>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">{t('badgeNameLabel')}</label>
                   <Input
                     className="h-9 text-sm"
-                    placeholder="örn: Backend, Frontend, DevOps"
+                    placeholder={t('badgeNamePlaceholder')}
                     value={badgeName}
                     onChange={e => setBadgeName(e.target.value)}
                     autoFocus
@@ -376,7 +378,7 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">İkon (opsiyonel)</label>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">{t('iconOptional')}</label>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     <button
                       type="button"
@@ -403,12 +405,12 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                   <div className="space-y-2">
                     <Input
                       className="h-9 text-xs"
-                      placeholder="Veya özel PNG/görsel URL'si girin"
+                      placeholder={t('customImageUrlPlaceholder')}
                       value={badgeIcon.startsWith('http') ? badgeIcon : ''}
                       onChange={e => setBadgeIcon(e.target.value)}
                     />
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-muted-foreground">Veya Görsel Yükle:</span>
+                      <span className="text-xs font-semibold text-muted-foreground">{t('orUploadImage')}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -418,7 +420,7 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                     </div>
                     {badgeIcon && (badgeIcon.startsWith('http') || badgeIcon.startsWith('data:')) && (
                       <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-card">
-                        <span className="text-xs font-semibold text-muted-foreground">Önizleme:</span>
+                        <span className="text-xs font-semibold text-muted-foreground">{t('previewLabel')}</span>
                         <img src={badgeIcon} alt="Önizleme" className="size-6 object-contain rounded" />
                       </div>
                     )}
@@ -450,8 +452,8 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
             {badges.length === 0 && !showNewBadgeForm && (
               <div className="flex flex-col items-center py-8 text-center">
                 <ShieldPlus className="size-8 text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground">Henüz rozet oluşturulmamış</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Admin olarak yeni rozetler ekleyip üyelere atayabilirsin</p>
+                <p className="text-sm text-muted-foreground">{t('noBadgesYet')}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">{t('badgesAdminHint')}</p>
               </div>
             )}
 

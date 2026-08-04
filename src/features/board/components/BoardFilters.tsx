@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { Priority } from '../services/boardService';
 import type { Label } from '@/features/labels/labelsApi';
 import type { SavedFilter } from '../hooks/useSavedFilters';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const PRIORITIES: { value: Priority; label: string; dot: string }[] = [
   { value: 'URGENT', label: 'Acil', dot: 'bg-red-500' },
@@ -60,6 +61,7 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
   onApplyFilter,
   onRemoveFilter,
 }) => {
+  const { t } = useTranslation();
   const [menuAcik, setMenuAcik] = useState(false);
   const [yeniAd, setYeniAd] = useState('');
 
@@ -223,7 +225,7 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
                         kaydet();
                       }
                     }}
-                    placeholder="Filtre adı"
+                    placeholder={t('filterNamePlaceholder')}
                     className="min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 py-1 text-sm outline-none focus-visible:border-ring"
                   />
                   <button

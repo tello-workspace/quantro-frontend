@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface OrgSearchDialogProps {
   orgId: string;
@@ -32,6 +33,7 @@ const PRIORITY_LABEL: Record<string, string> = {
 // filtreler. Bu dialog org'daki TUM projelerin kartlarinda arar; "hangi
 // projedeydi hatirlamiyorum" durumunu cozer.
 export const OrgSearchDialog: React.FC<OrgSearchDialogProps> = ({ orgId, open, onOpenChange }) => {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const [trigger, { data: results, isFetching }] = useLazySearchOrganizationQuery();
 
@@ -78,7 +80,7 @@ export const OrgSearchDialog: React.FC<OrgSearchDialogProps> = ({ orgId, open, o
           )}
 
           {!isFetching && q.trim().length >= 2 && results?.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">Sonuç bulunamadı.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t('noResultsFound')}</p>
           )}
 
           {!isFetching &&

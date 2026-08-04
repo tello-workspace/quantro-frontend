@@ -5,6 +5,7 @@ import { ZoomIn, ZoomOut, CalendarRange } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGetProjectRoadmapQuery, RoadmapCard } from '../roadmapApi';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Props {
   projectId: string;
@@ -47,6 +48,7 @@ function aralik(c: RoadmapCard): { bas: Date; bit: Date } | null {
 }
 
 export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
+  const { t } = useTranslation();
   const { data, isLoading } = useGetProjectRoadmapQuery({ projectId });
   const [zoom, setZoom] = useState(1); // ZOOM_KADEMELERI indeksi
   const kaydirmaRef = useRef<HTMLDivElement>(null);
@@ -131,7 +133,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <CalendarRange className="mb-3 size-8 text-muted-foreground" />
-        <p className="text-sm text-foreground">Zaman çizelgesinde gösterilecek kart yok.</p>
+        <p className="text-sm text-foreground">{t('noTimelineCards')}</p>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
           Kartlara başlangıç veya bitiş tarihi ekleyince burada görünürler.
         </p>
@@ -174,7 +176,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
             type="button"
             onClick={() => setZoom((z) => Math.max(0, z - 1))}
             disabled={zoom === 0}
-            aria-label="Uzaklaştır"
+            aria-label={t('zoomOut')}
             className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <ZoomOut className="size-3.5" />
@@ -183,7 +185,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
             type="button"
             onClick={() => setZoom((z) => Math.min(ZOOM_KADEMELERI.length - 1, z + 1))}
             disabled={zoom === ZOOM_KADEMELERI.length - 1}
-            aria-label="Yakınlaştır"
+            aria-label={t('zoomIn')}
             className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <ZoomIn className="size-3.5" />

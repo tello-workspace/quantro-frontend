@@ -17,6 +17,7 @@ import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGetProjectActivitiesQuery, ActivityEntry, ActivityType } from '@/features/activity/activityApi';
+import { useTranslation } from '@/hooks/useTranslation';
 
 // Ilk ekranda gosterilecek kayit sayisi. Gerisi "Daha eskilerini goster"
 // arkasinda duruyor - akis 50 kayda kadar cikabiliyor ve tamami birden
@@ -177,6 +178,7 @@ function TimelineItem({ entry, projectId, orgId, isLast }: TimelineItemProps) {
 }
 
 export default function ProjectActivityPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const searchParams = useSearchParams();
   const projectId = params?.projectId as string;
@@ -237,7 +239,7 @@ export default function ProjectActivityPage() {
           </div>
         ) : total === 0 ? (
           <div className="py-12 text-center">
-            <p className="text-sm text-foreground">Henüz hiçbir aktivite yok.</p>
+            <p className="text-sm text-foreground">{t('noActivityYet')}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Kart oluşturup taşıdıkça buraya düşecek.
             </p>

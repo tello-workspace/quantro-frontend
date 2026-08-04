@@ -1222,7 +1222,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   if (related.length === 0) return null;
                   return (
                     <div className="mb-2">
-                      <p className="text-xs text-muted-foreground mb-1">İlişkili kartlar:</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t('relatedCards')}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {related.map((b) => (
                           <Badge
@@ -1320,14 +1320,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
                   {task.parent ? (
                     <div className="mb-2">
-                      <p className="text-xs text-muted-foreground mb-1">Üst görev:</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t('parentTaskLabel')}</p>
                       <Badge variant="outline" className="flex items-center gap-1 pl-2 pr-1 w-fit">
                         {task.parent.title}
                         <button
                           type="button"
                           onClick={() => handleSetParent(null)}
                           className="hover:bg-black/10 rounded-sm p-0.5"
-                          aria-label="Üst görevi kaldır"
+                          aria-label={t('removeParentTask')}
                         >
                           <XMarkIcon className="h-3 w-3" />
                         </button>
@@ -1443,7 +1443,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                               onChange={(e) => handleSetCustomFieldValue(field.id, e.target.value || null)}
                               className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
                             >
-                              <option value="" className="bg-popover">Seç...</option>
+                              <option value="" className="bg-popover">{t('automationSelect')}</option>
                               {field.options.map((opt) => (
                                 <option key={opt} value={opt} className="bg-popover">{opt}</option>
                               ))}

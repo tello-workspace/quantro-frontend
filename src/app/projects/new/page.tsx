@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function NewProjectPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const orgId = searchParams.get('orgId');
@@ -44,7 +46,7 @@ export default function NewProjectPage() {
       <Card>
         <CardHeader>
           <CardTitle>Yeni Proje</CardTitle>
-          <CardDescription>Takımınla birlikte çalışacağın yeni bir proje oluştur.</CardDescription>
+          <CardDescription>{t('newProjectDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {errorMsg && (
@@ -55,19 +57,19 @@ export default function NewProjectPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Proje adı</label>
+              <label className="text-sm font-medium">{t('projectNameLabel')}</label>
               <Input
                 type="text"
-                placeholder="Proje adı"
+                placeholder={t('projectNameLabel')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Açıklama (opsiyonel)</label>
+              <label className="text-sm font-medium">{t('descriptionOptional')}</label>
               <Textarea
-                placeholder="Açıklama"
+                placeholder={t('descriptionLabel')}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}

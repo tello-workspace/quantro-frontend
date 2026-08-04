@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { AppDispatch } from '@/lib/store';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface OrgChatPanelProps {
   orgId: string;
@@ -51,6 +52,7 @@ function initials(name?: string): string {
 }
 
 export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onClose }) => {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const { data: me } = useGetMeQuery();
   const { data: messages = [], isLoading } = useGetChatMessagesQuery(orgId, { skip: !orgId });
@@ -215,7 +217,7 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
             <span className="mb-3 flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
               <MessagesSquare className="size-5" />
             </span>
-            <p className="text-sm font-medium text-foreground">Henüz mesaj yok</p>
+            <p className="text-sm font-medium text-foreground">{t('noMessagesYet')}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               İlk mesajı sen yaz, ekipteki herkes anında görsün.
             </p>
@@ -266,7 +268,7 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
           maxLength={2000}
           className="flex-1"
         />
-        <Button type="submit" size="icon" disabled={!input.trim() || isSending} aria-label="Gönder">
+        <Button type="submit" size="icon" disabled={!input.trim() || isSending} aria-label={t('send')}>
           <Send className="h-4 w-4" />
         </Button>
       </form>

@@ -9,6 +9,7 @@ import {
 } from '@/features/insights/insightsApi';
 import { WorkloadBarChart } from '@/features/insights/components/WorkloadBarChart';
 import { WipMeter } from '@/features/insights/components/WipMeter';
+import { useTranslation } from '@/hooks/useTranslation';
 
 function timeAgo(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / (24 * 60 * 60 * 1000));
@@ -24,6 +25,7 @@ function daysUntil(iso: string): string {
 }
 
 export default function ProjectInsightsPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const searchParams = useSearchParams();
   const projectId = params?.projectId as string;
@@ -36,7 +38,7 @@ export default function ProjectInsightsPage() {
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
       <div className="max-w-5xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">İçgörüler</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{t('insightsTitle')}</h1>
           <Link
             href={`/projects/${projectId}?orgId=${orgId}`}
             className="text-sm text-blue-600 hover:underline"
@@ -51,12 +53,12 @@ export default function ProjectInsightsPage() {
             Bu Hafta
           </h2>
           {summaryLoading ? (
-            <p className="text-sm text-zinc-400">Yükleniyor...</p>
+            <p className="text-sm text-zinc-400">{t('loading')}</p>
           ) : summary ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                 <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{summary.cardsCreated}</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Açılan kart</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('cardsOpened')}</p>
               </div>
               <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                 <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{summary.cardsCompleted}</p>
@@ -70,14 +72,14 @@ export default function ProjectInsightsPage() {
                 <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">
                   {summary.mostActiveMember?.userName ?? '—'}
                 </p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">En aktif üye</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('mostActiveMember')}</p>
               </div>
             </div>
           ) : null}
         </section>
 
         {insightsLoading ? (
-          <p className="text-sm text-zinc-400">Yükleniyor...</p>
+          <p className="text-sm text-zinc-400">{t('loading')}</p>
         ) : insights ? (
           <>
             {/* WIP ihlalleri */}
@@ -86,7 +88,7 @@ export default function ProjectInsightsPage() {
                 Darboğazlar {insights.wipViolations.length > 0 && `(${insights.wipViolations.length})`}
               </h2>
               {insights.wipViolations.length === 0 ? (
-                <p className="text-sm text-zinc-400">WIP limiti aşan sütun yok.</p>
+                <p className="text-sm text-zinc-400">{t('noWipExceeded')}</p>
               ) : (
                 <div className="space-y-2">
                   {insights.wipViolations.map((w) => (

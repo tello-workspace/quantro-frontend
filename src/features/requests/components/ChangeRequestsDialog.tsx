@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface BodyProps {
   orgId: string;
@@ -237,6 +238,7 @@ function TalepIcerigi({
   editedPayload?: any;
   members?: any[];
 }) {
+  const { t } = useTranslation();
   const p = editedPayload ?? request.payload ?? {};
 
   if (request.type === 'CARD_DELETE') {
@@ -310,7 +312,7 @@ function TalepIcerigi({
         ) : (
           <div className="flex gap-2 text-xs italic text-muted-foreground/45 px-1">
             <AlignLeft className="size-3.5 shrink-0 text-muted-foreground/30" />
-            <span>Açıklama belirtilmemiş</span>
+            <span>{t('noDescriptionGiven')}</span>
           </div>
         )}
 
@@ -320,7 +322,7 @@ function TalepIcerigi({
           {p.dueDate && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="size-3.5 text-primary/70 shrink-0" />
-              <span>Bitiş: <strong className="text-foreground/90 font-medium">{p.dueDate.split('T')[0]}</strong></span>
+              <span>{t('dueLabelShort')}<strong className="text-foreground/90 font-medium">{p.dueDate.split('T')[0]}</strong></span>
             </div>
           )}
           
@@ -382,6 +384,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
   renderHeader,
   listClassName,
 }) => {
+  const { t } = useTranslation();
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId });
   const members = org?.members ?? [];
 
@@ -560,7 +563,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
                         [request.id]: { ...prev[request.id], description: e.target.value },
                       }))
                     }
-                    placeholder="Açıklama ekleyin..."
+                    placeholder={t('addDescriptionPlaceholder')}
                   />
                 </div>
 
@@ -596,10 +599,10 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
                       }
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                     >
-                      <option value="LOW" className="text-foreground bg-popover">Düşük</option>
-                      <option value="MEDIUM" className="text-foreground bg-popover">Orta</option>
-                      <option value="HIGH" className="text-foreground bg-popover">Yüksek</option>
-                      <option value="URGENT" className="text-foreground bg-popover">Acil</option>
+                      <option value="LOW" className="text-foreground bg-popover">{t('priorityLow')}</option>
+                      <option value="MEDIUM" className="text-foreground bg-popover">{t('priorityMedium')}</option>
+                      <option value="HIGH" className="text-foreground bg-popover">{t('priorityHigh')}</option>
+                      <option value="URGENT" className="text-foreground bg-popover">{t('priorityUrgent')}</option>
                     </select>
                   </div>
                 </div>
@@ -698,7 +701,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
 
         {gecmis.length > 0 && (
           <>
-            <p className="pt-4 text-sm font-semibold text-muted-foreground border-t border-border/40">Sonuçlanan Talepler</p>
+            <p className="pt-4 text-sm font-semibold text-muted-foreground border-t border-border/40">{t('resolvedRequests')}</p>
             {gecmis.map((request) => (
               <div
                 key={request.id}

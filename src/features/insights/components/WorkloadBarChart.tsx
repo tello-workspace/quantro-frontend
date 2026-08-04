@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { WorkloadEntry } from '../insightsApi';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface WorkloadBarChartProps {
   workload: WorkloadEntry[];
@@ -15,10 +16,11 @@ const NORMAL_BAR = 'bg-zinc-300 dark:bg-zinc-600';
 const OVERLOADED_BAR = 'bg-[#d03b3b]';
 
 export const WorkloadBarChart: React.FC<WorkloadBarChartProps> = ({ workload }) => {
+  const { t } = useTranslation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   if (workload.length === 0) {
-    return <p className="text-sm text-zinc-400">Henüz atanmış aktif kart yok.</p>;
+    return <p className="text-sm text-zinc-400">{t('noAssignedActiveCards')}</p>;
   }
 
   const maxLoad = Math.max(...workload.map((w) => w.weightedLoad));

@@ -129,8 +129,8 @@ export default function Header(){
               <button
                 type="button"
                 onClick={toggleSidebar}
-                title="Menü"
-                aria-label="Menü"
+                title={t('menuLabel')}
+                aria-label={t('menuLabel')}
                 className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:text-primary"
               >
                 <span

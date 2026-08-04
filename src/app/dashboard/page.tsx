@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, ListChecks } from 'lucide-react';
 import type { Priority } from '@/features/board/services/boardService';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const PRIORITY_LABEL: Record<Priority, string> = { LOW: 'Düşük', MEDIUM: 'Orta', HIGH: 'Yüksek', URGENT: 'Acil' };
 const PRIORITY_COLOR: Record<Priority, string> = {
@@ -20,6 +21,7 @@ const PRIORITY_COLOR: Record<Priority, string> = {
 // ayri acilmadan tum organizasyonlardaki atanmis kartlar tek listede,
 // teslim tarihine gore siralanmis halde.
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { data: cards = [], isLoading } = useGetMyAssignedCardsQuery();
 
   return (
@@ -36,7 +38,7 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : cards.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Şu anda sana atanmış, bitmemiş bir kart yok.</p>
+        <p className="text-sm text-muted-foreground">{t('dashboardNoCards')}</p>
       ) : (
         <div className="space-y-3">
           {cards.map((card) => (

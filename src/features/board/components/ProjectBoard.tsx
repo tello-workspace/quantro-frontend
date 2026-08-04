@@ -1299,13 +1299,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           <select
             value={groupBy}
             onChange={(e) => setGroupBy(e.target.value as typeof groupBy)}
-            title="Kartları yatay şeritlere ayır"
+            title={t('swimlaneToggleTitle')}
             className="shrink-0 rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:border-ring"
           >
             <option value="none">Gruplama yok</option>
-            <option value="assignee">Atanana göre</option>
-            <option value="priority">Önceliğe göre</option>
-            <option value="epic">Epic&apos;e göre</option>
+            <option value="assignee">{t('byAssignee')}</option>
+            <option value="priority">{t('byPriority')}</option>
+            <option value="epic">{t('byEpic')}</option>
           </select>
         )}
 

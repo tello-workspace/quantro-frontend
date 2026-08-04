@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface OrgMembersDialogProps {
   orgId: string;
@@ -34,6 +35,7 @@ function initials(name: string): string {
 // Uye listesi tum organizasyon uyelerine acik (backend zaten herkese donuyor).
 // Uyeyi cikarma/davet yonetimi gibi admin islemleri Ayarlar panelinde kaliyor.
 export const OrgMembersDialog: React.FC<OrgMembersDialogProps> = ({ orgId, open, onOpenChange }) => {
+  const { t } = useTranslation();
   const { data: me } = useGetMeQuery();
   const { data: org, isLoading } = useGetOrganizationByIdQuery({ orgId }, { skip: !open || !orgId });
 
@@ -68,7 +70,7 @@ export const OrgMembersDialog: React.FC<OrgMembersDialogProps> = ({ orgId, open,
         )}
 
         {!isLoading && members.length === 0 && (
-          <p className="text-sm text-muted-foreground">Bu organizasyonda üye yok.</p>
+          <p className="text-sm text-muted-foreground">{t('noMembersInOrg')}</p>
         )}
 
         <ul className="max-h-[60vh] space-y-2 overflow-y-auto">

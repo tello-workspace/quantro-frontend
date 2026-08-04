@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Props {
   orgId: string;
@@ -33,6 +34,7 @@ export const CreateCardRequestDialog: React.FC<Props> = ({
   open,
   onOpenChange,
 }) => {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM');
@@ -142,7 +144,7 @@ export const CreateCardRequestDialog: React.FC<Props> = ({
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={isFilling || isLoading}
                 className="w-full text-lg font-semibold bg-transparent focus:outline-none focus:ring-1 focus:ring-ring rounded-md px-1 -mx-1 text-foreground border-b border-border/40 pb-1"
-                placeholder="Görev Başlığı yazın..."
+                placeholder={t('reqTitlePlaceholder')}
               />
             </div>
             <Button
@@ -186,16 +188,16 @@ export const CreateCardRequestDialog: React.FC<Props> = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isFilling || isLoading}
-                placeholder="Görevle ilgili ayrıntılı bilgi ekleyin..."
+                placeholder={t('reqDescPlaceholder')}
                 className={isFilling ? "opacity-30" : ""}
               />
               {isFilling && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 rounded-md backdrop-blur-[1px] border border-dashed border-blue-300 dark:border-blue-800 animate-pulse">
                   <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium text-sm">
                     <SparklesIcon className="h-5 w-5 animate-bounce" />
-                    <span>AI görevi detaylandırıyor...</span>
+                    <span>{t('aiFillingDetails')}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground mt-1">İş yükü analizi ve açıklama oluşturuluyor</span>
+                  <span className="text-xs text-muted-foreground mt-1">{t('aiFillingDesc')}</span>
                 </div>
               )}
             </div>
@@ -228,10 +230,10 @@ export const CreateCardRequestDialog: React.FC<Props> = ({
                   disabled={isFilling || isLoading}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
                 >
-                  <option value="LOW" className="text-foreground bg-popover">Düşük</option>
-                  <option value="MEDIUM" className="text-foreground bg-popover">Orta</option>
-                  <option value="HIGH" className="text-foreground bg-popover">Yüksek</option>
-                  <option value="URGENT" className="text-foreground bg-popover">Acil</option>
+                  <option value="LOW" className="text-foreground bg-popover">{t('priorityLow')}</option>
+                  <option value="MEDIUM" className="text-foreground bg-popover">{t('priorityMedium')}</option>
+                  <option value="HIGH" className="text-foreground bg-popover">{t('priorityHigh')}</option>
+                  <option value="URGENT" className="text-foreground bg-popover">{t('priorityUrgent')}</option>
                 </select>
               </div>
             </div>
@@ -257,7 +259,7 @@ export const CreateCardRequestDialog: React.FC<Props> = ({
                         disabled={isFilling || isLoading}
                         className="hover:bg-black/10 rounded-sm p-0.5"
                       >
-                        <span className="sr-only">Kaldır</span>
+                        <span className="sr-only">{t('removeBtn')}</span>
                         &times;
                       </button>
                     </Badge>
