@@ -13,6 +13,7 @@ import {
 } from '@/features/auth/meApi';
 import { useTestAiConfigurationMutation } from '@/features/ai/aiApi';
 import { NotificationPrefsSection } from '@/features/notifications/NotificationPrefsSection';
+import { ApiTokensSection } from '@/features/auth/components/ApiTokensSection';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -23,7 +24,7 @@ import { MotionButton } from '@/components/ui/motion-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TagInput } from '@/components/ui/TagInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Bell } from 'lucide-react';
+import { Camera, Bell, KeyRound } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Eye, EyeOff, Sparkles, Cpu, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -318,13 +319,16 @@ export default function ProfilePage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full min-w-0">
-        <TabsList className="mb-6 grid w-full grid-cols-3">
+        <TabsList className="mb-6 grid w-full grid-cols-4">
           <TabsTrigger value="profile">{t('profileInfo')}</TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center gap-1.5">
             <Sparkles className="size-4 text-primary" /> {t('aiSettings')}
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-1.5">
             <Bell className="size-4 text-primary" /> {t('notificationPrefs')}
+          </TabsTrigger>
+          <TabsTrigger value="apitokens" className="flex items-center gap-1.5">
+            <KeyRound className="size-4 text-primary" /> {t('apiTokens')}
           </TabsTrigger>
         </TabsList>
 
@@ -616,6 +620,18 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="min-h-0 flex-1 overflow-y-auto">
               <NotificationPrefsSection />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="apitokens" className="h-full">
+          <Card className="h-full min-w-0">
+            <CardHeader>
+              <CardTitle>{t('apiTokens')}</CardTitle>
+              <CardDescription>{t('apiTokensDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 overflow-y-auto">
+              <ApiTokensSection />
             </CardContent>
           </Card>
         </TabsContent>

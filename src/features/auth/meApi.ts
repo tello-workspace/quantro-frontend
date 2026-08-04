@@ -37,6 +37,20 @@ export interface UpdateProfileInput {
   aiModel?: string | null;
 }
 
+export interface ApiTokenOzeti {
+  id: string;
+  name: string;
+  /** Anahtarin bas kismi, ornegin "qtr_a1b2c3d4" - tam anahtar asla donmez. */
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface OlusturulanToken extends ApiTokenOzeti {
+  /** Ham anahtar. YALNIZCA olusturma yanitinda gelir, bir daha alinamaz. */
+  token: string;
+}
+
 interface ApiEnvelope<T> {
   success: boolean;
   data: T;
@@ -87,6 +101,21 @@ export const meApi = api.injectEndpoints({
       }>) => response.data,
       // Kaydetmiyor, yalnizca okuyor - cache invalidate etmeye gerek yok.
     }),
+    listApiTokens: builder.query<ApiTokenOzeti[], void>({
+      query: () => '/me/api-tokens',
+      transformResponse: (response: ApiEnvelope<ApiTokenOzeti[]>) => response.data,
+      providesTags: ['ApiToken'],
+    }),
+    createApiToken: builder.mutation<OlusturulanToken, string>({
+      query: (name) => ({ url: '/me/api-tokens', method: 'POST', body: { name } }),
+      transformResponse: (response: ApiEnvelope<OlusturulanToken>) => response.data,
+      invalidatesTags: ['ApiToken'],
+    }),
+    revokeApiToken: builder.mutation<{ id: string }, string>({
+      query: (id) => ({ url: `/me/api-tokens/${id}`, method: 'DELETE' }),
+      transformResponse: (response: ApiEnvelope<{ id: string }>) => response.data,
+      invalidatesTags: ['ApiToken'],
+    }),
     setPresetAvatar: builder.mutation<{ id: string; avatarUrl: string | null }, string>({
       query: (preset) => ({ url: '/me/avatar', method: 'PUT', body: { preset } }),
       transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
@@ -107,4 +136,7 @@ export const {
   useSetPresetAvatarMutation,
   useSyncGithubProfileMutation,
   useRemoveAvatarMutation,
+  useListApiTokensQuery,
+  useCreateApiTokenMutation,
+  useRevokeApiTokenMutation,
 } = meApi;
