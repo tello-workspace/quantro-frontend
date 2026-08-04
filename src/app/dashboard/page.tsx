@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, ListChecks } from 'lucide-react';
 import type { Priority } from '@/features/board/services/boardService';
+import { PriorityIcon } from '@/features/board/components/PriorityIcon';
 import { useTranslation } from '@/hooks/useTranslation';
 
 const PRIORITY_LABEL: Record<Priority, string> = { LOW: 'Düşük', MEDIUM: 'Orta', HIGH: 'Yüksek', URGENT: 'Acil' };
@@ -66,7 +67,8 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Badge className={`${PRIORITY_COLOR[card.priority]} border-0`}>
+                      <Badge className={`${PRIORITY_COLOR[card.priority]} border-0 gap-1`}>
+                        <PriorityIcon priority={card.priority} />
                         {PRIORITY_LABEL[card.priority]}
                       </Badge>
                       {card.dueDate && (

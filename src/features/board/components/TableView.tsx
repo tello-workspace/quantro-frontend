@@ -4,6 +4,7 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Task, Column, Priority } from '../services/boardService';
+import { PriorityIcon } from './PriorityIcon';
 
 interface TableViewProps {
   tasks: Task[];
@@ -119,7 +120,10 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
               <td className="py-2 px-2 text-foreground max-w-xs truncate">{task.title}</td>
               <td className="py-2 px-2 text-muted-foreground">{columns[task.columnId]?.title ?? '—'}</td>
               <td className={`py-2 px-2 font-medium ${PRIORITY_COLOR[task.priority ?? 'MEDIUM']}`}>
-                {PRIORITY_LABEL[task.priority ?? 'MEDIUM']}
+                <span className="inline-flex items-center gap-1">
+                  <PriorityIcon priority={task.priority ?? 'MEDIUM'} />
+                  {PRIORITY_LABEL[task.priority ?? 'MEDIUM']}
+                </span>
               </td>
               <td className="py-2 px-2 text-muted-foreground">
                 {task.dueDate ? new Date(task.dueDate).toLocaleDateString('tr-TR') : '—'}

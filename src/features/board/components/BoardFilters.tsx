@@ -3,14 +3,17 @@
 import React, { useState } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { Priority } from '../services/boardService';
+import { PriorityIcon } from './PriorityIcon';
 import type { Label } from '@/features/labels/labelsApi';
 import { useTranslation } from '@/hooks/useTranslation';
 
-const PRIORITIES: { value: Priority; label: string; dot: string }[] = [
-  { value: 'URGENT', label: 'Acil', dot: 'bg-red-500' },
-  { value: 'HIGH', label: 'Yüksek', dot: 'bg-orange-500' },
-  { value: 'MEDIUM', label: 'Orta', dot: 'bg-blue-500' },
-  { value: 'LOW', label: 'Düşük', dot: 'bg-zinc-400' },
+// Renkli nokta yerine yon ikonu: nokta yalnizca kategori ayirt ediyordu,
+// ikon onem SIRASINI da gosteriyor (bkz. PriorityIcon).
+const PRIORITIES: { value: Priority; label: string; renk: string }[] = [
+  { value: 'URGENT', label: 'Acil', renk: 'text-red-500' },
+  { value: 'HIGH', label: 'Yüksek', renk: 'text-orange-500' },
+  { value: 'MEDIUM', label: 'Orta', renk: 'text-blue-500' },
+  { value: 'LOW', label: 'Düşük', renk: 'text-zinc-400' },
 ];
 
 interface Member {
@@ -80,7 +83,7 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
                   : 'border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />
+              <PriorityIcon priority={p.value} className={`size-3.5 shrink-0 ${p.renk}`} />
               {p.label}
             </button>
           );
