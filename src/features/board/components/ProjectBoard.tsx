@@ -127,9 +127,12 @@ function removeCard(columns: BoardData['columns'], cardId: string): BoardData['c
 }
 
 export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId }) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  // Excel uretimi 500 kartlik bir panoda birkac saniye surebiliyor - buton
+  // geri bildirim vermezse kullanici tekrar tekrar tikliyor.
+  const [isExporting, setIsExporting] = useState<boolean>(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   // Git Cakisma Erken Uyari: kartId -> "hangi dosyada, kim, hangi diger kart" bilgisi
   const [conflicts, setConflicts] = useState<Record<string, CardConflictInfo>>({});
@@ -1003,19 +1006,29 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   };
 
-  // Board'u CSV olarak indirir. Backend /export route'u auth + erisim
-  // kontrolu yapar ve attachment olarak CSV doner.
+  // Board'u Excel (.xlsx) olarak indirir. Backend /export route'u auth +
+  // erisim kontrolu yapar ve attachment olarak bicimlendirilmis calisma
+  // kitabi doner (Gorevler + Ozet sayfalari).
+  //
+  // Dosya adi sunucudaki Content-Disposition ile ayni mantikla BURADA da
+  // uretiliyor: CORS yapilandirmasi Content-Disposition'i exposedHeaders'a
+  // koymadigi icin tarayici o basligi JS'e vermiyor, okumaya calismak
+  // sessizce undefined donerdi.
   const handleExport = async () => {
+    setIsExporting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}/export?format=csv`, {
-        headers: getAuthHeaders(),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}/export?format=xlsx&lang=${lang}`,
+        { headers: getAuthHeaders() },
+      );
       if (!res.ok) throw new Error('Board dışa aktarılamadı.');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `board-${projectId}.csv`;
+      const tarih = new Date().toISOString().split('T')[0];
+      const temizAd = (projectName || 'board').replace(/[\\/:*?"<>|]/g, '').trim() || 'board';
+      a.download = `${temizAd}-${tarih}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1023,6 +1036,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     } catch (error) {
       console.error('Board dışa aktarılırken hata:', error);
       toast.error(t('exportBoardError'));
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -1312,10 +1327,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         <button
           type="button"
           onClick={handleExport}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
-          title={t('exportBoard')}
+          disabled={isExporting}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+          title={t('exportBoardHint')}
         >
-          <Download className="size-3.5" /> {t('exportBoard')}
+          <Download className="size-3.5" /> {isExporting ? t('exporting') : t('exportBoard')}
         </button>
 
         <div className="flex-1 min-w-0">
