@@ -12,7 +12,7 @@ import { disconnectSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { LogOut, Search, ListChecks } from 'lucide-react';
+import { LogOut, Search, ListChecks, Menu } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { QuantroMark, QUANTRO_MARK_COLOR } from '@/components/ui/quantro-logo';
 import { CommandPalette } from '@/components/CommandPalette';
@@ -126,11 +126,23 @@ export default function Header(){
         <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md supports-backdrop-filter:bg-card/60">
           <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
             <div className="flex items-center gap-1 shrink-0">
+              {/* Hamburger: menuyu acip kapatan TEK ve acik dugme. Eskiden bu
+                  isi Quantro logosu yapiyordu - logo tiklaninca menu aciliyor,
+                  ana sayfaya gitmiyordu. Logonun beklenen davranisi ana sayfaya
+                  gitmektir; menu icin ayri bir dugme olmasi gerekiyor. */}
               <button
                 type="button"
                 onClick={toggleSidebar}
-                title={t('menuLabel')}
-                aria-label={t('menuLabel')}
+                title={t('toggleMenu')}
+                aria-label={t('toggleMenu')}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Menu className="size-5" />
+              </button>
+              <Link
+                href="/dashboard"
+                title={t('goHome')}
+                aria-label={t('goHome')}
                 className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:text-primary"
               >
                 <span
@@ -144,7 +156,7 @@ export default function Header(){
                 <span className="hidden text-sm font-medium tracking-[-0.02em] text-foreground sm:inline">
                   Quantro
                 </span>
-              </button>
+              </Link>
             </div>
 
             {/* Global Search Input & Google Suggestions-like Dropdown */}

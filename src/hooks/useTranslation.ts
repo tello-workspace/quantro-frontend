@@ -508,6 +508,8 @@ const translations = {
     showFullTitles: "Tümünü göster",
     collapseTitles: "Daralt",
     previewModeHint: "Önizleme — düzenlemek için bir alana tıklayın",
+    toggleMenu: "Menüyü aç/kapat",
+    goHome: "Ana sayfa",
   },
   en: {
     // General Buttons & Controls
@@ -1015,6 +1017,8 @@ const translations = {
     showFullTitles: "Show full titles",
     collapseTitles: "Collapse",
     previewModeHint: "Preview — click any field to edit",
+    toggleMenu: "Toggle menu",
+    goHome: "Home",
   }
 };
 
