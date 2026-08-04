@@ -576,6 +576,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(NEW_LABEL_COLORS[0]);
+  // Uzun kart basliklari dar sutunlarda gorunt kirliligi yaratiyordu.
+  // Varsayilan kisaltilmis; okumak isteyen bolum basindaki dugmeyle aciyor.
+  const [bagimlilikBasliklariAcik, setBagimlilikBasliklariAcik] = useState(false);
+  const [altGorevBasliklariAcik, setAltGorevBasliklariAcik] = useState(false);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
   const assigneePickerRef = useRef<HTMLDivElement>(null);
   const [showDependencyPicker, setShowDependencyPicker] = useState(false);
@@ -1311,7 +1315,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   if (related.length === 0) return null;
                   return (
                     <div className="mb-2">
-                      <p className="text-xs text-muted-foreground mb-1">{t('relatedCards')}</p>
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">{t('relatedCards')}</p>
+                        <button
+                          type="button"
+                          onClick={() => setBagimlilikBasliklariAcik((v) => !v)}
+                          className="shrink-0 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+                        >
+                          {bagimlilikBasliklariAcik ? t('collapseTitles') : t('showFullTitles')}
+                        </button>
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {related.map((b) => (
                           <Badge
@@ -1319,7 +1332,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             variant="outline"
                             className="flex items-center gap-1 pl-2 pr-1"
                           >
-                            {RELATION_TYPE_LABELS[b.relationType ?? 'BLOCKS']}: {b.title}
+                            <span
+                              title={b.title}
+                              className={
+                                bagimlilikBasliklariAcik
+                                  ? 'whitespace-normal break-words'
+                                  : 'max-w-[9rem] truncate'
+                              }
+                            >
+                              {RELATION_TYPE_LABELS[b.relationType ?? 'BLOCKS']}: {b.title}
+                            </span>
                             <button
                               type="button"
                               onClick={() =>
@@ -1403,15 +1425,33 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
               {taskId !== 'new' && (
                 <div className="min-w-0">
-                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-                    {t('parentSubtasksLabel')}
-                  </label>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <label className="block text-sm font-medium text-muted-foreground">
+                      {t('parentSubtasksLabel')}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setAltGorevBasliklariAcik((v) => !v)}
+                      className="shrink-0 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      {altGorevBasliklariAcik ? t('collapseTitles') : t('showFullTitles')}
+                    </button>
+                  </div>
 
                   {task.parent ? (
                     <div className="mb-2">
                       <p className="text-xs text-muted-foreground mb-1">{t('parentTaskLabel')}</p>
-                      <Badge variant="outline" className="flex items-center gap-1 pl-2 pr-1 w-fit">
-                        {task.parent.title}
+                      <Badge variant="outline" className="flex max-w-full items-center gap-1 pl-2 pr-1 w-fit">
+                        <span
+                          title={task.parent.title}
+                          className={
+                            altGorevBasliklariAcik
+                              ? 'whitespace-normal break-words'
+                              : 'max-w-[9rem] truncate'
+                          }
+                        >
+                          {task.parent.title}
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleSetParent(null)}
@@ -1460,7 +1500,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             variant={s.done ? 'secondary' : 'outline'}
                             className="flex items-center gap-1 pl-2 pr-1"
                           >
-                            {s.done && '✓ '}{s.title}
+                            <span
+                              title={s.title}
+                              className={
+                                altGorevBasliklariAcik
+                                  ? 'whitespace-normal break-words'
+                                  : 'max-w-[9rem] truncate'
+                              }
+                            >
+                              {s.done && '✓ '}{s.title}
+                            </span>
                             <button
                               type="button"
                               onClick={() => handleRemoveSubtask(s.id)}

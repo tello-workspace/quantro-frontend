@@ -505,6 +505,8 @@ const translations = {
     attachmentUploaded: "Ek yüklendi",
     closePreview: "Önizlemeyi kapat",
     imagesLabel: "Görseller",
+    showFullTitles: "Tümünü göster",
+    collapseTitles: "Daralt",
   },
   en: {
     // General Buttons & Controls
@@ -1009,6 +1011,8 @@ const translations = {
     attachmentUploaded: "Attachment uploaded",
     closePreview: "Close preview",
     imagesLabel: "Images",
+    showFullTitles: "Show full titles",
+    collapseTitles: "Collapse",
   }
 };
 
