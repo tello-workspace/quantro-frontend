@@ -1,7 +1,7 @@
 // src/components/ui/TaskModal.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
@@ -518,6 +518,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(NEW_LABEL_COLORS[0]);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
+  const assigneePickerRef = useRef<HTMLDivElement>(null);
   const [showDependencyPicker, setShowDependencyPicker] = useState(false);
   const [dependencyRelationType, setDependencyRelationType] = useState<DependencyRelationType>('BLOCKS');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
@@ -657,6 +658,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     const { name, value } = e.target;
     setTask({ ...task, [name]: value });
   };
+
+  // Kisi secici disari tiklaninca kapansin. Eskiden bir kez acildiktan
+  // sonra yalnizca "+ Kisi" butonuna tekrar basilarak kapatilabiliyordu;
+  // kullanici atamayi yapip baska yere tikladiginda liste ekranda asili
+  // kaliyordu. Kapali oldugunda dinleyici hic baglanmiyor.
+  useEffect(() => {
+    if (!showAssigneePicker) return;
+    const disariTiklandi = (e: MouseEvent) => {
+      if (assigneePickerRef.current && !assigneePickerRef.current.contains(e.target as Node)) {
+        setShowAssigneePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', disariTiklandi);
+    return () => document.removeEventListener('mousedown', disariTiklandi);
+  }, [showAssigneePicker]);
 
   const handleToggleAssignee = (userId: string) => {
     if (!task) return;
@@ -1543,7 +1559,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   <div>
                     <label htmlFor="startDate" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
                       <CalendarDaysIcon className="h-4 w-4" />
-                      Başlangıç Tarihi
+                      {t('startDateLabel')}
                     </label>
                     <Input
                       type="date"
@@ -1570,28 +1586,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     />
                   </div>
 
-                  <div>
-                    <label htmlFor="priority" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
-                      {t('priorityLabel')}
-                    </label>
-                    <select
-                      id="priority"
-                      name="priority"
-                      value={task.priority || ''}
-                      onChange={handleChange}
-                      disabled={isFilling}
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
-                    >
-                      <option value="" className="text-foreground bg-popover">{t('priorityNone')}</option>
-                      <option value="LOW" className="text-foreground bg-popover">{t('priorityLow')}</option>
-                      <option value="MEDIUM" className="text-foreground bg-popover">{t('priorityMedium')}</option>
-                      <option value="HIGH" className="text-foreground bg-popover">{t('priorityHigh')}</option>
-                      <option value="URGENT" className="text-foreground bg-popover">{t('priorityUrgent')}</option>
-                    </select>
-                  </div>
-
                 </div>
 
+                {/* Sag sutun: Atanan Kisiler + Oncelik. Oncelik eskiden sol
+                    sutunda tarihlerin altindaydi; kart bu iki alanin birlikte
+                    gruplanmasini istiyor. */}
+                <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-1">
                     {t('assigneesLabel')}
@@ -1624,26 +1624,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       </Badge>
                     ))}
 
-                    {/* "Bana ata" kisayolu: en sik yapilan atama kendine
-                        yapilan atama; listeyi acip kendini aramak gereksiz
-                        bir adim. Yalnizca kullanici HENUZ atanmamissa
-                        gosteriliyor - atanmisken buton bir sey yapmazdi.
-                        members kontrolu sart: handleToggleAssignee uye
-                        listesinde bulamadigi kisiyi sessizce yok sayiyor. */}
-                    {me && !(task.assignees ?? []).some((a) => a.id === me.id) &&
-                      members.some((m) => m.userId === me.id) && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          onClick={() => handleToggleAssignee(me.id)}
-                          disabled={isFilling}
-                        >
-                          {t('assignToMe')}
-                        </Button>
-                      )}
-
-                    <div className="relative">
+                    <div className="relative" ref={assigneePickerRef}>
                       <Button
                         type="button"
                         variant="outline"
@@ -1678,11 +1659,50 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </div>
                   </div>
 
+                  {/* "Bana ata" ARTIK ayri bir satirda. "+ Kisi"nin solundayken
+                      atanan rozetleriyle ayni siraya diziliyordu ve bir kisi
+                      rozetiymis gibi okunuyordu - kartta bildirilen algi
+                      sorunu buydu. */}
+                  {me && !(task.assignees ?? []).some((a) => a.id === me.id) &&
+                    members.some((m) => m.userId === me.id) && (
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          onClick={() => handleToggleAssignee(me.id)}
+                          disabled={isFilling}
+                        >
+                          {t('assignToMe')}
+                        </Button>
+                      </div>
+                    )}
+
                   {!isAdmin && (
                     <p className="text-[10px] text-muted-foreground mt-1.5">
                       {t('assigneeRequestHelp')}
                     </p>
                   )}
+                </div>
+                  <div>
+                    <label htmlFor="priority" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
+                      {t('priorityLabel')}
+                    </label>
+                    <select
+                      id="priority"
+                      name="priority"
+                      value={task.priority || ''}
+                      onChange={handleChange}
+                      disabled={isFilling}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
+                    >
+                      <option value="" className="text-foreground bg-popover">{t('priorityNone')}</option>
+                      <option value="LOW" className="text-foreground bg-popover">{t('priorityLow')}</option>
+                      <option value="MEDIUM" className="text-foreground bg-popover">{t('priorityMedium')}</option>
+                      <option value="HIGH" className="text-foreground bg-popover">{t('priorityHigh')}</option>
+                      <option value="URGENT" className="text-foreground bg-popover">{t('priorityUrgent')}</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
