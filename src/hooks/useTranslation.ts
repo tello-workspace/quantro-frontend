@@ -496,6 +496,10 @@ const translations = {
     doubleClickToExpand: "Genişletmek için çift tıkla",
     assignToMe: "Bana ata",
     startDateLabel: "Başlangıç Tarihi",
+    goToToday: "Bugüne git",
+    scrollBack: "Geri kaydır",
+    scrollForward: "İleri kaydır",
+    overdueLabel: "Gecikmiş",
   },
   en: {
     // General Buttons & Controls
@@ -991,6 +995,10 @@ const translations = {
     doubleClickToExpand: "Double-click to expand",
     assignToMe: "Assign to me",
     startDateLabel: "Start Date",
+    goToToday: "Go to today",
+    scrollBack: "Scroll back",
+    scrollForward: "Scroll forward",
+    overdueLabel: "Overdue",
   }
 };
 

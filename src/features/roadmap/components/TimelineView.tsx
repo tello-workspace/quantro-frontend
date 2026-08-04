@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { ZoomIn, ZoomOut, CalendarRange } from 'lucide-react';
+import React, { useMemo, useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { ZoomIn, ZoomOut, CalendarRange, ChevronLeft, ChevronRight, CalendarCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGetProjectRoadmapQuery, useUpdateCardDatesMutation, RoadmapCard } from '../roadmapApi';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Props {
   projectId: string;
@@ -51,6 +52,7 @@ function aralik(c: RoadmapCard): { bas: Date; bit: Date } | null {
 const TARIH_BICIM = new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short' });
 
 export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit = false }) => {
+  const { t } = useTranslation();
   const { data, isLoading } = useGetProjectRoadmapQuery({ projectId });
   const [updateCardDates] = useUpdateCardDatesMutation();
   const [zoom, setZoom] = useState(1); // ZOOM_KADEMELERI indeksi
@@ -128,12 +130,29 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
     return { baslangic, toplamGun, akis, satirIndeksi };
   }, [data]);
 
-  // Bugun cizelgede gorunur olsun diye acilista oraya kaydiriyoruz.
+  // Bugun cizelgede gorunur olsun diye acilista oraya kaydiriyoruz - ama
+  // YALNIZCA BIR KEZ. Eskiden efekt gunPx'e de bagliydi, yani her zoom
+  // degisiminde kaydirma bugune geri firliyor ve kullanicinin baktigi
+  // tarih araligi kayboluyordu.
+  const ilkKaydirmaYapildi = useRef(false);
   useEffect(() => {
-    if (!model || !kaydirmaRef.current) return;
+    if (!model || !kaydirmaRef.current || ilkKaydirmaYapildi.current) return;
     const bugunOfset = Math.round((Date.now() - model.baslangic.getTime()) / GUN_MS) * gunPx;
     kaydirmaRef.current.scrollLeft = Math.max(0, bugunOfset - 200);
+    ilkKaydirmaYapildi.current = true;
   }, [model, gunPx]);
+
+  // Zoom degisiminde ekranin ORTASINDAKI tarihi sabit tut. Aksi halde
+  // yakinlastirmak kullaniciyi cizelgenin bambaska bir yerine atiyor.
+  // useLayoutEffect: boyama oncesi duzeltiyoruz, ziplama gorunmuyor.
+  const oncekiGunPx = useRef(gunPx);
+  useLayoutEffect(() => {
+    const el = kaydirmaRef.current;
+    if (!el || oncekiGunPx.current === gunPx) return;
+    const merkezGun = (el.scrollLeft + el.clientWidth / 2) / oncekiGunPx.current;
+    el.scrollLeft = Math.max(0, merkezGun * gunPx - el.clientWidth / 2);
+    oncekiGunPx.current = gunPx;
+  }, [gunPx]);
 
   // ------------------------- surukleme (kenar kulplari) ---------------------
 
@@ -227,7 +246,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <CalendarRange className="mb-3 size-8 text-muted-foreground" />
-        <p className="text-sm text-foreground">Zaman çizelgesinde gösterilecek kart yok.</p>
+        <p className="text-sm text-foreground">{t('noTimelineCards')}</p>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
           Kartlara başlangıç veya bitiş tarihi ekleyince burada görünürler.
         </p>
@@ -238,6 +257,19 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
   const { baslangic, toplamGun, akis, satirIndeksi } = model;
   const genislik = toplamGun * gunPx;
   const bugunOfset = Math.round((gunBasi(new Date()).getTime() - baslangic.getTime()) / GUN_MS) * gunPx;
+
+  // Akici kaydirma. Anlik atlama yerine scrollTo(behavior:'smooth') -
+  // kullanici nereden nereye gittigini takip edebiliyor.
+  const akiciKaydir = (hedefPx: number) => {
+    kaydirmaRef.current?.scrollTo({ left: Math.max(0, hedefPx), behavior: 'smooth' });
+  };
+  const buguneGit = () => akiciKaydir(bugunOfset - 200);
+  const haftaKaydir = (yon: 1 | -1) => {
+    const el = kaydirmaRef.current;
+    if (!el) return;
+    akiciKaydir(el.scrollLeft + yon * 7 * gunPx);
+  };
+  const bugunBasi = gunBasi(new Date());
 
   // Ay basliklari: gun gun etiket basmak okunmaz olurdu, ay sinirlarini
   // isaretleyip aradaki gunlere ince cizgi birakiyoruz.
@@ -280,9 +312,37 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onClick={() => haftaKaydir(-1)}
+            aria-label={t('scrollBack')}
+            title={t('scrollBack')}
+            className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronLeft className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={buguneGit}
+            aria-label={t('goToToday')}
+            title={t('goToToday')}
+            className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <CalendarCheck className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => haftaKaydir(1)}
+            aria-label={t('scrollForward')}
+            title={t('scrollForward')}
+            className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronRight className="size-3.5" />
+          </button>
+          <span className="mx-1 h-4 w-px bg-border" />
+          <button
+            type="button"
             onClick={() => setZoom((z) => Math.max(0, z - 1))}
             disabled={zoom === 0}
-            aria-label="Uzaklaştır"
+            aria-label={t('zoomOut')}
             className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <ZoomOut className="size-3.5" />
@@ -291,7 +351,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
             type="button"
             onClick={() => setZoom((z) => Math.min(ZOOM_KADEMELERI.length - 1, z + 1))}
             disabled={zoom === ZOOM_KADEMELERI.length - 1}
-            aria-label="Yakınlaştır"
+            aria-label={t('zoomIn')}
             className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <ZoomIn className="size-3.5" />
@@ -428,6 +488,10 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
                       drag?.kenar === 'bit'
                         ? new Date(ar.bit.getTime() + drag.delta * GUN_MS)
                         : ar.bit;
+                    // Gecikmis: bitis tarihi gecmis ve kart bitmemis. Kerem'in
+                    // tarif ettigi "planin gerisinde kalan gorevler" ayrimi -
+                    // renk zaten oncelik icin kullanildigi icin cerceve ile.
+                    const gecikmis = !c.isDone && ar.bit < bugunBasi;
                     // Hover seritleri: yalnizca kartta GERCEKTEN olan tarihler
                     // gosterilir (ornek amaçli esitlenen taraf degil).
                     const basEtiketi = c.startDate ? TARIH_BICIM.format(aktifBas) : null;
@@ -438,11 +502,11 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
                         <button
                           type="button"
                           onClick={() => onCardClick(c.id)}
-                          title={`${c.title} · ${c.columnName}`}
+                          title={`${c.title} · ${c.columnName}${gecikmis ? ` · ${t('overdueLabel')}` : ''}`}
                           style={{ left: o.sol, width: o.genislik }}
                           className={`absolute top-1.5 z-20 flex h-8 items-center gap-1.5 overflow-hidden rounded-md px-2 text-left text-xs font-medium text-white shadow-sm transition-opacity hover:opacity-90 ${
                             c.isDone ? 'bg-emerald-600' : (ONCELIK_RENGI[c.priority] ?? 'bg-slate-400')
-                          }`}
+                          } ${gecikmis ? 'ring-2 ring-red-500 ring-offset-1 ring-offset-background' : ''}`}
                         >
                           <span className="truncate">{c.title}</span>
                           {c.assignees.slice(0, 2).map((a) => (
