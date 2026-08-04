@@ -500,6 +500,8 @@ const translations = {
     scrollBack: "Geri kaydır",
     scrollForward: "İleri kaydır",
     overdueLabel: "Gecikmiş",
+    parentSubtasksLabel: "Üst Görev / Alt Görevler",
+    subtasksCount: "Alt görevler",
   },
   en: {
     // General Buttons & Controls
@@ -999,6 +1001,8 @@ const translations = {
     scrollBack: "Scroll back",
     scrollForward: "Scroll forward",
     overdueLabel: "Overdue",
+    parentSubtasksLabel: "Parent / Subtasks",
+    subtasksCount: "Subtasks",
   }
 };
 

@@ -1089,9 +1089,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             <div className="space-y-5">
               {/* AYAR BOLUMLERI: yalnizca cark (ayarlar) butonuna basilinca
                   gorunur. Varsayilan gorunum: baslik + aciklama + tarih/atanan. */}
+              {/* Etiketler / Bagimliliklar / Ust-Alt Gorevler YAN YANA.
+                  Alt alta dizildiklerinde modal gereksiz yere uzuyor ve
+                  asagidaki alanlara erisim zorlasiyordu. Dar ekranda tek,
+                  orta ekranda iki, genis ekranda uc sutun. */}
               {showSettings && (
-              <>
-              <div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-start">
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                   {t('labelsLabel')}
                 </label>
@@ -1183,7 +1187,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                   {t('dependenciesLabel')}
                 </label>
@@ -1341,9 +1345,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </div>
 
               {taskId !== 'new' && (
-                <div>
+                <div className="min-w-0">
                   <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-                    Üst Görev / Alt Görevler
+                    {t('parentSubtasksLabel')}
                   </label>
 
                   {task.parent ? (
@@ -1376,7 +1380,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                   key={c.id}
                                   type="button"
                                   onClick={() => handleSetParent(c.id)}
-                                  className="flex w-full px-2 py-1 rounded-md text-xs text-left text-foreground hover:bg-muted"
+                                  className="block w-full truncate px-2 py-1 rounded-md text-xs text-left text-foreground hover:bg-muted"
                                 >
                                   {c.title}
                                 </button>
@@ -1390,7 +1394,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   {(task.subtasks ?? []).length > 0 && (
                     <div className="mb-2">
                       <p className="text-xs text-muted-foreground mb-1">
-                        Alt görevler ({(task.subtasks ?? []).filter((s) => s.done).length}/{(task.subtasks ?? []).length}):
+                        {t('subtasksCount')} ({(task.subtasks ?? []).filter((s) => s.done).length}/{(task.subtasks ?? []).length}):
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {(task.subtasks ?? []).map((s) => (
@@ -1430,7 +1434,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                 key={c.id}
                                 type="button"
                                 onClick={() => handleAddSubtask(c.id)}
-                                className="flex w-full px-2 py-1 rounded-md text-xs text-left text-foreground hover:bg-muted"
+                                className="block w-full truncate px-2 py-1 rounded-md text-xs text-left text-foreground hover:bg-muted"
                               >
                                 {c.title}
                               </button>
@@ -1494,7 +1498,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
               )}
 
-              </>
+              </div>
               )}
 
               <div>
