@@ -19,7 +19,6 @@ import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { BulkActionBar } from './BulkActionBar';
 import { TimelineView } from '@/features/roadmap/components/TimelineView';
-import { useSavedFilters } from '../hooks/useSavedFilters';
 import { CalendarView } from './CalendarView';
 import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
@@ -184,7 +183,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const { data: templates = [] } = useGetTemplatesQuery({ orgId, projectId }, { skip: !orgId || !projectId });
   const [createCardFromTemplate] = useCreateCardFromTemplateMutation();
 
-  const { filters: savedFilters, saveFilter, removeFilter } = useSavedFilters(projectId);
 
   const [viewMode, setViewMode] = useState<'board' | 'calendar' | 'table' | 'timeline'>('board');
   // Swimlane: kartlari yatay seritlere ayirir. 'none' klasik tek satir pano.
@@ -1385,22 +1383,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               setSelectedAssigneeIds(new Set());
               setSelectedLabelIds(new Set());
             }}
-            savedFilters={savedFilters}
-            onSaveFilter={(name) =>
-              saveFilter(name, {
-                search,
-                priorities: [...selectedPriorities],
-                assigneeIds: [...selectedAssigneeIds],
-                labelIds: [...selectedLabelIds],
-              })
-            }
-            onApplyFilter={(f) => {
-              setSearch(f.search);
-              setSelectedPriorities(new Set(f.priorities));
-              setSelectedAssigneeIds(new Set(f.assigneeIds));
-              setSelectedLabelIds(new Set(f.labelIds));
-            }}
-            onRemoveFilter={removeFilter}
           />
         </div>
       </div>
