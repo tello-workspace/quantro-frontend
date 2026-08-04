@@ -669,7 +669,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
     const member = members.find((m) => m.userId === userId);
     if (!member) return;
-    setTask({ ...task, assignees: [...current, { id: userId, name: member.user.name }] });
+    // avatarUrl'i de tasi: yalnizca {id, name} yazmak, kaydetmeden once
+    // karttaki avatari bos harfe dusuruyordu (sunucudan tekrar
+    // cekilene kadar). Uye nesnesi avatarUrl'i zaten iceriyor.
+    setTask({
+      ...task,
+      assignees: [
+        ...current,
+        { id: userId, name: member.user.name, avatarUrl: member.user.avatarUrl ?? null },
+      ],
+    });
   };
 
   const handleSave = async () => {

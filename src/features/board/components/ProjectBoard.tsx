@@ -92,6 +92,32 @@ interface ColumnDeletedPayload {
 // sutundaysa (bayat state) orada kaliyor, hedefe de eklenince ayni kart iki
 // yerde birden gorunuyordu; ayni sutuna iki kez girdiginde React "two
 // children with the same key" uyarisi veriyordu.
+// Socket'ten gelen atanan listesini mevcut veriyle BIRLESTIRIR.
+//
+// Sebep: yayin gövdesi bir donem avatarUrl'i tasimiyordu ve frontend gelen
+// listeyi oldugu gibi yerine koydugu icin, herhangi bir kart guncellemesi
+// (baslik duzenleme, durum degisikligi, atama) TUM istemcilerde avatarlari
+// bos harfe dusuruyordu. Sunucu tarafi duzeltildi; burasi ayni hatanin
+// tekrar sizmasina karsi ikinci savunma: kimlik listesi daima yayindan
+// gelir, ama bir alan yayinda yoksa elimizdeki deger korunur.
+function mergeAssignees(
+  gelen: TaskAssignee[] | undefined,
+  mevcut: TaskAssignee[] | undefined,
+): TaskAssignee[] | undefined {
+  if (!gelen) return mevcut;
+  const oncekiler = new Map((mevcut ?? []).map((a) => [a.id, a]));
+  return gelen.map((a) => {
+    const onceki = oncekiler.get(a.id);
+    if (!onceki) return a;
+    return {
+      ...onceki,
+      ...a,
+      avatarUrl: a.avatarUrl ?? onceki.avatarUrl,
+      badges: a.badges ?? onceki.badges,
+    };
+  });
+}
+
 function placeCard(
   columns: BoardData['columns'],
   cardId: string,
@@ -369,7 +395,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               dueDate: payload.dueDate ?? undefined,
               columnId: payload.columnId,
               position: payload.position,
-              assignees: payload.assignees ?? existing?.assignees ?? [],
+              assignees: mergeAssignees(payload.assignees, existing?.assignees) ?? [],
               labels: existing?.labels ?? [],
             },
           },
@@ -399,7 +425,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               dueDate: payload.dueDate ?? undefined,
               startDate: payload.startDate ?? undefined,
               columnId: targetColumnId,
-              assignees: payload.assignees ?? existing.assignees,
+              assignees: mergeAssignees(payload.assignees, existing.assignees),
             },
           },
           columns: needsMove ? placeCard(prev.columns, payload.id, targetColumnId) : prev.columns,
@@ -858,9 +884,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         description: payload.description ?? undefined,
         priority: payload.priority ?? 'MEDIUM',
         dueDate: payload.dueDate ?? undefined,
+        // avatarUrl da tasiniyor: yalnizca {id, name} yazmak yeni olusturulan
+        // kartin avatarini bos harfe dusuruyordu.
         assignees: payload.assigneeIds?.map((id) => {
           const m = members.find((mem) => mem.userId === id);
-          return { id, name: m?.user.name || 'Bilinmeyen' };
+          return {
+            id,
+            name: m?.user.name || 'Bilinmeyen',
+            avatarUrl: m?.user.avatarUrl ?? null,
+          };
         }) ?? [],
         labels: [],
         blockedBy: [],
