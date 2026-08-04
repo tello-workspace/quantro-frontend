@@ -175,23 +175,41 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
     setSurukle((prev) => (prev ? { ...prev, delta: clamped } : prev));
   };
 
-  const kenarBirak = () => {
+  const kenarBirak = async () => {
     if (!surukle) return;
     const inst = surukle;
     const delta = deltaRef.current;
-    setSurukle(null);
     deltaRef.current = 0;
-    if (delta === 0) return; // yerinden oynamadi
+    if (delta === 0) {
+      setSurukle(null);
+      return; // yerinden oynamadi
+    }
 
     const kart = data?.cards.find((c) => c.id === inst.cardId);
-    if (!kart) return;
+    if (!kart) {
+      setSurukle(null);
+      return;
+    }
     const ar = aralik(kart)!;
-    if (inst.kenar === 'bas') {
-      const yeniBas = new Date(ar.bas.getTime() + delta * GUN_MS);
-      kaydet(inst.cardId, yeniBas.toISOString(), kart.dueDate);
-    } else {
-      const yeniBit = new Date(ar.bit.getTime() + delta * GUN_MS);
-      kaydet(inst.cardId, kart.startDate, yeniBit.toISOString());
+    try {
+      // EKSIK TARAFI MADDELESTIRIYORUZ. Kartlarin cogunda yalnizca dueDate
+      // var; aralik() eksik tarafi digerine esitledigi icin cubuk tek gunluk
+      // gorunuyor. Eskiden kaydederken eksik taraf null biraktiliyordu, bu
+      // yuzden "uzat" islemi kartin suresini uzatmiyor, tek gunluk cubugu
+      // oldugu gibi baska bir gune TASIYORDU. Karsi tarafi cubugun mevcut
+      // ucuna sabitleyince uzatma gercekten uzatma oluyor.
+      if (inst.kenar === 'bas') {
+        const yeniBas = new Date(ar.bas.getTime() + delta * GUN_MS);
+        await kaydet(inst.cardId, yeniBas.toISOString(), kart.dueDate ?? ar.bit.toISOString());
+      } else {
+        const yeniBit = new Date(ar.bit.getTime() + delta * GUN_MS);
+        await kaydet(inst.cardId, kart.startDate ?? ar.bas.toISOString(), yeniBit.toISOString());
+      }
+    } finally {
+      // Onizleme kayit BITENE kadar duruyor. Eskiden pointerup aninda
+      // temizleniyordu; istek ucarken cubuk eski yerine geri firliyor,
+      // yanit gelince tekrar ziplayip yerine oturuyordu.
+      setSurukle(null);
     }
   };
 
@@ -398,8 +416,18 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
                     const ar = aralik(c)!;
                     const drag = surukle?.cardId === c.id ? surukle : null;
                     const o = kartOfseti(c, drag);
-                    const aktifBas = new Date(ar.bas.getTime() + (drag?.delta ?? 0) * GUN_MS);
-                    const aktifBit = new Date(ar.bit.getTime() + (drag?.delta ?? 0) * GUN_MS);
+                    // YALNIZCA surukleneni kaydir. Eskiden delta iki tarafa
+                    // birden ekleniyordu; sag ucu cekerken baslangic etiketi
+                    // de degisiyor, cubuk doğru boyutlanirken etiketler yalan
+                    // soyluyordu.
+                    const aktifBas =
+                      drag?.kenar === 'bas'
+                        ? new Date(ar.bas.getTime() + drag.delta * GUN_MS)
+                        : ar.bas;
+                    const aktifBit =
+                      drag?.kenar === 'bit'
+                        ? new Date(ar.bit.getTime() + drag.delta * GUN_MS)
+                        : ar.bit;
                     // Hover seritleri: yalnizca kartta GERCEKTEN olan tarihler
                     // gosterilir (ornek amaçli esitlenen taraf degil).
                     const basEtiketi = c.startDate ? TARIH_BICIM.format(aktifBas) : null;
@@ -458,7 +486,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
                             gosterilir (aktifBas/aktifBit ile). */}
                         {basEtiketi && (
                           <span
-                            className="pointer-events-none absolute z-40 whitespace-nowrap rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] font-medium text-white opacity-0 shadow ring-1 ring-white/20 transition-opacity group-hover:opacity-100"
+                            className={`pointer-events-none absolute z-40 whitespace-nowrap rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] font-medium text-white shadow ring-1 ring-white/20 transition-opacity group-hover:opacity-100 ${drag ? 'opacity-100' : 'opacity-0'}`}
                             style={{ left: o.sol - 6, top: '50%', transform: 'translate(-100%, -50%)' }}
                           >
                             {basEtiketi}
@@ -466,7 +494,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit 
                         )}
                         {bitEtiketi && (
                           <span
-                            className="pointer-events-none absolute z-40 whitespace-nowrap rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] font-medium text-white opacity-0 shadow ring-1 ring-white/20 transition-opacity group-hover:opacity-100"
+                            className={`pointer-events-none absolute z-40 whitespace-nowrap rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] font-medium text-white shadow ring-1 ring-white/20 transition-opacity group-hover:opacity-100 ${drag ? 'opacity-100' : 'opacity-0'}`}
                             style={{ left: o.sol + o.genislik + 6, top: '50%', transform: 'translateY(-50%)' }}
                           >
                             {bitEtiketi}
