@@ -2,6 +2,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PriorityIcon } from '@/features/board/components/PriorityIcon';
 import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
@@ -1001,7 +1003,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-3xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="sm:max-w-3xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden no-scrollbar">
         {loading ? (
           <div className="text-center py-10 text-muted-foreground">{t('loading')}</div>
         ) : task ? (
@@ -1655,20 +1657,38 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     <label htmlFor="priority" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
                       {t('priorityLabel')}
                     </label>
-                    <select
-                      id="priority"
-                      name="priority"
-                      value={task.priority || ''}
-                      onChange={handleChange}
+                    {/* Yerel <select>'ten Select bilesenine gecildi: <option>
+                        icinde ikon render EDILEMIYOR, kart ise ana arayuzdeki
+                        oncelik rozetlerinin aynisini istiyor. */}
+                    <Select
+                      value={task.priority || 'NONE'}
+                      onValueChange={(val) => {
+                        if (!val || !task) return;
+                        setTask({ ...task, priority: val === 'NONE' ? undefined : (val as Priority) });
+                      }}
                       disabled={isFilling}
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
                     >
-                      <option value="" className="text-foreground bg-popover">{t('priorityNone')}</option>
-                      <option value="LOW" className="text-foreground bg-popover">{t('priorityLow')}</option>
-                      <option value="MEDIUM" className="text-foreground bg-popover">{t('priorityMedium')}</option>
-                      <option value="HIGH" className="text-foreground bg-popover">{t('priorityHigh')}</option>
-                      <option value="URGENT" className="text-foreground bg-popover">{t('priorityUrgent')}</option>
-                    </select>
+                      <SelectTrigger
+                        id="priority"
+                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {task.priority && <PriorityIcon priority={task.priority} />}
+                          <SelectValue />
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NONE">{t('priorityNone')}</SelectItem>
+                        {(['URGENT', 'HIGH', 'MEDIUM', 'LOW'] as Priority[]).map((oncelik) => (
+                          <SelectItem key={oncelik} value={oncelik}>
+                            <span className="flex items-center gap-1.5">
+                              <PriorityIcon priority={oncelik} />
+                              {t(`priority${oncelik.charAt(0)}${oncelik.slice(1).toLowerCase()}` as Parameters<typeof t>[0])}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -1715,15 +1735,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <AttachmentsSection cardId={task.id} isAdmin={isAdmin} />
               )}
 
-              {showSettings && taskId !== 'new' && (
+              {/* Yorumlar VARSAYILAN gorunumde. Ayar dugmesinin arkasindaydi;
+                  yorum bir kartin en cok okunan parcasi, ayar degil. */}
+              {taskId !== 'new' && (
                 <CommentsSection cardId={task.id} members={members} />
               )}
 
-              <p className="text-xs text-muted-foreground font-mono">
-                {taskId === 'new'
-                  ? `${t('newCardRequestTitle')} | ${lang === 'en' ? 'Column' : 'Sütun'} ID: ${columnId}`
-                  : `ID: ${task.id} | ${lang === 'en' ? 'Column' : 'Sütun'}: ${task.columnId}`}
-              </p>
+              {/* Yeni kart talebinde baslik bilgilendirici; mevcut kartta
+                  ise yalnizca ham id'ler yaziyordu ve son kullaniciya
+                  hicbir sey ifade etmiyordu - kaldirildi. */}
+              {taskId === 'new' && (
+                <p className="text-xs text-muted-foreground">{t('newCardRequestTitle')}</p>
+              )}
             </div>
 
             {taskId !== 'new' && isAdmin && showSaveTemplate && (
