@@ -507,6 +507,7 @@ const translations = {
     imagesLabel: "Görseller",
     showFullTitles: "Tümünü göster",
     collapseTitles: "Daralt",
+    previewModeHint: "Önizleme — düzenlemek için bir alana tıklayın",
   },
   en: {
     // General Buttons & Controls
@@ -1013,6 +1014,7 @@ const translations = {
     imagesLabel: "Images",
     showFullTitles: "Show full titles",
     collapseTitles: "Collapse",
+    previewModeHint: "Preview — click any field to edit",
   }
 };
 

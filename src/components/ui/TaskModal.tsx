@@ -586,6 +586,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [dependencyRelationType, setDependencyRelationType] = useState<DependencyRelationType>('BLOCKS');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   // Aciklama markdown: yazma / onizleme kipi
+  // Kart acilista ONIZLEME modunda. Ilk etkilesimde duzenleme moduna
+  // geciyor ve modal kapanana kadar orada kaliyor - tek yonlu, cunku
+  // kullanici bir seyi degistirmeye baslamissa geri onizlemeye atmak
+  // yazdigini kaybetmis hissi verir.
+  const [onizlemeModu, setOnizlemeModu] = useState(false);
   const [descPreview, setDescPreview] = useState(false);
   // Kart detayinda ayar bolumleri (etiket/bagimlilik/ozel alan/checklist/ek)
   // varsayilan olarak gizli; yalnizca baslik + aciklama + tarih/atanan gorunur.
@@ -675,6 +680,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       }
 
       if (taskId && taskId !== 'new') {
+        // Yeni kart bos bir formdur; onizlemenin anlami yok.
+        setOnizlemeModu(true);
+        setDescPreview(false);
         setLoading(true);
         try {
           const data = await fetchTaskDetails(taskId);
@@ -692,6 +700,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       }
 
       if (taskId === 'new') {
+        setOnizlemeModu(false);
         setLoading(false);
         setTask({
           id: 'new',
@@ -1064,7 +1073,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-3xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden no-scrollbar">
+      <DialogContent
+        className="sm:max-w-3xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden no-scrollbar"
+        onPointerDownCapture={() => setOnizlemeModu(false)}
+        onFocusCapture={() => setOnizlemeModu(false)}
+      >
         {loading ? (
           <div className="text-center py-10 text-muted-foreground">{t('loading')}</div>
         ) : task ? (
@@ -1081,6 +1094,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     className="w-full text-lg font-semibold bg-transparent focus:outline-none focus:ring-1 focus:ring-ring rounded-md px-1 -mx-1 text-foreground"
                     placeholder={t('taskTitleLabel')}
                   />
+                  {/* Modun gorunur olmasi sart: aksi halde kullanici aciklamayi
+                      neden duz metin gordugunu anlamaz. Ilk tiklamada kayboluyor. */}
+                  {onizlemeModu && (
+                    <p className="mt-0.5 px-1 -mx-1 text-[11px] text-muted-foreground">
+                      {t('previewModeHint')}
+                    </p>
+                  )}
                 </div>
                 {/* Sag ust eylem kumesi: ayarlar carki + AI ile doldur yan yana, kapat
                     (X) butonunun altina girmesin diye sagdan (mr-7) bosluk birakilir. */}
@@ -1638,7 +1658,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   )}
                 </div>
                 <div className="relative">
-                  {descPreview && (task.description ?? '').trim().length > 0 ? (
+                  {(descPreview || onizlemeModu) && (task.description ?? '').trim().length > 0 ? (
                     <div className="min-h-16 rounded-lg border border-input px-2.5 py-2">
                       <Markdown>{task.description ?? ''}</Markdown>
                     </div>
