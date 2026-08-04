@@ -6,7 +6,6 @@ export interface RoadmapCard {
   startDate: string | null;
   dueDate: string | null;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  storyPoints: number | null;
   parentCardId: string | null;
   columnId: string;
   columnName: string;
@@ -30,7 +29,22 @@ export const roadmapApi = api.injectEndpoints({
       transformResponse: (response: { success: boolean; data: Roadmap }) => response.data,
       providesTags: (_r, _e, { projectId }) => [{ type: 'Insight', id: `roadmap-${projectId}` }],
     }),
+    // TimelineView'da cubugun uclarini surukleyip yeni sure kaydeder. PATCH
+    // sonrasi roadmap tag'i gecersiz kilinir ki query yeniden cekilsin ve
+    // cubuk DB'deki gercek surelerle hizalansin. startDate/dueDate null
+    // gonderilirse backend ilgili alani temizler.
+    updateCardDates: builder.mutation<
+      void,
+      { cardId: string; startDate: string | null; dueDate: string | null }
+    >({
+      query: ({ cardId, startDate, dueDate }) => ({
+        url: `/cards/${cardId}`,
+        method: 'PATCH',
+        body: { startDate, dueDate },
+      }),
+      invalidatesTags: ['Insight'],
+    }),
   }),
 });
 
-export const { useGetProjectRoadmapQuery } = roadmapApi;
+export const { useGetProjectRoadmapQuery, useUpdateCardDatesMutation } = roadmapApi;

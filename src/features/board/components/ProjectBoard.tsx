@@ -1407,7 +1407,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
       <div className="flex-1 min-h-0 flex gap-4 sm:gap-6 relative overflow-hidden">
         {viewMode === 'timeline' ? (
-          <TimelineView projectId={projectId} onCardClick={handleTaskClick} />
+          <TimelineView projectId={projectId} onCardClick={handleTaskClick} canEdit={isAdmin} />
         ) : viewMode === 'table' ? (
           <TableView
             tasks={calendarTasks}

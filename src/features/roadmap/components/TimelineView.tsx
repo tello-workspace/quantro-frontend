@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { ZoomIn, ZoomOut, CalendarRange } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useGetProjectRoadmapQuery, RoadmapCard } from '../roadmapApi';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useGetProjectRoadmapQuery, useUpdateCardDatesMutation, RoadmapCard } from '../roadmapApi';
 
 interface Props {
   projectId: string;
   onCardClick: (cardId: string) => void;
+  /** Yonetici kenar kulplarini gorur ve sureyi surukleyebilir; uye salt-okunur. */
+  canEdit?: boolean;
 }
 
 const GUN_MS = 24 * 60 * 60 * 1000;
@@ -47,12 +48,27 @@ function aralik(c: RoadmapCard): { bas: Date; bit: Date } | null {
   return bit < bas ? { bas, bit: bas } : { bas, bit };
 }
 
-export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
-  const { t } = useTranslation();
+const TARIH_BICIM = new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short' });
+
+export const TimelineView: React.FC<Props> = ({ projectId, onCardClick, canEdit = false }) => {
   const { data, isLoading } = useGetProjectRoadmapQuery({ projectId });
+  const [updateCardDates] = useUpdateCardDatesMutation();
   const [zoom, setZoom] = useState(1); // ZOOM_KADEMELERI indeksi
   const kaydirmaRef = useRef<HTMLDivElement>(null);
   const gunPx = ZOOM_KADEMELERI[zoom];
+
+  // Surukleme durumu. Commit pointerup'ta; arada yalnizca gun ofseti izlenir.
+  // baslangicX pointerdown'daki clientX - delta gunu ondan turetilir ki zoom
+  // ya da kaydirma sirasinda hedef sagsaplanmasin.
+  const [surukle, setSurukle] = useState<{
+    cardId: string;
+    kenar: 'bas' | 'bit';
+    toplamGun: number;
+    baslangicX: number;
+    delta: number;
+  } | null>(null);
+  // Son delta: pointerup kapandiginda en guncel degerin kullanilmasi icin.
+  const deltaRef = useRef(0);
 
   const model = useMemo(() => {
     if (!data) return null;
@@ -94,7 +110,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
       gruplar.get(anahtar)!.satirlar.push(item);
     }
 
-    // Satir indeksi: bagimlilik oklarini cizerken her kartin dikey yerini
+    // Satir indeksi: bagimlilik oklari cizerken her kartin dikey yerini
     // bilmemiz gerekiyor, gruplar arasi baslik satirlari da sayiliyor.
     const satirIndeksi = new Map<string, number>();
     let y = 0;
@@ -119,6 +135,66 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
     kaydirmaRef.current.scrollLeft = Math.max(0, bugunOfset - 200);
   }, [model, gunPx]);
 
+  // ------------------------- surukleme (kenar kulplari) ---------------------
+
+  const kaydet = useCallback(
+    async (cardId: string, startDate: string | null, dueDate: string | null) => {
+      try {
+        await updateCardDates({ cardId, startDate, dueDate }).unwrap();
+        // invalidatesTags sayesinde roadmap yeniden cekilir ve cubuk DB'deki
+        // gercek surelerle hizalanir.
+      } catch (err) {
+        console.error('Kart süresi güncellenirken hata:', err);
+      }
+    },
+    [updateCardDates],
+  );
+
+  const kenarBasla = (e: React.PointerEvent, c: RoadmapCard, kenar: 'bas' | 'bit') => {
+    if (!canEdit || !model) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ar = aralik(c)!;
+    const toplamGun = Math.round((ar.bit.getTime() - ar.bas.getTime()) / GUN_MS);
+    deltaRef.current = 0;
+    setSurukle({ cardId: c.id, kenar, toplamGun, baslangicX: e.clientX, delta: 0 });
+    // Pointer capture kulpun kendisine: sonraki move/up olaylari kulpla
+    // konusulur, kullanici cubugun disina suruklese bile kaybolmaz.
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const kenarHareket = (e: React.PointerEvent) => {
+    if (!surukle) return;
+    const delta = Math.round((e.clientX - surukle.baslangicX) / gunPx);
+    // Kisitla: baslangic bitisten sonraya gidemesin, cubuk en az 1 gun kalsin.
+    const clamped =
+      surukle.kenar === 'bas'
+        ? Math.min(delta, surukle.toplamGun)
+        : Math.max(delta, -surukle.toplamGun);
+    deltaRef.current = clamped;
+    setSurukle((prev) => (prev ? { ...prev, delta: clamped } : prev));
+  };
+
+  const kenarBirak = () => {
+    if (!surukle) return;
+    const inst = surukle;
+    const delta = deltaRef.current;
+    setSurukle(null);
+    deltaRef.current = 0;
+    if (delta === 0) return; // yerinden oynamadi
+
+    const kart = data?.cards.find((c) => c.id === inst.cardId);
+    if (!kart) return;
+    const ar = aralik(kart)!;
+    if (inst.kenar === 'bas') {
+      const yeniBas = new Date(ar.bas.getTime() + delta * GUN_MS);
+      kaydet(inst.cardId, yeniBas.toISOString(), kart.dueDate);
+    } else {
+      const yeniBit = new Date(ar.bit.getTime() + delta * GUN_MS);
+      kaydet(inst.cardId, kart.startDate, yeniBit.toISOString());
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-2 p-4">
@@ -133,7 +209,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <CalendarRange className="mb-3 size-8 text-muted-foreground" />
-        <p className="text-sm text-foreground">{t('noTimelineCards')}</p>
+        <p className="text-sm text-foreground">Zaman çizelgesinde gösterilecek kart yok.</p>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
           Kartlara başlangıç veya bitiş tarihi ekleyince burada görünürler.
         </p>
@@ -158,11 +234,22 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
     }
   }
 
-  const kartOfseti = (c: RoadmapCard) => {
+  // Kart cubugunun gorsel konumu. Surukleme varsa onizleme degerleri uygulanir:
+  // bas kenari cekilirse sol kayar ve uzunluk ters yonde degisir, bit kenari
+  // cekilirse yalnizca uzunluk degisir.
+  const kartOfseti = (c: RoadmapCard, drag?: { kenar: 'bas' | 'bit'; delta: number } | null) => {
     const ar = aralik(c)!;
-    const sol = Math.round((ar.bas.getTime() - baslangic.getTime()) / GUN_MS) * gunPx;
-    const gun = Math.round((ar.bit.getTime() - ar.bas.getTime()) / GUN_MS) + 1;
-    return { sol, genislik: Math.max(gun * gunPx, 6) };
+    let solGun = Math.round((ar.bas.getTime() - baslangic.getTime()) / GUN_MS);
+    let gun = Math.round((ar.bit.getTime() - ar.bas.getTime()) / GUN_MS) + 1;
+    if (drag) {
+      if (drag.kenar === 'bas') {
+        solGun += drag.delta;
+        gun -= drag.delta;
+      } else {
+        gun += drag.delta;
+      }
+    }
+    return { sol: solGun * gunPx, genislik: Math.max(gun * gunPx, 6) };
   };
 
   return (
@@ -170,13 +257,14 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
         <p className="text-xs text-muted-foreground">
           {akis.filter((a) => a.tip === 'kart').length} kart · tarihi olmayanlar listelenmez
+          {canEdit && <span className="ml-2 text-muted-foreground/70">· uçlarından sürükleyip uzat</span>}
         </p>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setZoom((z) => Math.max(0, z - 1))}
             disabled={zoom === 0}
-            aria-label={t('zoomOut')}
+            aria-label="Uzaklaştır"
             className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <ZoomOut className="size-3.5" />
@@ -185,7 +273,7 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
             type="button"
             onClick={() => setZoom((z) => Math.min(ZOOM_KADEMELERI.length - 1, z + 1))}
             disabled={zoom === ZOOM_KADEMELERI.length - 1}
-            aria-label={t('zoomIn')}
+            aria-label="Yakınlaştır"
             className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
           >
             <ZoomIn className="size-3.5" />
@@ -307,9 +395,18 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
                 ) : (
                   (() => {
                     const c = satir.item.card;
-                    const o = kartOfseti(c);
+                    const ar = aralik(c)!;
+                    const drag = surukle?.cardId === c.id ? surukle : null;
+                    const o = kartOfseti(c, drag);
+                    const aktifBas = new Date(ar.bas.getTime() + (drag?.delta ?? 0) * GUN_MS);
+                    const aktifBit = new Date(ar.bit.getTime() + (drag?.delta ?? 0) * GUN_MS);
+                    // Hover seritleri: yalnizca kartta GERCEKTEN olan tarihler
+                    // gosterilir (ornek amaçli esitlenen taraf degil).
+                    const basEtiketi = c.startDate ? TARIH_BICIM.format(aktifBas) : null;
+                    const bitEtiketi = c.dueDate ? TARIH_BICIM.format(aktifBit) : null;
+
                     return (
-                      <div key={c.id} className="relative" style={{ height: SATIR_YUKSEKLIGI }}>
+                      <div key={c.id} className="group relative" style={{ height: SATIR_YUKSEKLIGI }}>
                         <button
                           type="button"
                           onClick={() => onCardClick(c.id)}
@@ -327,6 +424,54 @@ export const TimelineView: React.FC<Props> = ({ projectId, onCardClick }) => {
                             </Avatar>
                           ))}
                         </button>
+
+                        {/* Kenar kulplari: yoneticilerde sureyi uzatir/kisaltir.
+                            Kendi pointer olaylariyla cubuk butonunun tikini
+                            engellemez; hover'da belirir. */}
+                        {canEdit && (
+                          <>
+                            <span
+                              role="slider"
+                              aria-label={`${c.title} başlangıç tarihi`}
+                              onPointerDown={(e) => kenarBasla(e, c, 'bas')}
+                              onPointerMove={kenarHareket}
+                              onPointerUp={kenarBirak}
+                              onPointerCancel={kenarBirak}
+                              className="absolute top-1.5 z-30 h-8 w-2.5 cursor-ew-resize rounded-l-md bg-black/30 opacity-0 transition-opacity group-hover:opacity-100 touch-none"
+                              style={{ left: o.sol - 2 }}
+                            />
+                            <span
+                              role="slider"
+                              aria-label={`${c.title} bitiş tarihi`}
+                              onPointerDown={(e) => kenarBasla(e, c, 'bit')}
+                              onPointerMove={kenarHareket}
+                              onPointerUp={kenarBirak}
+                              onPointerCancel={kenarBirak}
+                              className="absolute top-1.5 z-30 h-8 w-2.5 cursor-ew-resize rounded-r-md bg-black/30 opacity-0 transition-opacity group-hover:opacity-100 touch-none"
+                              style={{ left: o.sol + o.genislik - 3 }}
+                            />
+                          </>
+                        )}
+
+                        {/* Hover tarih seritleri: cubugun solunda baslangic,
+                            saginda bitis. Suruklerken de guncel tarih canli
+                            gosterilir (aktifBas/aktifBit ile). */}
+                        {basEtiketi && (
+                          <span
+                            className="pointer-events-none absolute z-40 whitespace-nowrap rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] font-medium text-white opacity-0 shadow ring-1 ring-white/20 transition-opacity group-hover:opacity-100"
+                            style={{ left: o.sol - 6, top: '50%', transform: 'translate(-100%, -50%)' }}
+                          >
+                            {basEtiketi}
+                          </span>
+                        )}
+                        {bitEtiketi && (
+                          <span
+                            className="pointer-events-none absolute z-40 whitespace-nowrap rounded-full bg-slate-900/90 px-2 py-0.5 text-[10px] font-medium text-white opacity-0 shadow ring-1 ring-white/20 transition-opacity group-hover:opacity-100"
+                            style={{ left: o.sol + o.genislik + 6, top: '50%', transform: 'translateY(-50%)' }}
+                          >
+                            {bitEtiketi}
+                          </span>
+                        )}
                       </div>
                     );
                   })()
