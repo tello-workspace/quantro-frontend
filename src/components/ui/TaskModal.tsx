@@ -1555,41 +1555,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-4 items-start">
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="startDate" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
-                      <CalendarDaysIcon className="h-4 w-4" />
-                      {t('startDateLabel')}
-                    </label>
-                    <Input
-                      type="date"
-                      id="startDate"
-                      name="startDate"
-                      value={task.startDate ? task.startDate.split('T')[0] : ''}
-                      onChange={handleChange}
-                      disabled={isFilling}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="dueDate" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
-                      <CalendarDaysIcon className="h-4 w-4" />
-                      {t('dueDateLabel')}
-                    </label>
-                    <Input
-                      type="date"
-                      id="dueDate"
-                      name="dueDate"
-                      value={task.dueDate ? task.dueDate.split('T')[0] : ''}
-                      onChange={handleChange}
-                      disabled={isFilling}
-                    />
-                  </div>
-
-                </div>
-
-                {/* Sag sutun: Atanan Kisiler + Oncelik. Oncelik eskiden sol
-                    sutunda tarihlerin altindaydi; kart bu iki alanin birlikte
+                {/* Sol sutun: Atanan Kisiler + Oncelik. Oncelik eskiden tarihlerin
+                    altindaydi; kart bu iki alanin birlikte
                     gruplanmasini istiyor. */}
                 <div className="space-y-4">
                 <div>
@@ -1704,6 +1671,40 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </select>
                   </div>
                 </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="startDate" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
+                      <CalendarDaysIcon className="h-4 w-4" />
+                      {t('startDateLabel')}
+                    </label>
+                    <Input
+                      type="date"
+                      id="startDate"
+                      name="startDate"
+                      value={task.startDate ? task.startDate.split('T')[0] : ''}
+                      onChange={handleChange}
+                      disabled={isFilling}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="dueDate" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
+                      <CalendarDaysIcon className="h-4 w-4" />
+                      {t('dueDateLabel')}
+                    </label>
+                    <Input
+                      type="date"
+                      id="dueDate"
+                      name="dueDate"
+                      value={task.dueDate ? task.dueDate.split('T')[0] : ''}
+                      onChange={handleChange}
+                      disabled={isFilling}
+                    />
+                  </div>
+
+                </div>
+
               </div>
 
               {showSettings && taskId !== 'new' && (
