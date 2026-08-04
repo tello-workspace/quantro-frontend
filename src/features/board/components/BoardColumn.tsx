@@ -73,6 +73,12 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
     id: `col-grip-${id}`,
   });
 
+  // Sutun katlama (Jira'daki gibi): tutamaca cift tiklayinca sutun dar bir
+  // seride donusuyor. Durum bilerek YEREL - katlama gecici bir gorunum
+  // tercihi, panonun kalici bir ozelligi degil; sunucuya veya localStorage'a
+  // yazmak bir kullanicinin gecici tercihini kalici veri haline getirirdi.
+  const [katli, setKatli] = useState(false);
+
   const [isAdding, setIsAdding] = useState(false);
   const [titleInput, setTitleInput] = useState('');
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -140,6 +146,41 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
           colIsOver ? 'bg-primary/20 ring-2 ring-primary scale-x-125' : ''
         }`}
       />
+      {katli ? (
+        <div
+          ref={cardDropRef}
+          onDoubleClick={() => setKatli(false)}
+          className={`flex h-full w-12 cursor-pointer flex-col items-center gap-3 rounded-2xl border bg-muted/40 p-2 transition-all duration-300 ${
+            cardIsOver ? 'bg-accent/30' : ''
+          } ${isLimitExceeded ? 'border-destructive/40 bg-destructive/5' : 'border-border/70'}`}
+          title={t('doubleClickToExpand')}
+        >
+          <span
+            ref={isAdmin ? dragRef : undefined}
+            {...(isAdmin ? attributes : {})}
+            {...(isAdmin ? listeners : {})}
+            onDoubleClick={(e) => {
+              // Disaridaki kapsayici da cift tigi dinliyor; ikisi birden
+              // calisirsa sutun acilip aninda tekrar kapaniyor.
+              e.stopPropagation();
+              setKatli(false);
+            }}
+            className="flex shrink-0 touch-none items-center text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+          >
+            <GripVerticalIcon className="h-4 w-4" />
+          </span>
+          <Badge
+            variant={isLimitExceeded ? 'destructive' : 'secondary'}
+            className="shrink-0 px-1.5 text-[11px] tabular-nums"
+          >
+            {realCount}
+          </Badge>
+          {/* Dikey baslik: dar seritte yatay metin sigmiyor. */}
+          <span className="min-h-0 flex-1 truncate text-sm font-semibold text-foreground [writing-mode:vertical-rl]">
+            {title}
+          </span>
+        </div>
+      ) : (
       <div
         ref={cardDropRef}
         className={`flex w-80 lg:w-[350px] flex-col rounded-2xl border bg-muted/40 p-3 transition-all duration-300 h-full ${
@@ -153,17 +194,22 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
       {/* Sutun basligi — drag handle (sadece admin), inline rename, delete */}
       <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-1 rounded-xl bg-muted/40 py-1 pl-1 pr-1 backdrop-blur-sm">
         <div className="flex min-w-0 items-center gap-1.5">
-          {isAdmin && (
-            <span
-              ref={dragRef}
-              {...attributes}
-              {...listeners}
-              className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing transition-colors"
-              title={t('dragToReorder')}
-            >
-              <GripVerticalIcon className="h-4 w-4" />
-            </span>
-          )}
+          {/* Tutamac artik HERKESE gorunuyor: katlama kisisel bir gorunum
+              tercihi ve yalnizca adminlere acik olmasi icin bir sebep yok.
+              Surukleyip siralama yine admin'e ozel - listeners/attributes
+              sadece admin'e baglaniyor. */}
+          <span
+            ref={isAdmin ? dragRef : undefined}
+            {...(isAdmin ? attributes : {})}
+            {...(isAdmin ? listeners : {})}
+            onDoubleClick={() => setKatli((o) => !o)}
+            className={`flex shrink-0 touch-none items-center text-muted-foreground/40 hover:text-muted-foreground transition-colors ${
+              isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+            }`}
+            title={isAdmin ? `${t('dragToReorder')} · ${t('doubleClickToCollapse')}` : t('doubleClickToCollapse')}
+          >
+            <GripVerticalIcon className="h-4 w-4" />
+          </span>
           {isRenaming ? (
             <Input
               ref={renameRef}
@@ -309,6 +355,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
       </div>
       )}
     </div>
+      )}
     </div>
   );
 };

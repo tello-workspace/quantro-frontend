@@ -491,6 +491,9 @@ const translations = {
     byAssignee: "Atanana göre",
     byPriority: "Önceliğe göre",
     byEpic: "Epic'e göre",
+    // Sutun katlama
+    doubleClickToCollapse: "Daraltmak için çift tıkla",
+    doubleClickToExpand: "Genişletmek için çift tıkla",
   },
   en: {
     // General Buttons & Controls
@@ -981,6 +984,9 @@ const translations = {
     byAssignee: "By assignee",
     byPriority: "By priority",
     byEpic: "By epic",
+    // Sutun katlama
+    doubleClickToCollapse: "Double-click to collapse",
+    doubleClickToExpand: "Double-click to expand",
   }
 };
 
