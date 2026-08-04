@@ -31,6 +31,7 @@ import {
   useGetAttachmentsQuery,
   useUploadAttachmentMutation,
   useDeleteAttachmentMutation,
+  type Attachment,
 } from '@/features/attachments/attachmentsApi';
 import { compressImageClient } from '@/features/attachments/imageCompression';
 import {
@@ -364,6 +365,7 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
   const { data: attachments = [] } = useGetAttachmentsQuery(cardId);
   const [uploadAttachment, { isLoading: isUploading }] = useUploadAttachmentMutation();
   const [deleteAttachment] = useDeleteAttachmentMutation();
+  const [onizleme, setOnizleme] = useState<Attachment | null>(null);
 
   const handleFilesPicked = async (files: File[]) => {
     const file = files[0];
@@ -380,6 +382,10 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
 
     try {
       await uploadAttachment({ cardId, file: processed }).unwrap();
+      // Kart "upload olduguna dair bir tik" istiyordu: eskiden basarili
+      // yuklemede hicbir geri bildirim yoktu, yalnizca "Yukleniyor..." yazisi
+      // kayboluyordu ve kullanici islemin bitip bitmedigini anlamiyordu.
+      toast.success(t('attachmentUploaded'));
     } catch (err: unknown) {
       const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
       toast.error(errData?.message || t('attachmentUploadError'));
@@ -403,11 +409,62 @@ const AttachmentsSection: React.FC<{ cardId: string; isAdmin: boolean }> = ({ ca
     }
   };
 
+  // Gorsel ekleri ayri tutuyoruz: kart, resimlerin indirilmeden kartin
+  // icinde gorunmesini istiyor. Imzali downloadUrl zaten <img src> olarak
+  // dogrudan kullanilabiliyor.
+  const gorseller = attachments.filter((a) => a.mimeType.startsWith('image/') && a.downloadUrl);
+
   return (
     <div>
       <label className="block text-sm font-medium text-muted-foreground mb-1.5">
         {t('attachmentsCountLabel')} {attachments.length > 0 && `(${attachments.length})`}
       </label>
+
+      {gorseller.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {gorseller.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setOnizleme(a)}
+              title={a.fileName}
+              className="size-20 shrink-0 overflow-hidden rounded-lg border border-border transition-opacity hover:opacity-80"
+            >
+              {/* Yuklenen gorsellerin boyutlari cok farkli olabildigi icin
+                  sabit KARESEL bir kutuya object-cover ile oturtuluyor;
+                  boylece izgara duzeni bozulmuyor. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={a.downloadUrl!} alt={a.fileName} className="size-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {onizleme && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={onizleme.fileName}
+          onClick={() => setOnizleme(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+        >
+          <button
+            type="button"
+            onClick={() => setOnizleme(null)}
+            aria-label={t('closePreview')}
+            className="absolute right-4 top-4 rounded-md bg-white/10 p-2 text-white hover:bg-white/20"
+          >
+            <XMarkIcon className="size-5" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={onizleme.downloadUrl!}
+            alt={onizleme.fileName}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-full max-w-full rounded-lg object-contain"
+          />
+        </div>
+      )}
 
       <div className="space-y-2 mb-3">
         {attachments.length === 0 && (
@@ -1735,7 +1792,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <ChecklistSection cardId={task.id} />
               )}
 
-              {showSettings && taskId !== 'new' && (
+              {/* Ekler VARSAYILAN gorunumde: kart, gorsellerin ayar
+                  dugmesine basmadan gorunmesini istiyor. */}
+              {taskId !== 'new' && (
                 <AttachmentsSection cardId={task.id} isAdmin={isAdmin} />
               )}
 

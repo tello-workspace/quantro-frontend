@@ -502,6 +502,9 @@ const translations = {
     overdueLabel: "Gecikmiş",
     parentSubtasksLabel: "Üst Görev / Alt Görevler",
     subtasksCount: "Alt görevler",
+    attachmentUploaded: "Ek yüklendi",
+    closePreview: "Önizlemeyi kapat",
+    imagesLabel: "Görseller",
   },
   en: {
     // General Buttons & Controls
@@ -1003,6 +1006,9 @@ const translations = {
     overdueLabel: "Overdue",
     parentSubtasksLabel: "Parent / Subtasks",
     subtasksCount: "Subtasks",
+    attachmentUploaded: "Attachment uploaded",
+    closePreview: "Close preview",
+    imagesLabel: "Images",
   }
 };
 
