@@ -2,6 +2,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useDispatch } from 'react-redux';
+import { api } from '@/lib/api';
 import {
   closestCenter,
   DndContext,
@@ -153,6 +155,7 @@ function removeCard(columns: BoardData['columns'], cardId: string): BoardData['c
 
 export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId }) => {
   const { t, lang } = useTranslation();
+  const dispatch = useDispatch();
   const [boardData, setBoardData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   // Excel uretimi 500 kartlik bir panoda birkac saniye surebiliyor - buton
@@ -463,6 +466,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         delete newTasks[cardId];
         return { ...prev, tasks: newTasks, columns: removeCard(prev.columns, cardId) };
       });
+      // Diger kullanicilar da RTK cache'lerini (roadmap/insight) guncellesin.
+      // Board state'i yukarida socket ile guncelleniyor ama timeline gibi RTK
+      // tabanli gorunumler bu olmadan bayat karta takili kalirdi.
+      dispatch(api.util.invalidateTags(['Card', 'Insight']));
     });
 
     const unsubscribeColumnCreated = realtimeBoard.onColumnCreated((payload) => {
@@ -1000,7 +1007,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       refetchLabels();
       setBoardData((prev) => {
         if (!prev) return prev;
-        
+
         const newColumns = removeCard(prev.columns, taskId);
 
         const newTasks = { ...prev.tasks };
@@ -1012,6 +1019,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           tasks: newTasks,
         };
       });
+      // RTK cache'lerini de gecersiz kil: board/roadmap/insight gibi
+      // gorunumler kart silinince bayat kalmasin. BoardService plain fetch
+      // kullandigi icin RTK bu silmeyi bilmiyor - bu olmadan timeline'da
+      // silinen kart gorunmeye devam ediyordu.
+      dispatch(api.util.invalidateTags(['Card', 'Insight']));
       toast.success(t('taskDeleted'));
     } catch (error) {
       // Onceden sessizce yutuluyordu: silme basarisiz olsa bile kullanici
