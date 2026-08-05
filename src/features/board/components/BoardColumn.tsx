@@ -31,6 +31,12 @@ interface BoardColumnProps {
   /** Toplu islem icin secili kart id'leri */
   selectedIds?: Set<string>;
   onToggleSelect?: (taskId: string) => void;
+  /** Surukle-ciz (marquee) seciminin kolon zemininden baslatilmasini ister.
+   *  Bu pointer olaylari yalnizca kart DISINDAKI zeminde calisir; kart
+   *  uzerindeki surukleme dnd-kit'in sorumlulugunda kalmaya devam eder. */
+  onMarqueeStart?: (e: React.PointerEvent) => void;
+  onMarqueeMove?: (e: React.PointerEvent) => void;
+  onMarqueeEnd?: (e: React.PointerEvent) => void;
   /** Swimlane modunda ayni sutun birden fazla seritte cizilir; dnd-kit
    *  droppable id'leri benzersiz olmak zorunda oldugu icin serit anahtari
    *  id'ye ekleniyor. Verilmezse sade sutun id'si kullanilir. */
@@ -57,6 +63,9 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   onCreateFromTemplate,
   selectedIds,
   onToggleSelect,
+  onMarqueeStart,
+  onMarqueeMove,
+  onMarqueeEnd,
   laneKey,
   hideHeader = false,
 }) => {
@@ -260,11 +269,18 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
         </div>
       </div>
 
-      <div className="flex min-h-[150px] flex-1 flex-col gap-2.5 overflow-y-auto pr-1 no-scrollbar">
+      <div
+        className="flex min-h-[150px] flex-1 flex-col gap-2.5 overflow-y-auto pr-1 no-scrollbar"
+        onPointerDown={onMarqueeStart}
+        onPointerMove={onMarqueeMove}
+        onPointerUp={onMarqueeEnd}
+        onPointerCancel={onMarqueeEnd}
+      >
         <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <BoardCard
               key={task.id}
+              data-card-id={task.id}
               task={task}
               isDoneColumn={isDone ?? (title.toLowerCase() === 'done' || title.toLowerCase() === 'tamamlandı')}
               onClick={() => onTaskClick(task.id)}

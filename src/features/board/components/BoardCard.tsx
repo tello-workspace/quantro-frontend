@@ -15,6 +15,10 @@ export interface CardConflictInfo {
 }
 
 interface BoardCardProps {
+  /** Marquee seciminde kartin id'sini DOM'dan bulmak icin kok elemana
+   *  yazilan attribute. dnd-kit de kendi attribute'larini kullandigi icin
+   *  data- ile ayristiriyoruz. */
+  'data-card-id'?: string;
   task: Task;
   onClick: () => void;
   isDoneColumn?: boolean;
@@ -61,6 +65,7 @@ function formatDate(dateStr: string, lang: string): string {
 }
 
 export const BoardCard: React.FC<BoardCardProps> = ({
+  'data-card-id': dataCardId,
   task,
   onClick,
   isDoneColumn = false,
@@ -99,6 +104,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   return (
     <div
       ref={setNodeRef}
+      data-card-id={dataCardId}
       style={style}
       {...attributes}
       {...listeners}

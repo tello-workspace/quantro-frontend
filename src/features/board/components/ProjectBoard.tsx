@@ -1126,6 +1126,109 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
   const clearSelection = useCallback(() => setSelectedCardIds(new Set()), []);
 
+  // ─── Surukle-ciz (marquee) secim ──────────────────────────────
+  // Kullanici kolonun BOS zeminine basip surukleyince bir dikdortgen cizilir,
+  // bu dikdortgenle kesisen kartlar secilir. 20+ kartin tek tek tiklanmasini
+  // gerektiren toplu secimler icin. Kart uzerinden baslatilmiyor - o is
+  // dnd-kit'in kart tasima sorumlulugunda. Yalnizca pano (board) gorunumunde,
+  // shift basiliyken degil (normal surukleme zeminin yatay kaydirma isi
+  // degildir). Kaydirma icin kolon kendi scroll'unda; marquee viewport
+  // koordinatlarinda calistigi icin scroll otomatik isliyor.
+  interface Marquee {
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  }
+  const [marquee, setMarquee] = useState<Marquee | null>(null);
+  const marqueeRef = useRef<Marquee | null>(null);
+  // Marquee baslarken kartlarin DOM rect'lerini bir kez topluyoruz; her
+  // pointerMove'da getBoundingClientRect cagirmak scroll sirasinda layout
+  // thrash yaratirdi. Kartlar surukleme sirasinda hareket etmez (marquee
+  // yalnizca zemin boslugundan baslar), o yuzden baslangic anlik gorseli
+  // guvenilir.
+  const marqueeCardRects = useRef<Map<string, DOMRect> | null>(null);
+
+  const handleMarqueeStart = useCallback((e: React.PointerEvent) => {
+    // Hedef kart ise (yani zemine degil karta basildiysa) dokunma - kart
+    // suruklemesi dnd-kit'te. closest ile kok kart elementi aranir.
+    const hedef = e.target as HTMLElement;
+    if (hedef.closest('[data-card-id]')) return;
+    // Sekme/yatay kaydirma icin orta tus veya kaydirma yuzeyi degil; sol
+    // tusla baslansin.
+    if (e.button !== 0) return;
+
+    e.preventDefault();
+    // Pointer'i yakala: surukleme zeminin disina ciksa bile move/up olaylari
+    // bu elemana akmaya devam eder. Aksi halde dikdortgen kolon sinirinda
+    // donup kalirdi. DnD bunu kart uzerinde yapmiyor - biz zeminden
+    // basliyoruz, kesisimde sorun yok.
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    // dnd-kit'in PointerSensor'u (distance: 5) kart tasimasini yakalar; biz
+    // zeminden basliyoruz. Yine de zeminin kendi scroll kaydirma isini
+    // kullanici suruklemeyle yapmak istemez - sadece sol tik+suru baslatir.
+    const nokta = { startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY };
+    marqueeRef.current = nokta;
+    setMarquee(nokta);
+
+    // Bu kolondaki tum kart rect'lerini topla. data-card-id kok kart
+    // elementinde; yalnizca bu kolondaki gorunur kartlar islenir.
+    const zemin = (e.currentTarget as HTMLElement);
+    const rectler = new Map<string, DOMRect>();
+    zemin.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
+      const kimlik = el.dataset.cardId;
+      if (kimlik) rectler.set(kimlik, el.getBoundingClientRect());
+    });
+    marqueeCardRects.current = rectler;
+  }, []);
+
+  const handleMarqueeMove = useCallback((e: React.PointerEvent) => {
+    const baslangic = marqueeRef.current;
+    if (!baslangic) return;
+    e.preventDefault();
+    marqueeRef.current = { ...baslangic, endX: e.clientX, endY: e.clientY };
+    setMarquee(marqueeRef.current);
+  }, []);
+
+  const handleMarqueeEnd = useCallback((e: React.PointerEvent) => {
+    const baslangic = marqueeRef.current;
+    const rectler = marqueeCardRects.current;
+    marqueeRef.current = null;
+    marqueeCardRects.current = null;
+    setMarquee(null);
+    // Pointer capture'i serbest birak (sadece yakalanmissa). Bir sonraki
+    // marquee baslangicinda yeniden yakalanir.
+    try {
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // Capture yoksa veya zaten birakildiysa sessizce gec.
+    }
+    if (!baslangic || !rectler) return;
+
+    const minX = Math.min(baslangic.startX, baslangic.endX);
+    const maxX = Math.max(baslangic.startX, baslangic.endX);
+    const minY = Math.min(baslangic.startY, baslangic.endY);
+    const maxY = Math.max(baslangic.startY, baslangic.endY);
+
+    // Yeni secilecekler = marquee ile kesisen kartlar. Shift basiliyken var
+    // olan secime ekle, degilse secimi bu kumeyle degistir.
+    const secilecekler = new Set<string>();
+    rectler.forEach((r, id) => {
+      // Dikdortgen kesisimi: biri digerinin icinde veya tasiyorsa.
+      const kesisti = r.left < maxX && r.right > minX && r.top < maxY && r.bottom > minY;
+      if (kesisti) secilecekler.add(id);
+    });
+
+    setSelectedCardIds((prev) => {
+      if (e.shiftKey) {
+        const sonraki = new Set(prev);
+        secilecekler.forEach((id) => sonraki.add(id));
+        return sonraki;
+      }
+      return secilecekler;
+    });
+  }, []);
+
   // Panoda gercekten var olan secimler. State'i efektle budamak yerine
   // turetiyoruz: kart baska bir kullanici tarafindan silinip socket ile
   // dustugunde sayac var olmayan kartlari saymasin, ama bunun icin fazladan
@@ -1276,6 +1379,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           onCreateFromTemplate={handleCreateFromTemplate}
           selectedIds={effectiveSelectedIds}
           onToggleSelect={toggleCardSelection}
+          onMarqueeStart={handleMarqueeStart}
+          onMarqueeMove={handleMarqueeMove}
+          onMarqueeEnd={handleMarqueeEnd}
           laneKey={laneKey}
         />
       );
@@ -1512,6 +1618,22 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             ) : null}
           </DragOverlay>
         </DndContext>
+        )}
+
+        {/* Surukle-ciz (marquee) secim kutusu. fixed: kart rect'leri viewport
+            koordinatlarinda oldugundan overlay de viewport'a sabitleniyor;
+            container scroll yapsa bile gorsel dogru yerde kalir. pointer-events-none
+            sayesinde surukleme sonrasi etkilesimler (tik, tasima) engellenmez. */}
+        {marquee && (
+          <div
+            className="pointer-events-none fixed z-30 rounded-md border-2 border-primary/60 bg-primary/10"
+            style={{
+              left: Math.min(marquee.startX, marquee.endX),
+              top: Math.min(marquee.startY, marquee.endY),
+              width: Math.abs(marquee.endX - marquee.startX),
+              height: Math.abs(marquee.endY - marquee.startY),
+            }}
+          />
         )}
 
         {/* AI Chat drawer overlay (desktop) */}
