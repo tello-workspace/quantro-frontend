@@ -32,12 +32,14 @@ export function AppSidebar() {
   const orgId = searchParams?.get('orgId');
 
   const { data: orgs = [] } = useGetMyOrganizationsQuery();
-  const { data: org } = useGetOrganizationByIdQuery({ orgId: orgId ?? '' }, { skip: !orgId });
-  const isAdmin = org?.myRole === 'ADMIN';
-  const { data: projects = [] } = useGetProjectsQuery({ orgId: orgId ?? '' }, { skip: !orgId });
-
-  // Aktif org secimi: query'deki orgId yoksa ilk organizasyon
+  // Aktif org secimi: query'deki orgId yoksa ilk organizasyon. Eskiden projeler
+  // `skip: !orgId` ile cagriliyordu - login/logout sonrasi URL'de orgId yoksa
+  // projeler HIC cekilmiyordu, kullanici projeyi 1 kez acana kadar sidebar bos
+  // kaliyordu. Active orgId'yi kullanmak bunu cozer: ilk org otomatik secilir.
   const activeOrgId = orgId ?? orgs[0]?.id;
+  const { data: org } = useGetOrganizationByIdQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
+  const isAdmin = org?.myRole === 'ADMIN';
+  const { data: projects = [] } = useGetProjectsQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
   const [orgSelectOpen, setOrgSelectOpen] = useState(false);
 
   // Aktif org degisince projeleri o org'un projeleriyle listele
