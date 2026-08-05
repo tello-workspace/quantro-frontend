@@ -120,5 +120,7 @@ export const SEVIYE_STILI: Record<AciliyetSeviyesi, string> = {
   bugun: "bg-orange-500/10 text-orange-600 dark:text-orange-400 ring-1 ring-orange-500/25",
   yakin: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
   normal: "bg-muted text-muted-foreground",
-  yok: "bg-muted text-muted-foreground",
+  // "Tarih yok" ile "daha cok vakit var" ayni gorunmemeli: ilki eksik bir
+  // veri, ikincisi gecerli bir durum. Kesikli cerceve bunu sessizce ayiriyor.
+  yok: "border border-dashed border-border text-muted-foreground",
 };

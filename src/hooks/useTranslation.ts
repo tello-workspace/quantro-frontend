@@ -514,6 +514,7 @@ const translations = {
     blocked: "Bloklu",
     openCard: "kartı aç",
     goToProject: "Projeye git",
+    noDueDateHint: "Bu karta teslim tarihi girilmemiş — kartı açıp ekleyebilirsin",
     sessionUnavailableTitle: "Oturum açılamadı",
     sessionUnavailableDesc:
       "Giriş bilgilerin duruyor ama sunucuya şu an ulaşılamıyor, bu yüzden hesabın yüklenemedi. Birkaç saniye sonra tekrar dene; sorun sürerse çıkış yapıp yeniden giriş yap.",
@@ -1030,6 +1031,7 @@ const translations = {
     blocked: "Blocked",
     openCard: "open card",
     goToProject: "Go to project",
+    noDueDateHint: "This card has no due date — open it to add one",
     sessionUnavailableTitle: "Couldn't open your session",
     sessionUnavailableDesc:
       "You're still signed in, but the server can't be reached right now, so your account couldn't load. Try again in a few seconds; if it keeps failing, log out and sign in again.",

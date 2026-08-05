@@ -111,17 +111,22 @@ export default function DashboardPage() {
 
                       {/* Tarihin kendisi degil, KALAN SURE one cikiyor: "hangi
                           gun" degil "ne kadar vaktim var" sorusu soruluyor.
-                          Tam tarih hemen altinda kaliyor. */}
-                      {card.dueDate && (
-                        <span
-                          title={teslim.tarih ?? undefined}
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${SEVIYE_STILI[teslim.seviye]}`}
-                        >
-                          <CalendarClock aria-hidden className="size-3" />
-                          {teslim.metin}
-                        </span>
-                      )}
-                      {card.dueDate && (
+                          Tam tarih hemen altinda kaliyor.
+
+                          Tarih YOKKEN de rozet gosteriliyor. Onceden bu durumda
+                          hicbir sey cizilmiyordu ve sonuc yaniltici oluyordu:
+                          kullanici "tarih ozelligi calismiyor" saniyordu, oysa
+                          o kartlara hic tarih girilmemisti. Eksikligi gorunur
+                          kilmak, sessizce bos birakmaktan iyi - karta tiklayip
+                          tarihi oradan girebiliyor. */}
+                      <span
+                        title={teslim.tarih ?? t('noDueDateHint')}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${SEVIYE_STILI[teslim.seviye]}`}
+                      >
+                        <CalendarClock aria-hidden className="size-3" />
+                        {teslim.metin}
+                      </span>
+                      {teslim.tarih && (
                         <span className="text-[11px] tabular-nums text-muted-foreground">
                           {teslim.tarih}
                         </span>
