@@ -23,6 +23,19 @@ const baseQueryWithLogout = async (args: string | FetchArgs, api: BaseQueryApi, 
       window.location.pathname !== '/register'
     ) {
       localStorage.removeItem('token')
+      // Supabase oturumu AYRI bir localStorage kaydi; burada temizlenmezse
+      // kendi token'imiz silindikten sonra bile ayakta kaliyor ve bir sonraki
+      // "Google ile giris"te /auth/callback'teki getSession() bu ESKI oturumu
+      // okuyup onceki hesapla giris yapiyordu. Elle cikista (Header) zaten
+      // yapiliyordu, otomatik cikista atlanmisti.
+      const { supabase } = await import('@/lib/supabaseClient')
+      if (supabase) {
+        try {
+          await supabase.auth.signOut()
+        } catch {
+          // Cikis yonlendirmesini engellemesin - token zaten silindi.
+        }
+      }
       window.dispatchEvent(new Event('auth:changed'))
       window.location.href = '/login'
     }

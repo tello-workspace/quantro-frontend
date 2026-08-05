@@ -510,6 +510,10 @@ const translations = {
     previewModeHint: "Önizleme — düzenlemek için bir alana tıklayın",
     toggleMenu: "Menüyü aç/kapat",
     goHome: "Ana sayfa",
+    retry: "Tekrar dene",
+    sessionUnavailableTitle: "Oturum açılamadı",
+    sessionUnavailableDesc:
+      "Giriş bilgilerin duruyor ama sunucuya şu an ulaşılamıyor, bu yüzden hesabın yüklenemedi. Birkaç saniye sonra tekrar dene; sorun sürerse çıkış yapıp yeniden giriş yap.",
   },
   en: {
     // General Buttons & Controls
@@ -1019,6 +1023,10 @@ const translations = {
     previewModeHint: "Preview — click any field to edit",
     toggleMenu: "Toggle menu",
     goHome: "Home",
+    retry: "Try again",
+    sessionUnavailableTitle: "Couldn't open your session",
+    sessionUnavailableDesc:
+      "You're still signed in, but the server can't be reached right now, so your account couldn't load. Try again in a few seconds; if it keeps failing, log out and sign in again.",
   }
 };
 

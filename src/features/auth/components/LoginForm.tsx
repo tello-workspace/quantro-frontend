@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useLoginMutation, useResendVerificationMutation } from '../authApi';
 import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { api } from '@/lib/api';
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabaseClient';
 import { Loader2 } from 'lucide-react';
@@ -43,6 +45,7 @@ export default function LoginForm() {
   const [login, { isLoading }] = useLoginMutation();
   const [resendVerification, { isLoading: isResending }] = useResendVerificationMutation();
   const router = useRouter();
+  const dispatch = useDispatch();
 
   const handleGoogleLogin = async () => {
     if (!supabase) {
@@ -68,6 +71,12 @@ export default function LoginForm() {
       const token = resp.data?.token ?? resp.token;
       if (token) {
         localStorage.setItem('token', token);
+        // Cikis yaparken cache sifirlaniyordu ama girerken sifirlanmiyordu.
+        // /login'e tam sayfa yenilemesi olmadan gelinen her durumda (ornegin
+        // uygulama icinden cikis yapip hemen baska bir hesapla girmek) onceki
+        // kullanicinin RTK Query cache'i ayakta kaliyor ve yeni token ile
+        // ESKI kullanicinin profili/organizasyonlari gosteriliyordu.
+        dispatch(api.util.resetApiState());
         window.dispatchEvent(new Event('auth:changed'));
         toast.success('Giriş yapıldı!');
         router.push('/projects');

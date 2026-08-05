@@ -3,7 +3,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
 import { supabase } from '@/lib/supabaseClient';
+import { api } from '@/lib/api';
 import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 
@@ -11,6 +13,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/a
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
@@ -40,6 +43,9 @@ export default function AuthCallbackPage() {
         }
 
         localStorage.setItem('token', json.data.token);
+        // Onceki kullanicinin cache'i yeni token ile gosterilmesin (bkz. LoginForm).
+        dispatch(api.util.resetApiState());
+        window.dispatchEvent(new Event('auth:changed'));
         toast.success('Giriş yapıldı!');
         router.push('/projects');
       } catch {
@@ -48,7 +54,7 @@ export default function AuthCallbackPage() {
     };
 
     syncSession();
-  }, [router]);
+  }, [router, dispatch]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/20 px-4">
