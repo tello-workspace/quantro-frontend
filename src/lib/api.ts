@@ -24,19 +24,6 @@ const baseQueryWithLogout = async (args: string | FetchArgs, api: BaseQueryApi, 
   const yol = typeof args === 'string' ? args : args.url;
   const oturumUcu = typeof yol === 'string' && yol.includes('/auth/me');
 
-  // Teşhis: 401 dönen isteği görmek için geçici log. Tam sayfa yenilemesi
-  // console'u sifirladigi icin sessionStorage'a yaziyoruz - reload sonrasi
-  // da okunabilir. Sorun çözülünce kaldır.
-  if (result.error && 'status' in result.error && result.error.status === 401) {
-    const mesaj = `[api] 401 alindi: ${typeof yol === 'string' ? yol : String(args)} -> oturumUcu: ${oturumUcu}`;
-    console.error(mesaj);
-    try {
-      const oncekiler = JSON.parse(sessionStorage.getItem('__teşhis_401') || '[]');
-      oncekiler.push({ t: new Date().toISOString(), mesaj });
-      sessionStorage.setItem('__teşhis_401', JSON.stringify(oncekiler.slice(-5)));
-    } catch { /* sessionStorage yoksa yoksay */ }
-  }
-
   if (oturumUcu && result.error && 'status' in result.error && result.error.status === 401) {
     if (
       typeof window !== 'undefined' &&

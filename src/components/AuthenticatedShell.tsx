@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2, PlugZap } from "lucide-react";
 import Header from "@/components/Header";
@@ -104,11 +104,21 @@ export default function AuthenticatedShell({
   const publicRoute = isPublicRoute(pathname);
   const token = useSyncExternalStore(tokenaAboneOl, tokenOku, sunucudaTokenYok);
 
+  // Hydration'i bekle. useSyncExternalStore sunucu snapshot'ini (null) ilk
+  // client render'da kullanir; token localStorage'da olsa bile ilk render'da
+  // null gorunur. Asagidaki effect bu ilk render'da calisip `!token` deyip
+  // kullaniciyi /login'e atardi - token aslinda duruyordu ama "silinmemis
+  // ama logout olmus" goruntusu bu. Hydration bitmeden yonlendirme yok.
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    if (!publicRoute && !token) {
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!publicRoute && hydrated && !token) {
       router.replace('/login');
     }
-  }, [publicRoute, token, router]);
+  }, [publicRoute, hydrated, token, router]);
 
   // Oturumu ACMADAN once dogruluyoruz. Eskiden shell yalnizca localStorage'da
   // bir token DIZESI bulunmasina bakip tum arayuzu aciyordu; tokenin gecerli
@@ -126,10 +136,15 @@ export default function AuthenticatedShell({
     return children;
   }
 
+  if (!hydrated) {
+    // Hydration tamamlanana kadar bos ekran. Token ilk render'da null
+    // gorunebilir (useSyncExternalStore sunucu snapshot'ini kullanir) -
+    // bu durumda yonlendirme yapilmamali, beklenmeli.
+    return null;
+  }
+
   if (!token) {
-    // Ya hydration sirasindayiz (sunucu anlik goruntusu her zaman null) ya da
-    // token yok ve yukaridaki effect /login'e goturuyor. Iki durumda da
-    // gosterilecek bir sey yok.
+    // Hydration bitti ve token yok: yukaridaki effect /login'e goturuyor.
     return null;
   }
 
