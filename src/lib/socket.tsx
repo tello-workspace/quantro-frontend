@@ -277,6 +277,12 @@ function getSocketUrl(): string {
 
 export function SocketProvider({ children }: SocketProviderProps) {
   const socketRef = useRef<Socket | null>(null);
+  // Acik soketin HANGI token ile yetkilendirildigi. connect() "zaten bagli"
+  // diye erken donuyordu ama baglantinin KIME ait oldugunu sormuyordu; tam
+  // sayfa yenilemesi olmadan baska bir hesaba gecildiginde soket onceki
+  // kullanici olarak bagli kaliyor, bildirimler ve canli guncellemeler o
+  // kullanici icin akmaya devam ediyordu.
+  const socketTokenRef = useRef<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   // Aktif olarak dinlenen tum handler'larin listesi
   const listenersRef = useRef<Map<string, Set<(...args: never[]) => void>>>(new Map());
@@ -334,7 +340,19 @@ export function SocketProvider({ children }: SocketProviderProps) {
       console.error("Socket auth error:", message);
     });
     socketRef.current = socket;
+    socketTokenRef.current = token;
   }, [syncSocketListeners]);
+
+  // connect()'ten ONCE tanimli olmali: connect'in bagimlilik dizisi disconnect'e
+  // referans veriyor ve bu dizi render sirasinda degerlendiriliyor.
+  const disconnect = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      socketTokenRef.current = null;
+      setIsConnected(false);
+    }
+  }, []);
 
   const connect = useCallback(() => {
     if (!isRealtimeEnabled()) {
@@ -344,24 +362,25 @@ export function SocketProvider({ children }: SocketProviderProps) {
     const token = getToken();
     if (!token) return;
 
+    // Token degistiyse (baska hesaba gecildi) acik soket ARTIK YANLIS kisiye
+    // ait - yeniden kullanma, kapat ve sifirdan kur. Bu kontrol olmadan
+    // asagidaki "zaten bagli" kisayolu onceki kullanicinin soketini ayakta
+    // tutuyordu.
+    if (socketRef.current && socketTokenRef.current !== token) {
+      disconnect();
+    }
+
     if (socketRef.current?.connected) return;
 
     if (socketRef.current) {
       socketRef.current.auth = { token };
+      socketTokenRef.current = token;
       socketRef.current.connect();
       return;
     }
 
     createSocket(token);
-  }, [createSocket]);
-
-  const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-      setIsConnected(false);
-    }
-  }, []);
+  }, [createSocket, disconnect]);
 
   const syncConnection = useCallback(() => {
     if (!isRealtimeEnabled()) {
