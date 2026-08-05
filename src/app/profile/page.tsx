@@ -60,7 +60,7 @@ function initials(name: string) {
 }
 
 export default function ProfilePage() {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { data: me, isLoading } = useGetMeQuery();
   const [updateProfile, { isLoading: isSaving }] = useUpdateProfileMutation();
   const [testAiConfig, { isLoading: isTesting }] = useTestAiConfigurationMutation();
@@ -168,32 +168,34 @@ export default function ProfilePage() {
     }
   };
 
-  // GitHub profilini cekip formu doldurur. BILEREK kaydetmiyor: kullanici
-  // geleni gorup istemedigini geri alabilsin. Dogrudan kaydetmek elle
-  // girilmis dogru bilgiyi sessizce ezme riski tasirdi.
+  // GitHub profilini ceker ve sunucu tarafinda KAYDEDER.
+  //
+  // Onceden yalnizca formu dolduruyordu ve gelen 8 alanin 2'si kullaniliyordu;
+  // kullanici ayrica "Kaydet"e basmadikca hicbiri kalici olmuyordu. Artik
+  // sunucu alan bazinda karar veriyor: GitHub'a ait olgular (sirket, konum,
+  // repo sayisi, kullanici adi) uzerine yaziliyor, kullanicinin kendi yazdigi
+  // bio/avatar yalnizca bossa dolduruluyor, diller birlestiriliyor.
+  //
+  // Formdaki alanlari da guncelliyoruz: yanit doner donmez Me tazeleniyor ama
+  // kullanicinin o an ekranda gordugu degerler kaydedilmemis yerel state, bu
+  // yuzden onlari da elle esitlemek gerekiyor - aksi halde ekranda eski hali
+  // durur ve bir sonraki "Kaydet" senkronu geri alirdi.
   const handleGithubSync = async () => {
     try {
       const veri = await syncGithubProfile(githubUrl.trim()).unwrap();
 
-      // Bos alanlar doldurulur, dolu olanlara dokunulmaz - kullanicinin
-      // kendi yazdigi bio GitHub'daki tek satirlik bio ile degistirilmemeli.
       if (veri.bio && !bio.trim()) setBio(veri.bio);
-
-      // Diller birlestiriliyor: GitHub yalnizca repo dillerini biliyor,
-      // kullanici SQL/Docker gibi repo dili olarak gorunmeyen seyler eklemis
-      // olabilir; onlari silmek bilgi kaybi olurdu.
       if (veri.languages.length > 0) {
-        setLanguages((mevcut) => {
-          const birlesik = new Set([...mevcut, ...veri.languages]);
-          return [...birlesik].slice(0, 20);
-        });
+        setLanguages((mevcut) => [...new Set([...mevcut, ...veri.languages])].slice(0, 20));
       }
+      setGithubUrl(`https://github.com/${veri.username}`);
 
-      toast.success(
-        veri.languages.length > 0
-          ? `@${veri.username} okundu · ${veri.languages.length} dil eklendi`
-          : `@${veri.username} okundu`,
-      );
+      // Ne yazildigini acikca soyluyoruz: senkron artik kalici bir degisiklik
+      // yaptigi icin kullanicinin neyin degistigini bilmesi gerekiyor.
+      const parcalar = [`@${veri.username} kaydedildi`];
+      if (veri.yazilan.length > 0) parcalar.push(`yazılan: ${veri.yazilan.join(', ')}`);
+      if (veri.korunan.length > 0) parcalar.push(`korunan: ${veri.korunan.join(', ')}`);
+      toast.success(parcalar.join(' · '));
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
       toast.error(mesaj || t('githubSyncError'));
@@ -403,6 +405,50 @@ export default function ProfilePage() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">{t('githubSyncHint')}</p>
+
+                  {/* Senkronun KAYDETTIGI veri. Bu alanlar veritabaninda kendi
+                      sutunlarinda duruyor ve duzenlenebilir degil - GitHub'a ait
+                      olgular, her senkronda tazeleniyorlar. Burada gosterilmezse
+                      kullanici kaydin gercekten olup olmadigini goremezdi. */}
+                  {me?.githubSyncedAt && (
+                    <div className="mt-1 rounded-lg border border-border bg-muted/40 p-3">
+                      <p className="mb-2 text-xs font-medium text-foreground">
+                        {t('githubSyncedData')}
+                      </p>
+                      <dl className="space-y-1 text-xs text-muted-foreground">
+                        {me.githubUsername && (
+                          <div className="flex gap-2">
+                            <dt className="w-24 shrink-0">{t('githubUsernameLabel')}</dt>
+                            <dd className="min-w-0 truncate text-foreground">@{me.githubUsername}</dd>
+                          </div>
+                        )}
+                        {me.company && (
+                          <div className="flex gap-2">
+                            <dt className="w-24 shrink-0">{t('companyLabel')}</dt>
+                            <dd className="min-w-0 truncate text-foreground">{me.company}</dd>
+                          </div>
+                        )}
+                        {me.location && (
+                          <div className="flex gap-2">
+                            <dt className="w-24 shrink-0">{t('locationLabel')}</dt>
+                            <dd className="min-w-0 truncate text-foreground">{me.location}</dd>
+                          </div>
+                        )}
+                        {me.publicRepos !== null && (
+                          <div className="flex gap-2">
+                            <dt className="w-24 shrink-0">{t('publicReposLabel')}</dt>
+                            <dd className="text-foreground tabular-nums">{me.publicRepos}</dd>
+                          </div>
+                        )}
+                        <div className="flex gap-2 pt-1">
+                          <dt className="w-24 shrink-0">{t('lastSyncLabel')}</dt>
+                          <dd className="text-foreground">
+                            {new Date(me.githubSyncedAt).toLocaleString(lang === 'en' ? 'en-GB' : 'tr-TR')}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="linkedinUrl">{t('linkedinPlaceholder')}</Label>

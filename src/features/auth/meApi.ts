@@ -11,6 +11,12 @@ export interface Me {
   experience: string | null;
   githubUrl: string | null;
   linkedinUrl: string | null;
+  // GitHub senkronunun yazdigi alanlar.
+  githubUsername: string | null;
+  company: string | null;
+  location: string | null;
+  publicRepos: number | null;
+  githubSyncedAt: string | null;
   expertiseAreas: string[];
   languages: string[];
   language: string;
@@ -56,6 +62,24 @@ interface ApiEnvelope<T> {
   data: T;
 }
 
+/**
+ * GitHub senkron yaniti. `yazilan`/`korunan` sunucunun NE YAPTIGINI anlatiyor:
+ * senkron artik kaydettigi icin kullanicinin hangi alanina dokunuldugunu,
+ * hangisinin dolu oldugu icin korundugunu bilmesi gerekiyor.
+ */
+export interface GithubSenkronSonucu {
+  username: string;
+  name: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  company: string | null;
+  location: string | null;
+  publicRepos: number;
+  languages: string[];
+  yazilan: string[];
+  korunan: string[];
+}
+
 export const meApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getMe: builder.query<Me, void>({
@@ -81,25 +105,12 @@ export const meApi = api.injectEndpoints({
       transformResponse: (response: ApiEnvelope<{ id: string; avatarUrl: string | null }>) => response.data,
       invalidatesTags: ['Me'],
     }),
-    syncGithubProfile: builder.mutation<
-      {
-        username: string;
-        name: string | null;
-        bio: string | null;
-        avatarUrl: string | null;
-        company: string | null;
-        location: string | null;
-        publicRepos: number;
-        languages: string[];
-      },
-      string
-    >({
+    syncGithubProfile: builder.mutation<GithubSenkronSonucu, string>({
       query: (githubUrl) => ({ url: '/me/github-sync', method: 'POST', body: { githubUrl } }),
-      transformResponse: (response: ApiEnvelope<{
-        username: string; name: string | null; bio: string | null; avatarUrl: string | null;
-        company: string | null; location: string | null; publicRepos: number; languages: string[];
-      }>) => response.data,
-      // Kaydetmiyor, yalnizca okuyor - cache invalidate etmeye gerek yok.
+      transformResponse: (response: ApiEnvelope<GithubSenkronSonucu>) => response.data,
+      // Artik KAYDEDIYOR: profil sunucuda degistigi icin Me tazelenmeli,
+      // yoksa arayuz yeni sirket/konum/repo bilgisini gostermez.
+      invalidatesTags: ['Me'],
     }),
     listApiTokens: builder.query<ApiTokenOzeti[], void>({
       query: () => '/me/api-tokens',
