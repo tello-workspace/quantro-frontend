@@ -82,7 +82,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({ id: task.id, disabled: selectionActive });
 
   const style = {
     transform: CSS.Translate.toString(transform),

@@ -1148,25 +1148,32 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // yalnizca zemin boslugundan baslar), o yuzden baslangic anlik gorseli
   // guvenilir.
   const marqueeCardRects = useRef<Map<string, DOMRect> | null>(null);
+  // handleMarqueeStart useCallback([]) ile sabit - secim modunu guncel
+  // gorebilmesi icin secim set'ini senkron tutan bir ref. Boylece kart
+  // uzerinden marquee baslatma karari (secim modu aktif mi) stale closure
+  // olmaz.
+  const selectedCardIdsRef = useRef<Set<string>>(new Set());
+  selectedCardIdsRef.current = selectedCardIds;
 
   const handleMarqueeStart = useCallback((e: React.PointerEvent) => {
-    // Hedef kart ise (yani zemine degil karta basildiysa) dokunma - kart
-    // suruklemesi dnd-kit'te. closest ile kok kart elementi aranir.
-    const hedef = e.target as HTMLElement;
-    if (hedef.closest('[data-card-id]')) return;
     // Sekme/yatay kaydirma icin orta tus veya kaydirma yuzeyi degil; sol
     // tusla baslansin.
     if (e.button !== 0) return;
 
+    // Hedef kart ise: kart tasima dnd-kit'te. Ancak kolon KARTLARLA DOLU
+    // oldugunda bos zemin kalmaz ve marquee baslatilamaz (kullanici bunu
+    // bildirdi). Cozum: secim modu aktifken (en az 1 kart secili) kart
+    // uzerinden de marquee baslasin. Secim modu kapaliyken kart suruklemesi
+    // (tasima) bozulmaz.
+    const hedef = e.target as HTMLElement;
+    const karttaMi = !!hedef.closest('[data-card-id]');
+    const secimModuAktif = (selectedCardIdsRef.current?.size ?? 0) > 0;
+    if (karttaMi && !secimModuAktif) return;
+
     e.preventDefault();
     // Pointer'i yakala: surukleme zeminin disina ciksa bile move/up olaylari
-    // bu elemana akmaya devam eder. Aksi halde dikdortgen kolon sinirinda
-    // donup kalirdi. DnD bunu kart uzerinde yapmiyor - biz zeminden
-    // basliyoruz, kesisimde sorun yok.
+    // bu elemana akmaya devam eder.
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    // dnd-kit'in PointerSensor'u (distance: 5) kart tasimasini yakalar; biz
-    // zeminden basliyoruz. Yine de zeminin kendi scroll kaydirma isini
-    // kullanici suruklemeyle yapmak istemez - sadece sol tik+suru baslatir.
     const nokta = { startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY };
     marqueeRef.current = nokta;
     setMarquee(nokta);
