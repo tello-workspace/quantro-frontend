@@ -1305,6 +1305,46 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     [projectId, clearSelection],
   );
 
+  // Toplu izleme AYRI bir akis: runBulkAction islem sonrasi tum panoyu yeniden
+  // cekiyor, ama izleme kartin kendisini degistirmiyor - bu kisisel bir
+  // abonelik. Panoyu tazelemek buyuk bir panoda bosuna bir tur gidis-gelis
+  // olurdu. Bunun yerine yalnizca dashboard'daki "Izlediklerim" listesi
+  // gecersiz kilinuyor.
+  const runWatchAction = useCallback(
+    async (izle: boolean) => {
+      const ids = [...effectiveSelectedIds];
+      if (ids.length === 0) return;
+
+      setIsBulkRunning(true);
+      try {
+        const sonuc = await boardService.bulkCardAction(projectId, {
+          cardIds: ids,
+          action: izle ? 'watch' : 'unwatch',
+        });
+
+        dispatch(api.util.invalidateTags(['WatchedCards']));
+        // Kart detayindaki "Izle" dugmesinin sayaci da eskiyor.
+        dispatch(
+          api.util.invalidateTags(ids.map((id) => ({ type: 'Card' as const, id: `watch-${id}` }))),
+        );
+
+        if (sonuc.basarili.length > 0) {
+          toast.success(izle ? t('bulkWatchSuccess') : t('bulkUnwatchSuccess'));
+        }
+        if (sonuc.basarisiz.length > 0) {
+          toast.error(`${sonuc.basarisiz.length} kart atlandı: ${sonuc.basarisiz[0].sebep}`);
+        }
+
+        clearSelection();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : t('watchToggleError'));
+      } finally {
+        setIsBulkRunning(false);
+      }
+    },
+    [projectId, effectiveSelectedIds, clearSelection, dispatch, t],
+  );
+
   const handleRenameColumn = useCallback(async (columnId: string, newName: string) => {
     if (!isAdmin) return;
     try {
@@ -1723,6 +1763,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         }
         onArchive={() => runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'archive' })}
         onDelete={() => runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'delete' })}
+        onWatch={runWatchAction}
         onClear={clearSelection}
       />
 

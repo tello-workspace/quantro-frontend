@@ -316,7 +316,7 @@ export const boardService = {
     projectId: string,
     payload: {
       cardIds: string[];
-      action: 'move' | 'assign' | 'label' | 'archive' | 'delete';
+      action: 'move' | 'assign' | 'label' | 'archive' | 'delete' | 'watch' | 'unwatch';
       columnId?: string;
       assigneeIds?: string[];
       labelId?: string;

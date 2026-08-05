@@ -4,7 +4,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PriorityIcon } from '@/features/board/components/PriorityIcon';
-import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { EyeIcon as EyeIconSolid } from '@heroicons/react/24/solid';
+import { useGetWatchStatusQuery, useWatchCardMutation, useUnwatchCardMutation } from '@/features/watchers/watchApi';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
 import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType, Priority } from '@/features/board/services/boardService';
@@ -263,6 +265,56 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+
+/**
+ * Kart izleme dugmesi. Ozelligin ABONE OLMA tarafi; listeyi gorebilecegin
+ * taraf dashboard'daki "Izlediklerim" bolumu. Ilk surumde (8aed3ab) yalnizca
+ * bu dugme vardi ve ozellik "abone ol ama abone oldugunu bir daha goremezsin"
+ * halinde kaldigi icin kullanissiz bulunup kaldirilmisti - ikisi birlikte
+ * anlamli.
+ */
+const WatchToggle: React.FC<{ cardId: string }> = ({ cardId }) => {
+  const { t } = useTranslation();
+  const { data: status } = useGetWatchStatusQuery(cardId);
+  const [watchCard, { isLoading: isWatching }] = useWatchCardMutation();
+  const [unwatchCard, { isLoading: isUnwatching }] = useUnwatchCardMutation();
+
+  const izleniyor = status?.isWatching ?? false;
+
+  const handleToggle = async () => {
+    try {
+      if (izleniyor) {
+        await unwatchCard(cardId).unwrap();
+      } else {
+        await watchCard(cardId).unwrap();
+        // Kullanici ne oldugunu bilmeli: abonelik sessizce gerceklesirse
+        // "bir sey oldu mu" belirsizligi kaliyor. Nerede gorecegini de soyle.
+        toast.success(t('watchStarted'));
+      }
+    } catch {
+      toast.error(t('watchToggleError'));
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleToggle}
+      disabled={isWatching || isUnwatching}
+      title={izleniyor ? t('watchCardTitleUnwatch') : t('watchCardTitleWatch')}
+      aria-pressed={izleniyor}
+      className={`flex items-center gap-1.5 shrink-0 text-xs font-medium py-1 px-2.5 rounded-lg border transition-colors disabled:opacity-50 ${
+        izleniyor
+          ? 'bg-primary/10 text-primary border-primary/30'
+          : 'text-muted-foreground border-border hover:bg-accent/40'
+      }`}
+    >
+      {izleniyor ? <EyeIconSolid className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
+      <span>{izleniyor ? t('watching') : t('watch')}</span>
+      {!!status?.watcherCount && <span className="opacity-70">({status.watcherCount})</span>}
+    </button>
+  );
+};
 
 const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
   const { t } = useTranslation();
@@ -1138,6 +1190,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 {/* Sag ust eylem kumesi: ayarlar carki + AI ile doldur yan yana, kapat
                     (X) butonunun altina girmesin diye sagdan (mr-7) bosluk birakilir. */}
                 <div className="flex items-center gap-1.5 shrink-0 mr-7">
+                  {/* Yeni kartin henuz id'si yok - once kaydedilmeli. */}
+                  {taskId !== 'new' && <WatchToggle cardId={task.id} />}
+
                   {/* Ayar bolumlerini ac/kapat (etiket, bagimlilik, ozel alan vb.) */}
                   <Button
                     type="button"

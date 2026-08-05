@@ -480,6 +480,18 @@ const translations = {
     noActivityYet: "Henüz hiçbir aktivite yok.",
     // Dil destegi tamamlama - 2. parti
     dashboardNoCards: "Şu anda sana atanmış, bitmemiş bir kart yok.",
+    // Kart izleme (watch/watching/watchToggleError + watchCardTitle* zaten
+    // yukarida duruyor - ozellik kaldirilirken cevirileri silinmemis)
+    watchStarted: "Kart izlemeye alındı. Panonda \"İzlediklerim\" bölümünde görebilirsin.",
+    watchedByMe: "İzlediklerim",
+    watchedByMeDesc: "Sana atanmayan ama takip ettiğin kartlar. Yorum yapıldığında veya kart taşındığında bildirim alırsın.",
+    dashboardNoWatched: "Henüz hiçbir kartı izlemiyorsun. Bir kartı açıp \"İzle\" diyerek takibe alabilirsin.",
+    watchedUnassigned: "Henüz kimseye atanmadı",
+    watchedDone: "Tamamlandı",
+    bulkWatch: "İzle",
+    bulkUnwatch: "İzlemeyi bırak",
+    bulkWatchSuccess: "Seçili kartlar izlemeye alındı.",
+    bulkUnwatchSuccess: "Seçili kartların izlenmesi bırakıldı.",
     newProjectDesc: "Takımınla birlikte çalışacağın yeni bir proje oluştur.",
     projectNameLabel: "Proje adı",
     descriptionOptional: "Açıklama (opsiyonel)",
@@ -1004,6 +1016,18 @@ const translations = {
     noActivityYet: "No activity yet.",
     // Dil destegi tamamlama - 2. parti
     dashboardNoCards: "You have no unfinished cards assigned right now.",
+    // Kart izleme (watch/watching/watchToggleError + watchCardTitle* zaten
+    // yukarida duruyor - ozellik kaldirilirken cevirileri silinmemis)
+    watchStarted: "Now watching. You can find it under \"Watching\" on your dashboard.",
+    watchedByMe: "Watching",
+    watchedByMeDesc: "Cards you follow but are not assigned to. You get notified when someone comments or moves them.",
+    dashboardNoWatched: "You are not watching any cards yet. Open a card and hit \"Watch\" to follow it.",
+    watchedUnassigned: "Not assigned to anyone yet",
+    watchedDone: "Done",
+    bulkWatch: "Watch",
+    bulkUnwatch: "Unwatch",
+    bulkWatchSuccess: "Selected cards are now being watched.",
+    bulkUnwatchSuccess: "Stopped watching the selected cards.",
     newProjectDesc: "Create a new project to work on with your team.",
     projectNameLabel: "Project name",
     descriptionOptional: "Description (optional)",

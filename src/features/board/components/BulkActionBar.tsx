@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { UserPlus, Tag, Archive, Trash2, X } from 'lucide-react';
+import { UserPlus, Tag, Archive, Trash2, X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -32,6 +32,7 @@ interface Props {
   onLabel: (labelId: string) => void;
   onArchive: () => void;
   onDelete: () => void;
+  onWatch: (izle: boolean) => void;
   onClear: () => void;
 }
 
@@ -47,6 +48,7 @@ export const BulkActionBar: React.FC<Props> = ({
   onLabel,
   onArchive,
   onDelete,
+  onWatch,
   onClear,
 }) => {
   const { t } = useTranslation();
@@ -155,6 +157,16 @@ export const BulkActionBar: React.FC<Props> = ({
             </PopoverContent>
           </Popover>
         )}
+
+        {/* Izleme HERKESE acik - kendi aboneligin, kimsenin verisine dokunmuyor.
+            Arsivleme/silme gibi admin sarti aramak yanlis olurdu: bir uyenin
+            takip etmek istedigi is icin admin olmasi gerekmez. */}
+        <Button variant="ghost" size="sm" onClick={() => onWatch(true)} disabled={isRunning}>
+          <Eye className="size-3.5" /> {t('bulkWatch')}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => onWatch(false)} disabled={isRunning}>
+          <EyeOff className="size-3.5" /> {t('bulkUnwatch')}
+        </Button>
 
         {isAdmin && (
           <>
