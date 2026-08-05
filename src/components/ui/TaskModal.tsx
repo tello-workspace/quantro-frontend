@@ -539,7 +539,7 @@ interface TaskModalProps {
   onClose: () => void;
   orgId: string;
   projectId: string;
-  onUpdateTask: (task: Task) => void;
+  onUpdateTask: (task: Task) => Promise<void>;
   onDeleteTask: (taskId: string) => void;
   onArchiveTask?: (taskId: string) => void;
   fetchTaskDetails: (taskId: string) => Promise<Task>;
@@ -592,6 +592,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   // yazdigini kaybetmis hissi verir.
   const [onizlemeModu, setOnizlemeModu] = useState(false);
   const [descPreview, setDescPreview] = useState(false);
+  const aciklamaRef = useRef<HTMLTextAreaElement>(null);
   // Kart detayinda ayar bolumleri (etiket/bagimlilik/ozel alan/checklist/ek)
   // varsayilan olarak gizli; yalnizca baslik + aciklama + tarih/atanan gorunur.
   // Cark (ayarlar) butonuyla acilir.
@@ -847,8 +848,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       return;
     }
 
-    onUpdateTask(task);
-    onClose();
+    try {
+      await onUpdateTask(task);
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('saveError'));
+    }
   };
 
   const handleAttachLabel = async (label: TaskLabel) => {
@@ -1071,12 +1076,37 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     return lang === 'en' ? `Remove assignment for ${name}` : `${name} atamasını kaldır`;
   };
 
+  // Onizlemeden duzenlemeye gecis. Modalin HERHANGI bir yerine yapilan ilk
+  // dokunus/tus bunu tetikliyor - kart "kisi detay bileseninde herhangi bir
+  // yere bastigi an edit moduna girmeli" diyor, sadece baslik/aciklamaya
+  // degil.
+  //
+  // Neden pointerdown/keydown, focus DEGIL: modal acilirken Dialog odagi
+  // kendisi programatik olarak iceri tasiyor. Cikisi focus'a baglarsak bu
+  // programatik odak da "kullanici etkilesimi" sayilip onizleme modunu daha
+  // gorunmeden kapatir - onceki surumun calismama sebebi buydu. Pointer ve
+  // klavye olaylari yalnizca gercek kullanici eyleminde tetiklenir.
+  const duzenlemeyeGec = () => setOnizlemeModu(false);
+
+  // Aciklamanin uzerine tiklandiginda ayrica imleci metin alanina koyuyoruz:
+  // aksi halde kullanici tam yazacagi yere tiklamis ama odak baska yerde
+  // kalmis oluyor. Textarea bu tiklamadan SONRA render edildigi icin odak
+  // bir sonraki frame'de veriliyor.
+  const aciklamayiDuzenle = () => {
+    setOnizlemeModu(false);
+    setDescPreview(false);
+    requestAnimationFrame(() => aciklamaRef.current?.focus());
+  };
+
+  const aciklamaVar = (task?.description ?? '').trim().length > 0;
+  const aciklamaOnizlemede = (descPreview || onizlemeModu) && aciklamaVar;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
       <DialogContent
+        onPointerDownCapture={duzenlemeyeGec}
+        onKeyDownCapture={duzenlemeyeGec}
         className="sm:max-w-3xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden no-scrollbar"
-        onPointerDownCapture={() => setOnizlemeModu(false)}
-        onFocusCapture={() => setOnizlemeModu(false)}
       >
         {loading ? (
           <div className="text-center py-10 text-muted-foreground">{t('loading')}</div>
@@ -1095,8 +1125,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     placeholder={t('taskTitleLabel')}
                   />
                   {/* Modun gorunur olmasi sart: aksi halde kullanici aciklamayi
-                      neden duz metin gordugunu anlamaz. Ilk tiklamada kayboluyor. */}
-                  {onizlemeModu && (
+                      neden duz metin gordugunu anlamaz. Ilk tiklamada kayboluyor.
+                      Ipucu yalnizca EKRANDA gercekten onizlenen bir sey varken
+                      cikiyor; aciklama bosken duzenlenebilir bir metin alani
+                      gorunuyor ve "onizleme" demek yaniltici olurdu. */}
+                  {aciklamaOnizlemede && (
                     <p className="mt-0.5 px-1 -mx-1 text-[11px] text-muted-foreground">
                       {t('previewModeHint')}
                     </p>
@@ -1634,13 +1667,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   </label>
                   {/* Yaz / Onizle: aciklama artik markdown. Onizleme yalnizca
                       icerik varsa anlamli, bos aciklamada dugmeyi gostermiyoruz. */}
-                  {(task.description ?? '').trim().length > 0 && (
+                  {aciklamaVar && (
                     <div className="flex gap-0.5 rounded-md border border-border p-0.5">
                       <button
                         type="button"
-                        onClick={() => setDescPreview(false)}
+                        /* "Yaz" acilistaki onizleme modunu da kapatmali. Eskiden
+                           yalnizca descPreview'i false yapiyordu; onizlemeModu
+                           hala true oldugu icin dugme goze carpar sekilde
+                           secilirken ekranda markdown durmaya devam ediyordu. */
+                        onClick={aciklamayiDuzenle}
                         className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                          !descPreview ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                          !aciklamaOnizlemede ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
                         {t('descWrite')}
@@ -1649,7 +1686,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         type="button"
                         onClick={() => setDescPreview(true)}
                         className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                          descPreview ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                          aciklamaOnizlemede ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
                         {t('descPreview')}
@@ -1658,14 +1695,36 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   )}
                 </div>
                 <div className="relative">
-                  {(descPreview || onizlemeModu) && (task.description ?? '').trim().length > 0 ? (
-                    <div className="min-h-16 rounded-lg border border-input px-2.5 py-2">
+                  {aciklamaOnizlemede ? (
+                    /* Onizlemenin kendisi de tiklanabilir: en dogal hareket
+                       "duzenleyecegim metnin uzerine tikla". Eskiden bu alan
+                       olu bir kutuydu, kullanici tiklayip hicbir sey olmadigini
+                       goruyordu. */
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      /* onClick DEGIL onPointerDown: yukaridaki capture zaten
+                         pointerdown'da modu degistiriyor ve bu kutu o anda
+                         yerini metin alanina birakiyor - click olayi artik
+                         var olmayan bir elemana gidecegi icin hic calismazdi.
+                         Ayni olayin bubble asamasinda ise handler kesin calisir. */
+                      onPointerDown={aciklamayiDuzenle}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          aciklamayiDuzenle();
+                        }
+                      }}
+                      title={t('previewModeHint')}
+                      className="min-h-16 cursor-text rounded-lg border border-input px-2.5 py-2 transition-colors hover:border-ring focus-visible:border-ring focus-visible:outline-none"
+                    >
                       <Markdown>{task.description ?? ''}</Markdown>
                     </div>
                   ) : (
                   <Textarea
                     id="description"
                     name="description"
+                    ref={aciklamaRef}
                     rows={5}
                     value={task.description || ''}
                     onChange={handleChange}
