@@ -128,7 +128,7 @@ export default function AuthenticatedShell({
   // isim yok, organizasyon yok, butonlar disabled ve hicbir hata mesaji yok.
   // Sayfa yenilemek ayni tokeni tekrar denedigi icin durumu degistirmiyordu;
   // tek cikis yolu elle cikis yapmakti.
-  const { data: me, isLoading, isError, error, refetch } = useGetMeQuery(undefined, {
+  const { data: me, isLoading, isError, refetch } = useGetMeQuery(undefined, {
     skip: publicRoute || !token,
   });
 
@@ -156,12 +156,9 @@ export default function AuthenticatedShell({
   // acildiktan sonra gelen gecici bir /auth/me hatasi calisan arayuzu yikmamali;
   // o durumda eldeki veriyle devam edip sessizce yeniden denemek dogru davranis.
   if (isError && !me) {
-    // 401 ise baseQueryWithLogout zaten tokeni silip /login'e goturuyor;
-    // burada bos ekran yeterli. Digerleri GECICI hatalar - kullaniciya ne
-    // oldugunu soyleyip tekrar deneme imkani veriyoruz.
-    const durum = error && 'status' in error ? error.status : undefined;
-    if (durum === 401) return null;
-
+    // 401 ise baseQueryWithLogout tokeni silip login'e yonlendiriyor ve toast
+    // basiyor; burada kullaniciya temiz bir "oturum acilamadi" ekrani gostermek
+    // bos/beyaz ekrandan iyidir. Digerleri GECICI hatalar - tekrar deneme ver.
     return <OturumAcilamadi tekrarDene={() => refetch()} />;
   }
 
