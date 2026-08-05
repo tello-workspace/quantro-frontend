@@ -15,8 +15,21 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithLogout = async (args: string | FetchArgs, api: BaseQueryApi, extraOptions: object) => {
   const result = await baseQuery(args, api, extraOptions)
 
-  // 401 → token geçersiz/süresi dolmuş → logout + full reload (store sıfırlanır)
+  // 401 → token geçersiz/süresi dolmuş → logout + full reload (store sıfırlanır).
+  // Yalnızca /auth/me'de yapıyoruz: oturumun kendisiyle ilgili tek istek o.
+  // Diğer uçların 401'i, o kaynağa özel bir sorun olabilir (örneğin geçici
+  // RBAC değişikliği, silinen kaynak) ve kullanıcıyı anında oturumdan atmak
+  // yerine o isteği hatalı işaretlemek daha güvenli. Reload'ta paralel giden
+  // yardımcı isteklerden biri 401 dönerse kullanıcının oturumu bozulmaz.
+  const yol = typeof args === 'string' ? args : args.url;
+  const oturumUcu = typeof yol === 'string' && yol.includes('/auth/me');
+
+  // Teşhis: 401 dönen isteği görmek için geçici log. Sorun çözülünce kaldır.
   if (result.error && 'status' in result.error && result.error.status === 401) {
+    console.error('[api] 401 alindi:', typeof yol === 'string' ? yol : String(args), '-> oturumUcu:', oturumUcu);
+  }
+
+  if (oturumUcu && result.error && 'status' in result.error && result.error.status === 401) {
     if (
       typeof window !== 'undefined' &&
       window.location.pathname !== '/login' &&
