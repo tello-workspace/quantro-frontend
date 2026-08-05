@@ -511,6 +511,9 @@ const translations = {
     toggleMenu: "Menüyü aç/kapat",
     goHome: "Ana sayfa",
     retry: "Tekrar dene",
+    blocked: "Bloklu",
+    openCard: "kartı aç",
+    goToProject: "Projeye git",
     sessionUnavailableTitle: "Oturum açılamadı",
     sessionUnavailableDesc:
       "Giriş bilgilerin duruyor ama sunucuya şu an ulaşılamıyor, bu yüzden hesabın yüklenemedi. Birkaç saniye sonra tekrar dene; sorun sürerse çıkış yapıp yeniden giriş yap.",
@@ -1024,6 +1027,9 @@ const translations = {
     toggleMenu: "Toggle menu",
     goHome: "Home",
     retry: "Try again",
+    blocked: "Blocked",
+    openCard: "open card",
+    goToProject: "Go to project",
     sessionUnavailableTitle: "Couldn't open your session",
     sessionUnavailableDesc:
       "You're still signed in, but the server can't be reached right now, so your account couldn't load. Try again in a few seconds; if it keeps failing, log out and sign in again.",
@@ -1032,9 +1038,13 @@ const translations = {
 
 export type TranslationKey = keyof typeof translations.tr;
 
+export type Dil = "tr" | "en";
+
 export function useTranslation() {
   const { data: me } = useGetMeQuery();
-  const lang = me?.language === "en" ? "en" : "tr";
+  // Acikca daraltiliyor: cagiran taraflar (ornegin teslim suresi metni) dile
+  // gore dallaniyor ve genis bir `string` tipi orada kullanilamaz.
+  const lang: Dil = me?.language === "en" ? "en" : "tr";
 
   // t'yi useCallback ile sabitle: her render'da yeni referans üretilirse,
   // onu dependency olarak alan useEffect'ler (TaskModal vb.) her render'da
