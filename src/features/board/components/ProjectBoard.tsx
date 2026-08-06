@@ -1167,6 +1167,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const selectedCardIdsRef = useRef<Set<string>>(new Set());
   selectedCardIdsRef.current = selectedCardIds;
 
+  // Marquee baslangic noktasi + kartlar henuz toplanmadi. Move'da 5px esigi
+  // gecilince gercek marquee baslar (pointer capture + rect toplama). Boylece
+  // kart uzerindeki TIKLAMA (toggle) marquee'ye donup onClick'i oldurmez.
+  const marqueePending = useRef<{ x: number; y: number } | null>(null);
+
   const handleMarqueeStart = useCallback((e: React.PointerEvent) => {
     // Sekme/yatay kaydirma icin orta tus veya kaydirma yuzeyi degil; sol
     // tusla baslansin.
@@ -1182,31 +1187,39 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     const secimModuAktif = (selectedCardIdsRef.current?.size ?? 0) > 0;
     if (karttaMi && !secimModuAktif) return;
 
-    e.preventDefault();
-    // Pointer'i yakala: surukleme zeminin disina ciksa bile move/up olaylari
-    // bu elemana akmaya devam eder.
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    const nokta = { startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY };
-    marqueeRef.current = nokta;
-    setMarquee(nokta);
-
-    // Bu kolondaki tum kart rect'lerini topla. data-card-id kok kart
-    // elementinde; yalnizca bu kolondaki gorunur kartlar islenir.
-    const zemin = (e.currentTarget as HTMLElement);
-    const rectler = new Map<string, DOMRect>();
-    zemin.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
-      const kimlik = el.dataset.cardId;
-      if (kimlik) rectler.set(kimlik, el.getBoundingClientRect());
-    });
-    marqueeCardRects.current = rectler;
+    // preventDefault YAPMA: karta tiklamak (bas + birak, hareket yok) onClick
+    // ile toggle olsun. Marquee yalnizca 5px esigi asilinca baslar (Move'da).
+    marqueePending.current = { x: e.clientX, y: e.clientY };
   }, []);
 
   const handleMarqueeMove = useCallback((e: React.PointerEvent) => {
     const baslangic = marqueeRef.current;
-    if (!baslangic) return;
-    e.preventDefault();
-    marqueeRef.current = { ...baslangic, endX: e.clientX, endY: e.clientY };
-    setMarquee(marqueeRef.current);
+    const pending = marqueePending.current;
+    if (!pending) return;
+
+    const dx = e.clientX - pending.x;
+    const dy = e.clientY - pending.y;
+    // 5px esigini gecmediyse henuz surukleme yok - tiklamaya karismas.
+    if (!baslangic && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+
+    if (!baslangic) {
+      // Ilk kez esik asildi: pointer'i yakala + kart rect'lerini topla.
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      const nokta = { startX: pending.x, startY: pending.y, endX: e.clientX, endY: e.clientY };
+      marqueeRef.current = nokta;
+      setMarquee(nokta);
+
+      const zemin = (e.currentTarget as HTMLElement);
+      const rectler = new Map<string, DOMRect>();
+      zemin.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
+        const kimlik = el.dataset.cardId;
+        if (kimlik) rectler.set(kimlik, el.getBoundingClientRect());
+      });
+      marqueeCardRects.current = rectler;
+    } else {
+      marqueeRef.current = { ...baslangic, endX: e.clientX, endY: e.clientY };
+      setMarquee(marqueeRef.current);
+    }
   }, []);
 
   const handleMarqueeEnd = useCallback((e: React.PointerEvent) => {
@@ -1214,6 +1227,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     const rectler = marqueeCardRects.current;
     marqueeRef.current = null;
     marqueeCardRects.current = null;
+    marqueePending.current = null;
     setMarquee(null);
     // Pointer capture'i serbest birak (sadece yakalanmissa). Bir sonraki
     // marquee baslangicinda yeniden yakalanir.
