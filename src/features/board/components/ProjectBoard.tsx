@@ -1141,11 +1141,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // ─── Surukle-ciz (marquee) secim ──────────────────────────────
   // Kullanici kolonun BOS zeminine basip surukleyince bir dikdortgen cizilir,
   // bu dikdortgenle kesisen kartlar secilir. 20+ kartin tek tek tiklanmasini
-  // gerektiren toplu secimler icin. Kart uzerinden baslatilmiyor - o is
-  // dnd-kit'in kart tasima sorumlulugunda. Yalnizca pano (board) gorunumunde,
-  // shift basiliyken degil (normal surukleme zeminin yatay kaydirma isi
-  // degildir). Kaydirma icin kolon kendi scroll'unda; marquee viewport
-  // koordinatlarinda calistigi icin scroll otomatik isliyor.
+  // gerektiren toplu secimler icin. Kolon KARTLARLA DOLUYSA bos zemin
+  // kalmayabilir; o durumda kart uzerinden Shift+surukleme marquee baslatir
+  // (kart tasima Shift'siz suruklemede kalir). Marquee surerken pointer
+  // kolonun ust/alt kenarina yaklasinca kolon kendi icinde kayar
+  // (auto-scroll) ve yeni gorunen kartlar da secime dahil olur.
   interface Marquee {
     startX: number;
     startY: number;
@@ -1154,12 +1154,17 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   }
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const marqueeRef = useRef<Marquee | null>(null);
-  // Marquee baslarken kartlarin DOM rect'lerini bir kez topluyoruz; her
+  // Marquee baslarken kartlarin DOM rect'lerini topluyoruz; her
   // pointerMove'da getBoundingClientRect cagirmak scroll sirasinda layout
-  // thrash yaratirdi. Kartlar surukleme sirasinda hareket etmez (marquee
-  // yalnizca zemin boslugundan baslar), o yuzden baslangic anlik gorseli
-  // guvenilir.
+  // thrash yaratirdi. Auto-scroll kolonu kaydirdiginda rect'ler yeniden
+  // toplanir; aksi halde baslangic anlik gorseli guvenilir.
   const marqueeCardRects = useRef<Map<string, DOMRect> | null>(null);
+  // Auto-scroll: marquee aktifken son bilinen pointer Y + scroll container.
+  // rAF dongusu pointer kenara yakin dururken kaymaya devam eder; kayma
+  // olunca kart rect'leri tazelenir ki yeni gorunen kartlar secilsin.
+  const marqueeClientY = useRef<number | null>(null);
+  const marqueeZemin = useRef<HTMLElement | null>(null);
+  const marqueeScrollRaf = useRef<number | null>(null);
   // handleMarqueeStart useCallback([]) ile sabit - secim modunu guncel
   // gorebilmesi icin secim set'ini senkron tutan bir ref. Boylece kart
   // uzerinden marquee baslatma karari (secim modu aktif mi) stale closure
@@ -1172,20 +1177,67 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // kart uzerindeki TIKLAMA (toggle) marquee'ye donup onClick'i oldurmez.
   const marqueePending = useRef<{ x: number; y: number } | null>(null);
 
+  // Scroll container'daki kartlarin rect'lerini toplar. Auto-scroll kolonu
+  // kaydirdiginda yeniden cagrilir - marquee kesişim hesabi guncel
+  // konumlarla yapilsin.
+  const kartlariTopla = (zemin: HTMLElement) => {
+    const rectler = new Map<string, DOMRect>();
+    zemin.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
+      const kimlik = el.dataset.cardId;
+      if (kimlik) rectler.set(kimlik, el.getBoundingClientRect());
+    });
+    return rectler;
+  };
+
+  // Marquee aktifken pointer kolonun gorunur alaninin ust/alt kenarina
+  // yaklasinca scroll container'i kaydirir ve yeni konumdaki kart
+  // rect'lerini tazeler. rAF dongusu: pointer hareket etmese bile kenarda
+  // dururken kaymaya devam eder, ta ki marquee bitene kadar.
+  const scrollDongusu = () => {
+    marqueeScrollRaf.current = null;
+    const zemin = marqueeZemin.current;
+    const y = marqueeClientY.current;
+    if (!zemin || y === null || !marqueeRef.current) return;
+
+    const rect = zemin.getBoundingClientRect();
+    const KENAR = 48; // px - kenara girince scroll ramp baslar
+    const MAX_HIZ = 16;
+    let hiz = 0;
+    if (y < rect.top + KENAR) {
+      hiz = -Math.min(MAX_HIZ, (rect.top + KENAR - y) / 6);
+    } else if (y > rect.bottom - KENAR) {
+      hiz = Math.min(MAX_HIZ, (y - (rect.bottom - KENAR)) / 6);
+    }
+
+    if (hiz !== 0) {
+      const onceki = zemin.scrollTop;
+      zemin.scrollTop += hiz;
+      if (zemin.scrollTop !== onceki) {
+        // Kartlar kaydi; rect'leri tazele ki alan icinde kalanlar secilsin.
+        marqueeCardRects.current = kartlariTopla(zemin);
+      }
+    }
+    marqueeScrollRaf.current = requestAnimationFrame(scrollDongusu);
+  };
+
   const handleMarqueeStart = useCallback((e: React.PointerEvent) => {
     // Sekme/yatay kaydirma icin orta tus veya kaydirma yuzeyi degil; sol
     // tusla baslansin.
     if (e.button !== 0) return;
 
-    // Hedef kart ise: kart tasima dnd-kit'te. Ancak kolon KARTLARLA DOLU
-    // oldugunda bos zemin kalmaz ve marquee baslatilamaz (kullanici bunu
-    // bildirdi). Cozum: secim modu aktifken (en az 1 kart secili) kart
-    // uzerinden de marquee baslasin. Secim modu kapaliyken kart suruklemesi
-    // (tasima) bozulmaz.
+    // Hedef kart ise: normal surukleme (shift yok) kart tasimasidir (dnd-kit).
+    // Kolon KARTLARLA DOLU oldugunda bos zemin kalmaz, marquee zemin yokken
+    // baslatilamaz (kullanici bunu bildirdi). Cozum:
+    //   - bos zemin  -> marquee her zaman baslar
+    //   - kart + Shift -> marquee (kart tasimayi bozmaz)
+    //   - kart + secim modu aktif -> marquee (toplu secimde hizli yayilma)
+    //   - kart + Shift'siz + secim yok -> kart tasima (dnd-kit)
     const hedef = e.target as HTMLElement;
     const karttaMi = !!hedef.closest('[data-card-id]');
-    const secimModuAktif = (selectedCardIdsRef.current?.size ?? 0) > 0;
-    if (karttaMi && !secimModuAktif) return;
+    if (karttaMi) {
+      const secimModuAktif = (selectedCardIdsRef.current?.size ?? 0) > 0;
+      if (!e.shiftKey && !secimModuAktif) return;
+    }
 
     // preventDefault YAPMA: karta tiklamak (bas + birak, hareket yok) onClick
     // ile toggle olsun. Marquee yalnizca 5px esigi asilinca baslar (Move'da).
@@ -1203,22 +1255,24 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     if (!baslangic && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
 
     if (!baslangic) {
-      // Ilk kez esik asildi: pointer'i yakala + kart rect'lerini topla.
+      // Ilk kez esik asildi: pointer'i yakala + kart rect'lerini topla +
+      // auto-scroll dongusunu baslat.
       e.currentTarget.setPointerCapture?.(e.pointerId);
       const nokta = { startX: pending.x, startY: pending.y, endX: e.clientX, endY: e.clientY };
       marqueeRef.current = nokta;
       setMarquee(nokta);
 
       const zemin = (e.currentTarget as HTMLElement);
-      const rectler = new Map<string, DOMRect>();
-      zemin.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
-        const kimlik = el.dataset.cardId;
-        if (kimlik) rectler.set(kimlik, el.getBoundingClientRect());
-      });
-      marqueeCardRects.current = rectler;
+      marqueeCardRects.current = kartlariTopla(zemin);
+      marqueeZemin.current = zemin;
+      marqueeClientY.current = e.clientY;
+      if (marqueeScrollRaf.current === null) {
+        marqueeScrollRaf.current = requestAnimationFrame(scrollDongusu);
+      }
     } else {
       marqueeRef.current = { ...baslangic, endX: e.clientX, endY: e.clientY };
       setMarquee(marqueeRef.current);
+      marqueeClientY.current = e.clientY;
     }
   }, []);
 
@@ -1228,6 +1282,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     marqueeRef.current = null;
     marqueeCardRects.current = null;
     marqueePending.current = null;
+    // Auto-scroll dongusunu durdur + ref'leri temizle.
+    if (marqueeScrollRaf.current !== null) {
+      cancelAnimationFrame(marqueeScrollRaf.current);
+      marqueeScrollRaf.current = null;
+    }
+    marqueeZemin.current = null;
+    marqueeClientY.current = null;
     setMarquee(null);
     // Pointer capture'i serbest birak (sadece yakalanmissa). Bir sonraki
     // marquee baslangicinda yeniden yakalanir.
