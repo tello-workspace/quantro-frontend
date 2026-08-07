@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
               // gorseller: kendi + supabase (avatar/cover)
               "img-src 'self' data: blob: https://*.supabase.co",
               // API + websocket (socket.io): backend Render hostu
-              "connect-src 'self' https://tello-backend.onrender.com https://*.supabase.co wss://tello-backend.onrender.com ws://localhost:4000 http://localhost:4000",
+              "connect-src 'self' https://quantro-backend-1.onrender.com https://*.supabase.co wss://quantro-backend-1.onrender.com ws://localhost:4000 http://localhost:4000",
               "font-src 'self' data:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
