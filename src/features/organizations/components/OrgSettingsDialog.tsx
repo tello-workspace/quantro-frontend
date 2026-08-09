@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Users, ShieldPlus, X, Plus } from 'lucide-react';
+import { Users, ShieldPlus, X, Plus, Trash2 } from 'lucide-react';
 import { toast } from "sonner";
+import { useRouter } from 'next/navigation';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import {
   useListBadgesQuery,
@@ -12,7 +13,9 @@ import {
   useRemoveBadgeMutation,
   useUpdateMemberRoleMutation,
   useRemoveMemberMutation,
+  useDeleteOrganizationMutation,
 } from '@/features/organizations/organizationsApi';
+import { useGetMeQuery } from '@/features/auth/meApi';
 import {
   Dialog,
   DialogContent,
@@ -58,14 +61,17 @@ const renderBadgeIcon = (icon: string | null, className: string = "size-4") => {
 export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isAdmin, open, onOpenChange }) => {
   const { t } = useTranslation();
   const confirm = useConfirm();
+  const router = useRouter();
   const { data: org, isLoading: orgLoading } = useGetOrganizationByIdQuery({ orgId }, { skip: !open || !orgId });
   const { data: badges = [], isLoading: badgesLoading } = useListBadgesQuery({ orgId }, { skip: !open || !orgId });
+  const { data: me } = useGetMeQuery();
   const [createBadge, { isLoading: creating }] = useCreateBadgeMutation();
   const [deleteBadge] = useDeleteBadgeMutation();
   const [assignBadge] = useAssignBadgeMutation();
   const [removeBadge] = useRemoveBadgeMutation();
   const [updateMemberRole] = useUpdateMemberRoleMutation();
   const [removeMember] = useRemoveMemberMutation();
+  const [deleteOrg, { isLoading: deletingOrg }] = useDeleteOrganizationMutation();
 
   const [activeTab, setActiveTab] = useState<'members' | 'badges'>('members');
   const [showNewBadgeForm, setShowNewBadgeForm] = useState(false);
@@ -168,6 +174,28 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
   const getMemberBadges = (userId: string) => {
     const member = members.find(m => m.userId === userId);
     return (member?.user as any)?.badges?.map((ub: any) => ub.badge) ?? [];
+  };
+
+  // Yalnizca kurucu organizasyonu silebilir (backend de ownerId'yi kontrol eder).
+  const isOwner = !!me && !!org && me.id === org.ownerId;
+
+  const handleDeleteOrganization = async () => {
+    const ok = await confirm({
+      title: 'Organizasyonu Sil',
+      description: `"${org?.name}" organizasyonu ve içindeki tüm projeler kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    try {
+      await deleteOrg({ orgId }).unwrap();
+      toast.success('Organizasyon silindi');
+      onOpenChange(false);
+      router.push('/projects');
+    } catch (err: any) {
+      toast.error(err?.data?.error?.message || 'Organizasyon silinemedi');
+    }
   };
 
   return (
@@ -507,7 +535,30 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
           </div>
         )}
 
-        {!isAdmin && (
+        {isOwner && (
+          <div className="border-t border-destructive/30 pt-4 mt-2">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-destructive">Organizasyonu Sil</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Bu işlem geri alınamaz. Tüm projeler ve üyeler kaldırılır.
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="shrink-0 cursor-pointer"
+                onClick={handleDeleteOrganization}
+                disabled={deletingOrg}
+              >
+                <Trash2 className="size-3.5 mr-1" />
+                {deletingOrg ? 'Siliniyor...' : 'Sil'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!isAdmin && !isOwner && (
           <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border/40">
             Üye listesi ve yetkinlikleri görüntüleyebilirsin. Değişiklik yapmak için admin yetkisi gerekir.
           </p>

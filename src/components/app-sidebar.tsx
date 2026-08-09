@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check, Zap, ListPlus, Inbox } from 'lucide-react';
 import {
   Sidebar,
@@ -39,8 +39,16 @@ export function AppSidebar() {
   const activeOrgId = orgId ?? orgs[0]?.id;
   const { data: org } = useGetOrganizationByIdQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
   const isAdmin = org?.myRole === 'ADMIN';
-  const { data: projects = [] } = useGetProjectsQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
+  const { data: projects = [], refetch: refetchProjects } = useGetProjectsQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
   const [orgSelectOpen, setOrgSelectOpen] = useState(false);
+
+  // activeOrgId ilk mount'ta undefined olabilir (orgs henuz yuklenmemis).
+  // Doldugunda projeleri zorla cekelim - ilk login aninda projeler gelsin.
+  useEffect(() => {
+    if (activeOrgId) {
+      refetchProjects();
+    }
+  }, [activeOrgId, refetchProjects]);
 
   // Aktif org degisince projeleri o org'un projeleriyle listele
   const activeOrgProjects = projects;
