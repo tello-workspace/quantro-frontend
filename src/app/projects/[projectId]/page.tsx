@@ -128,6 +128,12 @@ export default function ProjectDetailPage() {
               >
                 Aktivite
               </Link>
+              <Link
+                href={`/projects/${projectId}/documents?orgId=${orgId}`}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                İlgili Belgeler
+              </Link>
               {orgId && isAdmin && (
                 <>
                   <Button variant="outline" size="sm" onClick={startEditing}>
