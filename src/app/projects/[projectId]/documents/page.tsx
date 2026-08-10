@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, Download, FileText, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Trash2, UploadCloud, X } from 'lucide-react';
 import { useGetProjectByIdQuery } from '@/features/projects/projectsApi';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
@@ -51,21 +51,54 @@ export default function ProjectDocumentsPage() {
   const [uploadDocument, { isLoading: isUploading }] = useUploadDocumentMutation();
   const [deleteDocument] = useDeleteDocumentMutation();
 
-  const handleFilesPicked = async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
-    if (file.size > MAX_DOCUMENT_SIZE) {
-      toast.error('Dosya en fazla 20MB olabilir.');
-      return;
+  const isSameFile = (a: File, b: File) =>
+    a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+
+  const handleFilesPicked = (files: File[]) => {
+    if (files.length === 0) return;
+
+    const oversized = files.filter((f) => f.size > MAX_DOCUMENT_SIZE);
+    if (oversized.length > 0) {
+      toast.error(`${oversized.map((f) => f.name).join(', ')}: en fazla 20MB olabilir.`);
     }
 
-    try {
-      await uploadDocument({ projectId, file }).unwrap();
-      toast.success('Belge yüklendi. Claude artık MCP üzerinden bu belgeyi doğrudan okuyabilir.');
-    } catch (err: unknown) {
-      const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
-      toast.error(errData?.message || 'Belge yüklenemedi.');
+    const uploadable = files.filter((f) => f.size <= MAX_DOCUMENT_SIZE);
+    setPendingFiles((prev) => [
+      ...prev,
+      ...uploadable.filter((f) => !prev.some((p) => isSameFile(p, f))),
+    ]);
+  };
+
+  const removePendingFile = (file: File) => {
+    setPendingFiles((prev) => prev.filter((f) => !isSameFile(f, file)));
+  };
+
+  const handleSavePendingFiles = async () => {
+    if (pendingFiles.length === 0) return;
+
+    let successCount = 0;
+    const failed: File[] = [];
+    for (const file of pendingFiles) {
+      try {
+        await uploadDocument({ projectId, file }).unwrap();
+        successCount += 1;
+      } catch (err: unknown) {
+        const errData = (err as { data?: { error?: { message?: string } } })?.data?.error;
+        toast.error(`${file.name}: ${errData?.message || 'Belge yüklenemedi.'}`);
+        failed.push(file);
+      }
+    }
+
+    setPendingFiles(failed);
+
+    if (successCount > 0) {
+      toast.success(
+        successCount === 1
+          ? 'Belge yüklendi. Claude artık MCP üzerinden bu belgeyi doğrudan okuyabilir.'
+          : `${successCount} belge yüklendi. Claude artık MCP üzerinden bu belgeleri doğrudan okuyabilir.`,
+      );
     }
   };
 
@@ -158,8 +191,49 @@ export default function ProjectDocumentsPage() {
             ))}
           </div>
 
-          <FileUpload onChange={handleFilesPicked} />
-          {isUploading && <p className="text-xs text-muted-foreground">Yükleniyor...</p>}
+          <FileUpload onChange={handleFilesPicked} multiple />
+
+          {pendingFiles.length > 0 && (
+            <div className="space-y-2">
+              <div className="space-y-1.5">
+                {pendingFiles.map((file, idx) => (
+                  <div
+                    key={`${file.name}-${file.size}-${idx}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-sm"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-foreground">{file.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePendingFile(file)}
+                      title="Kaldır"
+                      disabled={isUploading}
+                      className="shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSavePendingFiles}
+                disabled={isUploading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                <UploadCloud className="h-4 w-4" />
+                {isUploading
+                  ? 'Yükleniyor...'
+                  : `${pendingFiles.length} belgeyi kaydet`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </main>
