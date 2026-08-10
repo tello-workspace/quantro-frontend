@@ -6,7 +6,7 @@
 // menusu, toplu secim cubugunun tamamlayicisi: tek bir kart icin secim
 // moduna girmeden hizli yol.
 import React, { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff, SquareCheck, ExternalLink } from 'lucide-react';
+import { Eye, EyeOff, SquareCheck, ExternalLink, Copy, FolderInput } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useGetWatchStatusQuery,
@@ -28,10 +28,13 @@ interface CardContextMenuProps {
   onClose: () => void;
   onOpenCard: () => void;
   onToggleSelect: () => void;
+  /** Sadece adminlere gosterilir - backend de kopyalama/tasimayi ADMIN'e kisitliyor */
+  onDuplicate?: () => void;
+  onMove?: () => void;
 }
 
 const MENU_GENISLIK = 208; // px - w-52
-const MENU_YUKSEKLIK = 132; // px - 3 satir + dolgu (yaklasik; sadece kenar payi icin)
+const MENU_YUKSEKLIK = 200; // px - en fazla 5 satir + dolgu (yaklasik; sadece kenar payi icin)
 
 export const CardContextMenu: React.FC<CardContextMenuProps> = ({
   state,
@@ -39,6 +42,8 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
   onClose,
   onOpenCard,
   onToggleSelect,
+  onDuplicate,
+  onMove,
 }) => {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -131,6 +136,34 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
         <SquareCheck className="size-3.5 text-muted-foreground" />
         {selected ? t('deselectCard') : t('selectCard')}
       </button>
+      {onDuplicate && (
+        <button
+          type="button"
+          role="menuitem"
+          className={satirSinifi}
+          onClick={() => {
+            onDuplicate();
+            onClose();
+          }}
+        >
+          <Copy className="size-3.5 text-muted-foreground" />
+          Kopyala
+        </button>
+      )}
+      {onMove && (
+        <button
+          type="button"
+          role="menuitem"
+          className={satirSinifi}
+          onClick={() => {
+            onMove();
+            onClose();
+          }}
+        >
+          <FolderInput className="size-3.5 text-muted-foreground" />
+          Başka Projeye Taşı
+        </button>
+      )}
     </div>
   );
 };

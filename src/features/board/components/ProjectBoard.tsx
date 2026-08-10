@@ -20,6 +20,7 @@ import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { ArchiveModal } from './ArchiveModal';
+import { CardMoveModal } from './CardMoveModal';
 import { BulkActionBar } from './BulkActionBar';
 import { CardContextMenu, type CardContextMenuState } from './CardContextMenu';
 import { TimelineView } from '@/features/roadmap/components/TimelineView';
@@ -1382,6 +1383,23 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   }, []);
   const closeCardMenu = useCallback(() => setCardMenu(null), []);
 
+  const [moveModalCard, setMoveModalCard] = useState<{ id: string; title: string } | null>(null);
+
+  const handleDuplicateCard = useCallback(async (taskId: string) => {
+    try {
+      const result = await boardService.duplicateTask(taskId, {});
+      const dropped = [...result.droppedLabels, ...result.droppedCustomFields];
+      if (dropped.length > 0) {
+        toast.warning(`Kart kopyalandı. Düşen alanlar: ${dropped.join(', ')}`);
+      } else {
+        toast.success('Kart kopyalandı.');
+      }
+      boardService.getBoardData(projectId).then((data) => setBoardData(data));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Kart kopyalanamadı.');
+    }
+  }, [projectId]);
+
   // Panoda gercekten var olan secimler. State'i efektle budamak yerine
   // turetiyoruz: kart baska bir kullanici tarafindan silinip socket ile
   // dustugunde sayac var olmayan kartlari saymasin, ama bunun icin fazladan
@@ -1858,6 +1876,25 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               closeCardMenu();
             }}
             onToggleSelect={() => toggleCardSelection(cardMenu.cardId)}
+            onDuplicate={isAdmin ? () => handleDuplicateCard(cardMenu.cardId) : undefined}
+            onMove={isAdmin ? () => {
+              const task = boardData.tasks[cardMenu.cardId];
+              if (task) setMoveModalCard({ id: task.id, title: task.title });
+            } : undefined}
+          />
+        )}
+
+        {moveModalCard && (
+          <CardMoveModal
+            isOpen={!!moveModalCard}
+            onClose={() => setMoveModalCard(null)}
+            cardId={moveModalCard.id}
+            cardTitle={moveModalCard.title}
+            orgId={orgId}
+            currentProjectId={projectId}
+            onMoved={() => {
+              boardService.getBoardData(projectId).then((data) => setBoardData(data));
+            }}
           />
         )}
 

@@ -343,6 +343,39 @@ export const boardService = {
     return extractData<ArchivedTask[]>(json);
   },
 
+  // Karti kopyalar. targetColumnId verilmezse ayni kolona kopyalar.
+  // droppedLabels/droppedCustomFields: hedef baska bir projeyse ve karsiligi
+  // yoksa sessizce degil, burada bildirilerek dusurulen alanlar.
+  async duplicateTask(
+    taskId: string,
+    options: { targetColumnId?: string } = {},
+  ): Promise<{ card: RawCard; droppedLabels: string[]; droppedCustomFields: string[] }> {
+    const res = await fetch(`${API_BASE_URL}/cards/${taskId}/duplicate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(options),
+    });
+    if (!res.ok) throw new Error(await readApiError(res, 'Kart kopyalanamadı.'));
+    const json = await res.json();
+    return extractData(json);
+  },
+
+  // Karti BASKA BIR PROJENIN kolonuna tasir. updateTask'in columnId alanindan
+  // ayri: hedef proje degisince proje-bazli veri (etiket/ozel alan) dusebilir.
+  async moveTaskToProject(
+    taskId: string,
+    targetColumnId: string,
+  ): Promise<{ card: RawCard; droppedLabels: string[]; droppedCustomFields: string[] }> {
+    const res = await fetch(`${API_BASE_URL}/cards/${taskId}/move`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ targetColumnId }),
+    });
+    if (!res.ok) throw new Error(await readApiError(res, 'Kart taşınamadı.'));
+    const json = await res.json();
+    return extractData(json);
+  },
+
   // Toplu islem: tek istek, kart basina bagimsiz sonuc. Basarili/basarisiz
   // ayrimi doniyor cunku secimdeki bazi kartlarda yetki yetmeyebilir
   // (orn. uye icin silme) ve kismi basariyi gizlemek yaniltici olur.
