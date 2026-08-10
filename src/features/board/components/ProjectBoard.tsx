@@ -20,6 +20,7 @@ import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { BulkActionBar } from './BulkActionBar';
+import { CardContextMenu, type CardContextMenuState } from './CardContextMenu';
 import { TimelineView } from '@/features/roadmap/components/TimelineView';
 import { CalendarView } from './CalendarView';
 import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
@@ -1334,6 +1335,19 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     });
   }, []);
 
+  // ─── Kart sag tik menusu ──────────────────────────────────────
+  // Izleme ozelligi "karta girmeden izleyebilmek" istiyordu; tek kart icin
+  // toplu secim cubuguna girmek zorunda kalmadan hizli yol.
+  const [cardMenu, setCardMenu] = useState<CardContextMenuState | null>(null);
+  const handleCardContextMenu = useCallback((taskId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    // Sag tik bir pointerdown de uretiyor; marquee'nin bekleyen baslangicini
+    // temizlemezsek menu acikken fare hareketi marquee cizmeye baslardi.
+    marqueePending.current = null;
+    setCardMenu({ cardId: taskId, x: e.clientX, y: e.clientY });
+  }, []);
+  const closeCardMenu = useCallback(() => setCardMenu(null), []);
+
   // Panoda gercekten var olan secimler. State'i efektle budamak yerine
   // turetiyoruz: kart baska bir kullanici tarafindan silinip socket ile
   // dustugunde sayac var olmayan kartlari saymasin, ama bunun icin fazladan
@@ -1524,6 +1538,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           onCreateFromTemplate={handleCreateFromTemplate}
           selectedIds={effectiveSelectedIds}
           onToggleSelect={toggleCardSelection}
+          onCardContextMenu={handleCardContextMenu}
           onMarqueeStart={handleMarqueeStart}
           onMarqueeMove={handleMarqueeMove}
           onMarqueeEnd={handleMarqueeEnd}
@@ -1785,6 +1800,20 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               width: Math.abs(marquee.endX - marquee.startX),
               height: Math.abs(marquee.endY - marquee.startY),
             }}
+          />
+        )}
+
+        {/* Kart sag tik menusu: karti acmadan izlemeye alma / secme */}
+        {cardMenu && (
+          <CardContextMenu
+            state={cardMenu}
+            selected={effectiveSelectedIds.has(cardMenu.cardId)}
+            onClose={closeCardMenu}
+            onOpenCard={() => {
+              handleTaskClick(cardMenu.cardId);
+              closeCardMenu();
+            }}
+            onToggleSelect={() => toggleCardSelection(cardMenu.cardId)}
           />
         )}
 

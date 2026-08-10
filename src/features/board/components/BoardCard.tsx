@@ -30,6 +30,8 @@ interface BoardCardProps {
    *  toplu secim yaparken yanlislikla kart acmayi onler) */
   selectionActive?: boolean;
   onToggleSelect?: () => void;
+  /** Sag tik menusu: karti acmadan izleme/secim yapabilmek icin */
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 function initials(name: string): string {
@@ -73,6 +75,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   selected = false,
   selectionActive = false,
   onToggleSelect,
+  onContextMenu,
 }) => {
   const { t, lang } = useTranslation();
   const {
@@ -109,6 +112,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       {...attributes}
       {...listeners}
       onClick={selectionActive && onToggleSelect ? onToggleSelect : onClick}
+      onContextMenu={onContextMenu}
       title={
         [
           task.priority ? `${t('priorityLabel')}: ${priorityLabel}` : null,

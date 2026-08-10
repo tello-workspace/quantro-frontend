@@ -492,6 +492,8 @@ const translations = {
     bulkUnwatch: "İzlemeyi bırak",
     bulkWatchSuccess: "Seçili kartlar izlemeye alındı.",
     bulkUnwatchSuccess: "Seçili kartların izlenmesi bırakıldı.",
+    // Kart sag tik menusu - karta girmeden izlemeye alabilmek icin
+    cardMenuOpen: "Kartı aç",
     newProjectDesc: "Takımınla birlikte çalışacağın yeni bir proje oluştur.",
     projectNameLabel: "Proje adı",
     descriptionOptional: "Açıklama (opsiyonel)",
@@ -1028,6 +1030,8 @@ const translations = {
     bulkUnwatch: "Unwatch",
     bulkWatchSuccess: "Selected cards are now being watched.",
     bulkUnwatchSuccess: "Stopped watching the selected cards.",
+    // Kart sag tik menusu - karta girmeden izlemeye alabilmek icin
+    cardMenuOpen: "Open card",
     newProjectDesc: "Create a new project to work on with your team.",
     projectNameLabel: "Project name",
     descriptionOptional: "Description (optional)",
