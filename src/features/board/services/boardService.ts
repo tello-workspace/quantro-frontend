@@ -157,6 +157,15 @@ export function calculateFractionalPosition(prevPos?: number, nextPos?: number):
   return 1;
 }
 
+export interface ArchivedTask {
+  id: string;
+  title: string;
+  priority?: Priority;
+  archivedAt: string | null;
+  column: { id: string; name: string };
+  archivedBy: { id: string; name: string; avatarUrl?: string | null } | null;
+}
+
 export interface Column {
   id: string;
   title: string;
@@ -307,6 +316,25 @@ export const boardService = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Görev arşivlenemedi.');
+  },
+
+  // Arsivlenen karti geri yukler - board'a tekrar gorunur olur.
+  async restoreTask(taskId: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/cards/${taskId}/restore`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Görev geri yüklenemedi.');
+  },
+
+  // Proje genelinde arsivlenen kartlari getirir (Arsiv ekrani).
+  async getArchivedCards(projectId: string): Promise<ArchivedTask[]> {
+    const res = await fetch(`${API_BASE_URL}/projects/${projectId}/cards/archived`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Arşivlenen kartlar alınamadı.');
+    const json = await res.json();
+    return extractData<ArchivedTask[]>(json);
   },
 
   // Toplu islem: tek istek, kart basina bagimsiz sonuc. Basarili/basarisiz

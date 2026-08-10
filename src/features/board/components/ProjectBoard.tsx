@@ -19,6 +19,7 @@ import {
 import { BoardColumn } from './BoardColumn';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
+import { ArchiveModal } from './ArchiveModal';
 import { BulkActionBar } from './BulkActionBar';
 import { TimelineView } from '@/features/roadmap/components/TimelineView';
 import { CalendarView } from './CalendarView';
@@ -30,7 +31,7 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal, GanttChartSquare } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal, GanttChartSquare, Archive } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
@@ -161,6 +162,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // Excel uretimi 500 kartlik bir panoda birkac saniye surebiliyor - buton
   // geri bildirim vermezse kullanici tekrar tekrar tikliyor.
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState<boolean>(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   // Git Cakisma Erken Uyari: kartId -> "hangi dosyada, kim, hangi diger kart" bilgisi
   const [conflicts, setConflicts] = useState<Record<string, CardConflictInfo>>({});
@@ -1604,6 +1606,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           <Download className="size-3.5" /> {isExporting ? t('exporting') : t('exportBoard')}
         </button>
 
+        <button
+          type="button"
+          onClick={() => setIsArchiveModalOpen(true)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
+          title="Arşivlenen kartları görüntüle"
+        >
+          <Archive className="size-3.5" /> Arşiv
+        </button>
+
         <div className="flex-1 min-w-0">
           <BoardFilters
             search={search}
@@ -1864,6 +1875,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         initialDueDate={initialDueDate}
         onCreateTask={handleCreateTask}
         conflict={selectedTaskId ? conflicts[selectedTaskId] : undefined}
+      />
+
+      <ArchiveModal
+        isOpen={isArchiveModalOpen}
+        onClose={() => setIsArchiveModalOpen(false)}
+        projectId={projectId}
+        onRestored={() => {
+          boardService.getBoardData(projectId).then((data) => setBoardData(data));
+        }}
       />
 
     </div>
