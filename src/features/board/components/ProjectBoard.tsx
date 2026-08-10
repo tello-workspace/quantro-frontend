@@ -1244,6 +1244,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     marqueePending.current = { x: e.clientX, y: e.clientY };
   }, []);
 
+  // Marquee suruklemesi sirasinda tarayicinin native metin secimi araya
+  // giriyor ve kart basliklari maviye boyaniyordu (kullanici bildirdi).
+  // Kapsayiciya select-none veriyoruz ama esik asilana kadar gecen ilk
+  // birkac pikselde secim baslamis olabilir; onu da burada dusuruyoruz.
+  const natifSecimiDusur = () => {
+    const secim = window.getSelection();
+    if (secim && !secim.isCollapsed) secim.removeAllRanges();
+  };
+
   const handleMarqueeMove = useCallback((e: React.PointerEvent) => {
     const baslangic = marqueeRef.current;
     const pending = marqueePending.current;
@@ -1253,6 +1262,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     const dy = e.clientY - pending.y;
     // 5px esigini gecmediyse henuz surukleme yok - tiklamaya karismas.
     if (!baslangic && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+
+    natifSecimiDusur();
 
     if (!baslangic) {
       // Ilk kez esik asildi: pointer'i yakala + kart rect'lerini topla +
@@ -1522,6 +1533,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     });
   };
 
+  // Toplu secim modundayken (en az 1 kart secili) veya marquee surerken
+  // kart metinleri secilebilir olmasin. Sebep: bu iki durumda da kullanici
+  // kartlarin UZERINDEN surukluyor ve tarayici metni maviye boyayip ekrani
+  // kirli gosteriyor. Yalnizca kolon kapsayicisina veriliyor - modal ve
+  // panel iceriginden metin kopyalamak calismaya devam etsin.
+  const metinSecimiKapali = marquee !== null || effectiveSelectedIds.size > 0;
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center gap-3 px-4 pt-1">
@@ -1658,7 +1676,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           <div
             className={`flex-1 min-h-0 pt-1 pb-4 px-4 no-scrollbar ${
               lanes ? 'overflow-auto' : 'flex gap-4 overflow-x-auto'
-            }`}
+            } ${metinSecimiKapali ? 'select-none' : ''}`}
           >
             {lanes
               ? lanes.map((lane) => {
