@@ -27,6 +27,9 @@ export default function ProjectDetailPage() {
   const projectId = params?.projectId as string;
   const orgId = searchParams.get('orgId') ?? '';
   const openCard = searchParams.get('openCard') ?? undefined;
+  // ?card=QNT-42 - insan-okunur anahtarla derin baglanti. Commit mesajina,
+  // Slack'e, e-postaya yapistirilabilen adres bicimi bu.
+  const openCardKey = searchParams.get('card') ?? undefined;
 
   const { data: project } = useGetProjectByIdQuery({ orgId, projectId }, { skip: !orgId });
   const { data: org } = useGetOrganizationByIdQuery({ orgId }, { skip: !orgId });
@@ -150,7 +153,7 @@ export default function ProjectDetailPage() {
 
         {/* Board + AI Chat side-by-side */}
         <div className="flex-1 min-h-0">
-          <ProjectBoard projectId={projectId} orgId={orgId} projectName={project?.name} initialOpenCardId={openCard} />
+          <ProjectBoard projectId={projectId} orgId={orgId} projectName={project?.name} initialOpenCardId={openCard} initialOpenCardKey={openCardKey} />
         </div>
 
         {/* Mobile floating AI button */}

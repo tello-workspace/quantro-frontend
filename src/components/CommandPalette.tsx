@@ -205,6 +205,9 @@ export const CommandPalette: React.FC<Props> = ({ open, onOpenChange, orgId, pro
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate font-medium">{kart.title}</span>
                       <span className="truncate text-xs text-muted-foreground">
+                        {kart.cardKey && (
+                          <span className="font-mono font-medium text-foreground/70">{kart.cardKey} · </span>
+                        )}
                         {kart.projectName} · {kart.columnName}
                       </span>
                     </span>

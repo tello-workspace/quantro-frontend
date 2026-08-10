@@ -494,6 +494,12 @@ const translations = {
     bulkUnwatchSuccess: "Seçili kartların izlenmesi bırakıldı.",
     // Kart sag tik menusu - karta girmeden izlemeye alabilmek icin
     cardMenuOpen: "Kartı aç",
+    // Insan-okunur kart anahtari (QNT-42)
+    cardKeyNotFound: "{key} bu panoda bulunamadı — kart arşivlenmiş, silinmiş veya başka bir projede olabilir.",
+    cardKeyCopy: "Kart anahtarını kopyala",
+    cardKeyCopied: "Kart anahtarı kopyalandı",
+    projectKeyLabel: "Kart anahtarı öneki",
+    projectKeyHint: "2-5 karakter, harfle başlar. Kartlar QNT-42 gibi görünür. Boş bırakırsan proje adından üretilir.",
     newProjectDesc: "Takımınla birlikte çalışacağın yeni bir proje oluştur.",
     projectNameLabel: "Proje adı",
     descriptionOptional: "Açıklama (opsiyonel)",
@@ -1032,6 +1038,12 @@ const translations = {
     bulkUnwatchSuccess: "Stopped watching the selected cards.",
     // Kart sag tik menusu - karta girmeden izlemeye alabilmek icin
     cardMenuOpen: "Open card",
+    // Insan-okunur kart anahtari (QNT-42)
+    cardKeyNotFound: "{key} was not found on this board — the card may be archived, deleted or in another project.",
+    cardKeyCopy: "Copy card key",
+    cardKeyCopied: "Card key copied",
+    projectKeyLabel: "Card key prefix",
+    projectKeyHint: "2-5 characters, starts with a letter. Cards show up as QNT-42. Left empty, it is derived from the project name.",
     newProjectDesc: "Create a new project to work on with your team.",
     projectNameLabel: "Project name",
     descriptionOptional: "Description (optional)",

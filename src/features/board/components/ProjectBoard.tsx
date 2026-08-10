@@ -46,6 +46,9 @@ interface ProjectBoardProps {
   projectName?: string;
   // Org-genelinde arama sonucundan direkt bu karti acmak icin (bkz. OrgSearchDialog)
   initialOpenCardId?: string;
+  // Insan-okunur anahtarla derin baglanti: /projects/x?card=QNT-42
+  // Bu, elle yazilabilen/paylasilabilen adres bicimi - cuid'li olan degil.
+  initialOpenCardKey?: string;
 }
 
 interface CardSocketPayload {
@@ -154,7 +157,7 @@ function removeCard(columns: BoardData['columns'], cardId: string): BoardData['c
   return next;
 }
 
-export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId }) => {
+export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId, initialOpenCardKey }) => {
   const { t, lang } = useTranslation();
   const dispatch = useDispatch();
   const [boardData, setBoardData] = useState<BoardData | null>(null);
@@ -358,20 +361,49 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // sonrasinda. Deep-link kart basina yalnizca bir kez onurlandiriliyor.
   const acilanDeepLinkRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!initialOpenCardId || !boardData) return;
-    if (acilanDeepLinkRef.current === initialOpenCardId) return;
-    acilanDeepLinkRef.current = initialOpenCardId;
-    setSelectedTaskId(initialOpenCardId);
-    setIsModalOpen(true);
+    if (!boardData) return;
 
-    // Tuketilen openCard parametresi URL'den siliniyor: kalirsa sayfa
-    // yenilendiginde (kart bu arada silinmis olabilir) ayni hataya dusuluyor
-    // ve adres cubugu artik dogru olmayan bir durumu gosteriyor.
+    // Iki derin baglanti bicimi var:
+    //   ?openCard=<cuid>  - arama/bildirim gibi ic baglantilar uretir
+    //   ?card=QNT-42      - insan yazar/paylasir (kart anahtari)
+    // Anahtar panoda zaten yuklu veriden cozuluyor; ek bir istek atmiyoruz.
+    let hedefId = initialOpenCardId ?? null;
+    let anahtardanMi = false;
+
+    if (!hedefId && initialOpenCardKey && boardData.projectKey) {
+      const parcali = /^([A-Za-z][A-Za-z0-9]{1,4})-(\d+)$/.exec(initialOpenCardKey.trim());
+      const onek = parcali?.[1]?.toUpperCase();
+      const numara = parcali ? Number(parcali[2]) : NaN;
+      if (onek === boardData.projectKey.toUpperCase() && Number.isFinite(numara)) {
+        hedefId = Object.values(boardData.tasks).find((task) => task.number === numara)?.id ?? null;
+      }
+      anahtardanMi = true;
+    }
+
+    const izlenen = hedefId ?? (anahtardanMi ? `key:${initialOpenCardKey}` : null);
+    if (!izlenen) return;
+    if (acilanDeepLinkRef.current === izlenen) return;
+    acilanDeepLinkRef.current = izlenen;
+
+    if (hedefId) {
+      setSelectedTaskId(hedefId);
+      setIsModalOpen(true);
+    } else {
+      // Anahtar bu panoda bulunamadi: kart arsivlenmis, silinmis veya yanlis
+      // proje. Sessizce yutmak yerine soyluyoruz - kullanici elle yazdigi
+      // adresin neden bir sey acmadigini bilmeli.
+      toast.error(t('cardKeyNotFound').replace('{key}', initialOpenCardKey ?? ''));
+    }
+
+    // Tuketilen parametreler URL'den siliniyor: kalirsa sayfa yenilendiginde
+    // (kart bu arada silinmis olabilir) ayni hataya dusuluyor ve adres cubugu
+    // artik dogru olmayan bir durumu gosteriyor.
     const kalanParams = new URLSearchParams(window.location.search);
     kalanParams.delete('openCard');
+    kalanParams.delete('card');
     const sorgu = kalanParams.toString();
     router.replace(`/projects/${projectId}${sorgu ? `?${sorgu}` : ''}`, { scroll: false });
-  }, [initialOpenCardId, boardData, projectId, router]);
+  }, [initialOpenCardId, initialOpenCardKey, boardData, projectId, router, t]);
 
   // Board'u ayni anda acmis diger kullanicilarin kart/kolon islemlerini anlik yansit.
   // Kendi eylemlerimiz zaten optimistic olarak uygulandigi icin handler'lar idempotent:
@@ -1539,6 +1571,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           selectedIds={effectiveSelectedIds}
           onToggleSelect={toggleCardSelection}
           onCardContextMenu={handleCardContextMenu}
+          projectKey={boardData.projectKey}
           onMarqueeStart={handleMarqueeStart}
           onMarqueeMove={handleMarqueeMove}
           onMarqueeEnd={handleMarqueeEnd}
@@ -1907,6 +1940,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         onDeleteTask={handleDeleteTask}
         onArchiveTask={isAdmin ? handleArchiveTask : undefined}
         columnId={createRequestColumnId}
+        projectKey={boardData.projectKey}
         initialTitle={initialTitle}
         initialDueDate={initialDueDate}
         onCreateTask={handleCreateTask}

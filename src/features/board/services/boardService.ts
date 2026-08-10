@@ -75,6 +75,8 @@ export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export interface Task {
   id: string;
+  /** Proje icinde artan kart numarasi. Gorunen anahtar: `${projectKey}-${number}` */
+  number?: number;
   title: string;
   description?: string;
   dueDate?: string;
@@ -104,6 +106,7 @@ export interface Task {
 // dondurur. Task tipini tek tip tutmak icin burada normalize ediyoruz.
 export interface RawCard {
   id: string;
+  number?: number;
   title: string;
   description?: string | null;
   dueDate?: string | null;
@@ -125,6 +128,7 @@ export interface RawCard {
 export function normalizeCard(raw: RawCard): Task {
   return {
     id: raw.id,
+    number: raw.number,
     title: raw.title,
     description: raw.description ?? undefined,
     dueDate: raw.dueDate ?? undefined,
@@ -169,6 +173,8 @@ export interface BoardData {
   columns: Record<string, Column>;
   tasks: Record<string, Task>;
   myRole?: 'ADMIN' | 'MEMBER';
+  /** Kart anahtari oneki ("QNT"). Kart numarasiyla birlesince QNT-42 olur. */
+  projectKey?: string;
 }
 
 export const boardService = {

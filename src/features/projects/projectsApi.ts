@@ -45,7 +45,7 @@ export const projectsApi = api.injectEndpoints({
       }),
       invalidatesTags: ['Project'],
     }),
-    createProject: builder.mutation<Project, { orgId: string; name: string; description?: string }>({
+    createProject: builder.mutation<Project, { orgId: string; name: string; description?: string; key?: string }>({
       query: ({ orgId, ...body }) => ({
         url: `/organizations/${orgId}/projects`,
         method: 'POST',

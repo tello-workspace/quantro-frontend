@@ -601,7 +601,37 @@ interface TaskModalProps {
   initialDueDate?: string;
   onCreateTask?: (columnId: string, payload: CreateTaskPayload) => Promise<void>;
   conflict?: TaskModalConflictInfo;
+  /** Kart anahtari oneki ("QNT"). Kartin numarasiyla QNT-42 rozetini kurar. */
+  projectKey?: string;
 }
+
+/**
+ * Kart anahtari rozeti. Tiklaninca panoya kopyalar - anahtarin butun degeri
+ * baska bir yere (commit mesaji, Slack, e-posta) yazilabilmesinde, o yuzden
+ * kopyalamak tek tiklik olmali.
+ */
+const CardKeyBadge: React.FC<{ cardKey: string }> = ({ cardKey }) => {
+  const { t } = useTranslation();
+
+  return (
+    <button
+      type="button"
+      title={t('cardKeyCopy')}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(cardKey);
+          toast.success(t('cardKeyCopied'));
+        } catch {
+          // Pano izni yoksa (guvensiz baglam, tarayici politikasi) sessizce
+          // gec: rozet yine de okunabilir durumda, kullanici elle secebilir.
+        }
+      }}
+      className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    >
+      {cardKey}
+    </button>
+  );
+};
 
 export const TaskModal: React.FC<TaskModalProps> = ({
   taskId,
@@ -615,6 +645,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   fetchTaskDetails,
   availableCards = [],
   columnId,
+  projectKey,
   initialTitle,
   initialDueDate,
   onCreateTask,
@@ -1190,6 +1221,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 {/* Sag ust eylem kumesi: ayarlar carki + AI ile doldur yan yana, kapat
                     (X) butonunun altina girmesin diye sagdan (mr-7) bosluk birakilir. */}
                 <div className="flex items-center gap-1.5 shrink-0 mr-7">
+                  {/* Insan-okunur anahtar (QNT-42): kartin adresi. Yeni kartta
+                      henuz numara yok - kaydedilince olusuyor. */}
+                  {taskId !== 'new' && projectKey && task.number != null && (
+                    <CardKeyBadge cardKey={`${projectKey}-${task.number}`} />
+                  )}
+
                   {/* Yeni kartin henuz id'si yok - once kaydedilmeli. */}
                   {taskId !== 'new' && <WatchToggle cardId={task.id} />}
 

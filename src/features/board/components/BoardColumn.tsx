@@ -33,6 +33,8 @@ interface BoardColumnProps {
   onToggleSelect?: (taskId: string) => void;
   /** Kart uzerinde sag tik: karti acmadan izleme/secim menusu */
   onCardContextMenu?: (taskId: string, e: React.MouseEvent) => void;
+  /** Kart anahtari oneki ("QNT") - kartlarda QNT-42 olarak gosterilir */
+  projectKey?: string;
   /** Surukle-ciz (marquee) seciminin kolon zemininden baslatilmasini ister.
    *  Bu pointer olaylari yalnizca kart DISINDAKI zeminde calisir; kart
    *  uzerindeki surukleme dnd-kit'in sorumlulugunda kalmaya devam eder. */
@@ -66,6 +68,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   selectedIds,
   onToggleSelect,
   onCardContextMenu,
+  projectKey,
   onMarqueeStart,
   onMarqueeMove,
   onMarqueeEnd,
@@ -294,6 +297,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               onContextMenu={
                 onCardContextMenu ? (e) => onCardContextMenu(task.id, e) : undefined
               }
+              projectKey={projectKey}
             />
           ))}
         </SortableContext>
