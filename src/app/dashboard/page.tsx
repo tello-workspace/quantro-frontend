@@ -1,11 +1,44 @@
 'use client';
 
 import { useGetMyAssignedCardsQuery } from '@/features/dashboard/dashboardApi';
-import { useGetWatchedCardsQuery } from '@/features/watchers/watchApi';
+import { useGetWatchedCardsQuery, useUnwatchCardMutation } from '@/features/watchers/watchApi';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Eye, ListChecks } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, ListChecks } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DashboardCard } from '@/features/dashboard/DashboardCard';
+
+// Listeden dogrudan abonelikten cikma. Aboneligi birakmak icin karti acip
+// projeye gitmek gerekiyordu; abone olmanin kolay, birakmanin zor oldugu bir
+// liste hizla cope donuyor.
+//
+// z-10: DashboardCard'in tamamini kaplayan mutlak konumlu link var, dugme
+// onun USTUNDE olmali yoksa tiklama karti aciyor.
+function IzlemeyiBirakDugmesi({ cardId }: { cardId: string }) {
+  const { t } = useTranslation();
+  const [unwatchCard, { isLoading }] = useUnwatchCardMutation();
+
+  return (
+    <button
+      type="button"
+      disabled={isLoading}
+      onClick={async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await unwatchCard(cardId).unwrap();
+          toast.success(t('bulkUnwatchSuccess'));
+        } catch {
+          toast.error(t('watchToggleError'));
+        }
+      }}
+      className="relative z-10 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+    >
+      <EyeOff aria-hidden className="size-3" />
+      {t('bulkUnwatch')}
+    </button>
+  );
+}
 
 function Yukleniyor() {
   return (
@@ -119,11 +152,14 @@ export default function DashboardPage() {
                   </p>
                 }
                 ekRozet={
-                  card.isDone ? (
-                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                      {t('watchedDone')}
-                    </span>
-                  ) : null
+                  <>
+                    {card.isDone && (
+                      <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                        {t('watchedDone')}
+                      </span>
+                    )}
+                    <IzlemeyiBirakDugmesi cardId={card.id} />
+                  </>
                 }
               />
             ))}

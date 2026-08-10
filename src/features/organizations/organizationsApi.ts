@@ -44,6 +44,8 @@ export interface SearchResultCard {
   columnName: string;
   projectId: string;
   projectName: string;
+  /** Insan-okunur kart anahtari: "QNT-42" */
+  cardKey: string;
 }
 
 export const organizationsApi = api.injectEndpoints({

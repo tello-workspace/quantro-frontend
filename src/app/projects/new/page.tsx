@@ -18,6 +18,9 @@ export default function NewProjectPage() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  // Kart anahtari oneki. Bos birakilirsa backend proje adindan uretiyor -
+  // zorunlu kilmak proje acmayi gereksiz yere yavaslatirdi.
+  const [key, setKey] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const [createProject, { isLoading }] = useCreateProjectMutation();
@@ -32,7 +35,12 @@ export default function NewProjectPage() {
     }
 
     try {
-      const project = await createProject({ orgId, name, description: description || undefined }).unwrap();
+      const project = await createProject({
+        orgId,
+        name,
+        description: description || undefined,
+        key: key.trim() || undefined,
+      }).unwrap();
       toast.success('Proje oluşturuldu!');
       router.push(`/projects/${project.id}?orgId=${orgId}`);
     } catch (err: any) {
@@ -65,6 +73,20 @@ export default function NewProjectPage() {
                 onChange={(e) => setName(e.target.value)}
                 required
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('projectKeyLabel')}</label>
+              <Input
+                type="text"
+                placeholder="QNT"
+                value={key}
+                maxLength={5}
+                // Anahtar her zaman buyuk harf: kullanici kucuk yazarken de
+                // sonucun nasil gorunecegini gorsun (backend de buyutuyor).
+                onChange={(e) => setKey(e.target.value.toUpperCase())}
+                className="font-mono uppercase"
+              />
+              <p className="text-xs text-muted-foreground">{t('projectKeyHint')}</p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">{t('descriptionOptional')}</label>

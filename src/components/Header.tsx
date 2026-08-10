@@ -215,6 +215,12 @@ export default function Header(){
                               </span>
                             </div>
                             <span className="text-[10px] sm:text-xs text-muted-foreground">
+                              {/* Anahtar en basta: "QNT-42 yazip Enter" akisini
+                                  ogreten yer burasi - kullanici sonucu gorurken
+                                  kartin adresini de ogreniyor. */}
+                              {card.cardKey && (
+                                <span className="font-mono font-medium text-foreground/70">{card.cardKey} · </span>
+                              )}
                               {card.projectName} · {card.columnName}
                             </span>
                           </Link>

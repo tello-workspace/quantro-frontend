@@ -30,6 +30,10 @@ interface BoardCardProps {
    *  toplu secim yaparken yanlislikla kart acmayi onler) */
   selectionActive?: boolean;
   onToggleSelect?: () => void;
+  /** Sag tik menusu: karti acmadan izleme/secim yapabilmek icin */
+  onContextMenu?: (e: React.MouseEvent) => void;
+  /** Projenin kart anahtari oneki ("QNT"). Kartin numarasiyla QNT-42 olur. */
+  projectKey?: string;
 }
 
 function initials(name: string): string {
@@ -73,6 +77,8 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   selected = false,
   selectionActive = false,
   onToggleSelect,
+  onContextMenu,
+  projectKey,
 }) => {
   const { t, lang } = useTranslation();
   const {
@@ -109,6 +115,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       {...attributes}
       {...listeners}
       onClick={selectionActive && onToggleSelect ? onToggleSelect : onClick}
+      onContextMenu={onContextMenu}
       title={
         [
           task.priority ? `${t('priorityLabel')}: ${priorityLabel}` : null,
@@ -239,6 +246,15 @@ export const BoardCard: React.FC<BoardCardProps> = ({
 
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1">
+          {/* Insan-okunur kart anahtari (QNT-42). Panoda okunabilmesi asil
+              amac: commit mesajina/Slack'e yazilirken kartin cuid'ini
+              aramak zorunda kalinmasin. */}
+          {projectKey && task.number != null && (
+            <span className="font-mono text-[10px] font-medium tracking-tight text-muted-foreground/80">
+              {projectKey}-{task.number}
+            </span>
+          )}
+
           {task.dueDate && (() => {
             const date = new Date(task.dueDate);
             // Date.now() render sirasinda "saf olmayan" cagri sayiliyor, ama

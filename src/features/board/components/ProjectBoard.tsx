@@ -21,6 +21,7 @@ import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { ArchiveModal } from './ArchiveModal';
 import { BulkActionBar } from './BulkActionBar';
+import { CardContextMenu, type CardContextMenuState } from './CardContextMenu';
 import { TimelineView } from '@/features/roadmap/components/TimelineView';
 import { CalendarView } from './CalendarView';
 import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
@@ -46,6 +47,9 @@ interface ProjectBoardProps {
   projectName?: string;
   // Org-genelinde arama sonucundan direkt bu karti acmak icin (bkz. OrgSearchDialog)
   initialOpenCardId?: string;
+  // Insan-okunur anahtarla derin baglanti: /projects/x?card=QNT-42
+  // Bu, elle yazilabilen/paylasilabilen adres bicimi - cuid'li olan degil.
+  initialOpenCardKey?: string;
 }
 
 interface CardSocketPayload {
@@ -154,7 +158,7 @@ function removeCard(columns: BoardData['columns'], cardId: string): BoardData['c
   return next;
 }
 
-export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId }) => {
+export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId, initialOpenCardKey }) => {
   const { t, lang } = useTranslation();
   const dispatch = useDispatch();
   const [boardData, setBoardData] = useState<BoardData | null>(null);
@@ -359,20 +363,49 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // sonrasinda. Deep-link kart basina yalnizca bir kez onurlandiriliyor.
   const acilanDeepLinkRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!initialOpenCardId || !boardData) return;
-    if (acilanDeepLinkRef.current === initialOpenCardId) return;
-    acilanDeepLinkRef.current = initialOpenCardId;
-    setSelectedTaskId(initialOpenCardId);
-    setIsModalOpen(true);
+    if (!boardData) return;
 
-    // Tuketilen openCard parametresi URL'den siliniyor: kalirsa sayfa
-    // yenilendiginde (kart bu arada silinmis olabilir) ayni hataya dusuluyor
-    // ve adres cubugu artik dogru olmayan bir durumu gosteriyor.
+    // Iki derin baglanti bicimi var:
+    //   ?openCard=<cuid>  - arama/bildirim gibi ic baglantilar uretir
+    //   ?card=QNT-42      - insan yazar/paylasir (kart anahtari)
+    // Anahtar panoda zaten yuklu veriden cozuluyor; ek bir istek atmiyoruz.
+    let hedefId = initialOpenCardId ?? null;
+    let anahtardanMi = false;
+
+    if (!hedefId && initialOpenCardKey && boardData.projectKey) {
+      const parcali = /^([A-Za-z][A-Za-z0-9]{1,4})-(\d+)$/.exec(initialOpenCardKey.trim());
+      const onek = parcali?.[1]?.toUpperCase();
+      const numara = parcali ? Number(parcali[2]) : NaN;
+      if (onek === boardData.projectKey.toUpperCase() && Number.isFinite(numara)) {
+        hedefId = Object.values(boardData.tasks).find((task) => task.number === numara)?.id ?? null;
+      }
+      anahtardanMi = true;
+    }
+
+    const izlenen = hedefId ?? (anahtardanMi ? `key:${initialOpenCardKey}` : null);
+    if (!izlenen) return;
+    if (acilanDeepLinkRef.current === izlenen) return;
+    acilanDeepLinkRef.current = izlenen;
+
+    if (hedefId) {
+      setSelectedTaskId(hedefId);
+      setIsModalOpen(true);
+    } else {
+      // Anahtar bu panoda bulunamadi: kart arsivlenmis, silinmis veya yanlis
+      // proje. Sessizce yutmak yerine soyluyoruz - kullanici elle yazdigi
+      // adresin neden bir sey acmadigini bilmeli.
+      toast.error(t('cardKeyNotFound').replace('{key}', initialOpenCardKey ?? ''));
+    }
+
+    // Tuketilen parametreler URL'den siliniyor: kalirsa sayfa yenilendiginde
+    // (kart bu arada silinmis olabilir) ayni hataya dusuluyor ve adres cubugu
+    // artik dogru olmayan bir durumu gosteriyor.
     const kalanParams = new URLSearchParams(window.location.search);
     kalanParams.delete('openCard');
+    kalanParams.delete('card');
     const sorgu = kalanParams.toString();
     router.replace(`/projects/${projectId}${sorgu ? `?${sorgu}` : ''}`, { scroll: false });
-  }, [initialOpenCardId, boardData, projectId, router]);
+  }, [initialOpenCardId, initialOpenCardKey, boardData, projectId, router, t]);
 
   // Board'u ayni anda acmis diger kullanicilarin kart/kolon islemlerini anlik yansit.
   // Kendi eylemlerimiz zaten optimistic olarak uygulandigi icin handler'lar idempotent:
@@ -1246,6 +1279,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     marqueePending.current = { x: e.clientX, y: e.clientY };
   }, []);
 
+  // Marquee suruklemesi sirasinda tarayicinin native metin secimi araya
+  // giriyor ve kart basliklari maviye boyaniyordu (kullanici bildirdi).
+  // Kapsayiciya select-none veriyoruz ama esik asilana kadar gecen ilk
+  // birkac pikselde secim baslamis olabilir; onu da burada dusuruyoruz.
+  const natifSecimiDusur = () => {
+    const secim = window.getSelection();
+    if (secim && !secim.isCollapsed) secim.removeAllRanges();
+  };
+
   const handleMarqueeMove = useCallback((e: React.PointerEvent) => {
     const baslangic = marqueeRef.current;
     const pending = marqueePending.current;
@@ -1255,6 +1297,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     const dy = e.clientY - pending.y;
     // 5px esigini gecmediyse henuz surukleme yok - tiklamaya karismas.
     if (!baslangic && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+
+    natifSecimiDusur();
 
     if (!baslangic) {
       // Ilk kez esik asildi: pointer'i yakala + kart rect'lerini topla +
@@ -1324,6 +1368,19 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       return secilecekler;
     });
   }, []);
+
+  // ─── Kart sag tik menusu ──────────────────────────────────────
+  // Izleme ozelligi "karta girmeden izleyebilmek" istiyordu; tek kart icin
+  // toplu secim cubuguna girmek zorunda kalmadan hizli yol.
+  const [cardMenu, setCardMenu] = useState<CardContextMenuState | null>(null);
+  const handleCardContextMenu = useCallback((taskId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    // Sag tik bir pointerdown de uretiyor; marquee'nin bekleyen baslangicini
+    // temizlemezsek menu acikken fare hareketi marquee cizmeye baslardi.
+    marqueePending.current = null;
+    setCardMenu({ cardId: taskId, x: e.clientX, y: e.clientY });
+  }, []);
+  const closeCardMenu = useCallback(() => setCardMenu(null), []);
 
   // Panoda gercekten var olan secimler. State'i efektle budamak yerine
   // turetiyoruz: kart baska bir kullanici tarafindan silinip socket ile
@@ -1515,6 +1572,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           onCreateFromTemplate={handleCreateFromTemplate}
           selectedIds={effectiveSelectedIds}
           onToggleSelect={toggleCardSelection}
+          onCardContextMenu={handleCardContextMenu}
+          projectKey={boardData.projectKey}
           onMarqueeStart={handleMarqueeStart}
           onMarqueeMove={handleMarqueeMove}
           onMarqueeEnd={handleMarqueeEnd}
@@ -1523,6 +1582,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       );
     });
   };
+
+  // Toplu secim modundayken (en az 1 kart secili) veya marquee surerken
+  // kart metinleri secilebilir olmasin. Sebep: bu iki durumda da kullanici
+  // kartlarin UZERINDEN surukluyor ve tarayici metni maviye boyayip ekrani
+  // kirli gosteriyor. Yalnizca kolon kapsayicisina veriliyor - modal ve
+  // panel iceriginden metin kopyalamak calismaya devam etsin.
+  const metinSecimiKapali = marquee !== null || effectiveSelectedIds.size > 0;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -1669,7 +1735,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           <div
             className={`flex-1 min-h-0 pt-1 pb-4 px-4 no-scrollbar ${
               lanes ? 'overflow-auto' : 'flex gap-4 overflow-x-auto'
-            }`}
+            } ${metinSecimiKapali ? 'select-none' : ''}`}
           >
             {lanes
               ? lanes.map((lane) => {
@@ -1781,6 +1847,20 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           />
         )}
 
+        {/* Kart sag tik menusu: karti acmadan izlemeye alma / secme */}
+        {cardMenu && (
+          <CardContextMenu
+            state={cardMenu}
+            selected={effectiveSelectedIds.has(cardMenu.cardId)}
+            onClose={closeCardMenu}
+            onOpenCard={() => {
+              handleTaskClick(cardMenu.cardId);
+              closeCardMenu();
+            }}
+            onToggleSelect={() => toggleCardSelection(cardMenu.cardId)}
+          />
+        )}
+
         {/* AI Chat drawer overlay (desktop) */}
         {isDesktopChatOpen && (
           <div className="hidden sm:block shrink-0 h-full pt-1 pb-4 pr-4 sm:pr-6 pl-0">
@@ -1871,6 +1951,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         onDeleteTask={handleDeleteTask}
         onArchiveTask={isAdmin ? handleArchiveTask : undefined}
         columnId={createRequestColumnId}
+        projectKey={boardData.projectKey}
         initialTitle={initialTitle}
         initialDueDate={initialDueDate}
         onCreateTask={handleCreateTask}
