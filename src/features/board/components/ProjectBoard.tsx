@@ -1878,12 +1878,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           </select>
         )}
 
-        {/* Sprintler / Otomasyonlar / Ek Alanlar / Triage tek bir yonetim
-            sayfasinda toplandi - ust bar bu dort butonla cok sikisiyordu. */}
+        {/* Otomasyonlar / Ek Alanlar / Triage / Erisim tek bir yonetim
+            sayfasinda toplandi - ust bar bu butonlarla cok sikisiyordu.
+            (Sprint ozelligi kaldirildi, metinlerden de dusuruldu.) */}
         <Link
           href={`/projects/${projectId}/manage?orgId=${orgId}`}
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors shrink-0"
-          title="Sprintler, otomasyonlar, ek alanlar ve triage"
+          title={t('manageSubtitle')}
         >
           <SlidersHorizontal className="size-3.5" /> Yönetim
           {triagePendingCount > 0 && (

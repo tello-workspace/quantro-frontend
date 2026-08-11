@@ -22,8 +22,17 @@ type TabKey = 'automations' | 'fields' | 'triage' | 'access';
 
 const TAB_KEYS: TabKey[] = ['automations', 'fields', 'triage', 'access'];
 
-// Pano ust barinda yan yana duran Sprintler / Otomasyonlar / Ek Alanlar /
-// Triage butonlari filtrelerle birlikte sikisiyordu. Hepsi bu sayfada tek
+// Gorunur sekme sayisina gore sekme barinin sutun duzeni. Dar ekranda
+// hep en fazla iki sutun: dort sekme yan yana sigmiyor, yazilar kirpiliyordu.
+const TAB_GRID: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-2 sm:grid-cols-3',
+  4: 'grid-cols-2 sm:grid-cols-4',
+};
+
+// Pano ust barinda yan yana duran Otomasyonlar / Ek Alanlar / Triage /
+// Erisim butonlari filtrelerle birlikte sikisiyordu. Hepsi bu sayfada tek
 // yerde toplandi; panoda tek bir "Yönetim" butonu kaldi. Aktif sekme ?tab
 // ile URL'de tutuluyor ki panodan/sidebar'dan dogrudan link verilebilsin.
 export default function ProjectManagePage() {
@@ -63,11 +72,17 @@ export default function ProjectManagePage() {
     };
   }, [projectId]);
 
+  // Uye kullanici yalnizca talep sekmesini gorur. Onceden butun sekmeler VE
+  // butun sekme icerikleri isAdmin ile sarilıydı: uye "Yönetim"e (panoda
+  // herkese acik bir buton) bastiginda basliktan sonrasi tamamen bos bir
+  // sayfa geliyordu. Gorunur sekmeler tek yerden turetiliyor ki liste ile
+  // icerik bir daha ayrisamasin.
+  const visibleTabs: TabKey[] = isAdmin ? TAB_KEYS : ['triage'];
+
   const tabParam = searchParams.get('tab') as TabKey | null;
-  const requestedTab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'automations';
-  // Uye kullanici yalnizca Triage sekmesini gorur; admin'e ozel bir
-  // sekmeye link ile gelirse automations'a dusuruyoruz.
-  const activeTab: TabKey = isAdmin || requestedTab === 'triage' ? requestedTab : 'automations';
+  const requestedTab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : visibleTabs[0];
+  // Goremeyecegi bir sekmeye link ile gelirse gorebildigi ilkine dusuyor.
+  const activeTab: TabKey = visibleTabs.includes(requestedTab) ? requestedTab : visibleTabs[0];
 
   const handleTabChange = (value: TabKey) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -85,49 +100,55 @@ export default function ProjectManagePage() {
             href={`/projects${orgId ? `?orgId=${orgId}` : ''}`}
             className="transition-colors hover:text-foreground"
           >
-            {org?.name ?? 'Organizasyon'}
+            {org?.name ?? t('manageOrgFallback')}
           </Link>
           <span aria-hidden>/</span>
           <Link href={boardHref} className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
-            <ArrowLeft className="size-4" /> {project?.name ?? 'Panoya dön'}
+            <ArrowLeft className="size-4" /> {project?.name ?? t('manageBackToBoard')}
           </Link>
         </div>
 
         <div className="mt-3 mb-6">
           <h1 className="text-2xl font-bold text-foreground">{t('projectManagement')}</h1>
+          {/* Alt baslik "Sprintler"i sayiyordu ama sayfada sprint sekmesi yok;
+              ozellik kaldirildiginda metin guncellenmemis. */}
           <p className="mt-1 text-sm text-muted-foreground">
             {project?.name ? `${project.name} · ` : ''}
-            Sprintler, otomasyonlar, ek alanlar ve talep triage&apos;ı tek yerde.
+            {t('manageSubtitle')}
           </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as TabKey)}>
-          <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4">
-            {isAdmin && (
+          {/* Sutun sayisi sabit 4'tu: uyeye tek sekme dustugunde o sekme
+              barin ceyregini kaplayip geri kalani bos kaliyordu. Sinif
+              adlari statik - Tailwind uretilmis sinifi ancak kaynakta
+              acikca goruyorsa cikti dosyasina koyuyor. */}
+          <TabsList className={`grid h-auto w-full ${TAB_GRID[visibleTabs.length] ?? 'grid-cols-2 sm:grid-cols-4'}`}>
+            {visibleTabs.includes('automations') && (
               <TabsTrigger value="automations" className="gap-1.5 py-1.5">
                 <Zap className="size-4" /> {t('automations')}
               </TabsTrigger>
             )}
-            {isAdmin && (
+            {visibleTabs.includes('fields') && (
               <TabsTrigger value="fields" className="gap-1.5 py-1.5">
-                <ListPlus className="size-4" /> Ek Alanlar
+                <ListPlus className="size-4" /> {t('customFieldsTab')}
                 {customFields.length > 0 && <CountBadge value={customFields.length} />}
               </TabsTrigger>
             )}
-            {isAdmin && (
+            {visibleTabs.includes('triage') && (
               <TabsTrigger value="triage" className="gap-1.5 py-1.5">
-                <Inbox className="size-4" /> Triage
+                <Inbox className="size-4" /> {isAdmin ? t('triageTab') : t('myRequests')}
                 {triagePendingCount > 0 && <CountBadge value={triagePendingCount} highlight />}
               </TabsTrigger>
             )}
-            {isAdmin && (
+            {visibleTabs.includes('access') && (
               <TabsTrigger value="access" className="gap-1.5 py-1.5">
-                <ShieldCheck className="size-4" /> Erişim
+                <ShieldCheck className="size-4" /> {t('accessTab')}
               </TabsTrigger>
             )}
           </TabsList>
 
-          {isAdmin && (
+          {visibleTabs.includes('automations') && (
             <TabsContent value="automations" className="mt-5">
               <SectionShell title={t('automationRules')} description={t('automationRulesDesc')}>
                 <AutomationRulesSection
@@ -141,22 +162,22 @@ export default function ProjectManagePage() {
             </TabsContent>
           )}
 
-          {isAdmin && (
+          {visibleTabs.includes('fields') && (
             <TabsContent value="fields" className="mt-5">
               <SectionShell
-                title="Ek Alanlar"
-                description="Kartlara projene özel alanlar ekle."
+                title={t('customFieldsTab')}
+                description={t('customFieldsDesc')}
               >
                 <CustomFieldsSection orgId={orgId} projectId={projectId} />
               </SectionShell>
             </TabsContent>
           )}
 
-          {isAdmin && (
+          {visibleTabs.includes('triage') && (
             <TabsContent value="triage" className="mt-5">
               <SectionShell
-                title="Triage: Yeni Kart Talepleri"
-                description="Üyelerin bu projede önerdiği yeni kartlar. Önceliği/atananı/etiketleri düzenleyip onayla, panoya öyle girsin."
+                title={isAdmin ? t('triageTab') : t('myRequests')}
+                description={isAdmin ? t('triageDesc') : t('myRequestsDesc')}
               >
                 <ChangeRequestsSection
                   orgId={orgId}
@@ -168,11 +189,11 @@ export default function ProjectManagePage() {
             </TabsContent>
           )}
 
-          {isAdmin && (
+          {visibleTabs.includes('access') && (
             <TabsContent value="access" className="mt-5">
               <SectionShell
-                title="Erişim"
-                description="Projeyi kimin görebileceğini ve GUEST rolündeki kişilerin hangi projelere erişebileceğini yönet."
+                title={t('accessTab')}
+                description={t('accessDesc')}
               >
                 {project && (
                   <ProjectAccessSection
@@ -213,10 +234,13 @@ function SectionShell({
   description: string;
   children: React.ReactNode;
 }) {
+  // Baslik gorsel olarak gizli: hemen ustundeki secili sekme zaten ayni
+  // kelimeyi yaziyordu ("Erişim" sekmesi -> "Erişim" basligi). Ekran
+  // okuyucu icin bolumun adi yine de duruyor.
   return (
-    <section className="rounded-2xl border border-border bg-card/40 p-4 sm:p-6">
-      <h2 className="text-base font-semibold text-foreground">{title}</h2>
-      <p className="mt-1 mb-4 text-sm text-muted-foreground">{description}</p>
+    <section aria-label={title} className="rounded-2xl border border-border bg-card/40 p-4 sm:p-6">
+      <h2 className="sr-only">{title}</h2>
+      <p className="mb-4 text-sm text-muted-foreground">{description}</p>
       {children}
     </section>
   );
