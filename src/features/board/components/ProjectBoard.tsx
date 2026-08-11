@@ -149,6 +149,13 @@ function placeCard(
   return next;
 }
 
+// Silme geri alma (undo) penceresi: kart(lar) hemen panodan kaldirilir ama
+// gercek DELETE istegi bu sure dolana kadar gonderilmez - kullanici "Geri Al"
+// derse hic sunucuya gitmez. Trello/Gmail'deki ayni davranis: yanlislikla
+// silmenin bedeli confirm dialogundan sonra bile hala var, gercek bir geri
+// donus yolu gerekiyordu.
+const UNDO_MS = 10000;
+
 // Bir kartin id'sini tum sutunlardan cikarir (silme ve kolon silme yollari icin)
 function removeCard(columns: BoardData['columns'], cardId: string): BoardData['columns'] {
   const next: BoardData['columns'] = {};
@@ -171,6 +178,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const [activeId, setActiveId] = useState<string | null>(null);
   // Git Cakisma Erken Uyari: kartId -> "hangi dosyada, kim, hangi diger kart" bilgisi
   const [conflicts, setConflicts] = useState<Record<string, CardConflictInfo>>({});
+  // Tekli silme geri-alma zamanlayicilari - kartId -> setTimeout handle'i.
+  // Ref: her render'da sifirlanmamali, "Geri Al" tiklandiginda iptal edilecek.
+  const pendingDeleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Real-time board updates
   const realtimeBoard = useRealtimeBoard(projectId);
@@ -1037,36 +1047,64 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    try {
-      await boardService.deleteTask(projectId, taskId);
-      refetchLabels();
+  const handleDeleteTask = (taskId: string) => {
+    const task = boardData?.tasks[taskId];
+    if (!task || !boardData) return;
+    const originalColumnId = task.columnId;
+    const originalIndex = boardData.columns[originalColumnId]?.taskIds.indexOf(taskId) ?? undefined;
+
+    const geriGetir = () => {
       setBoardData((prev) => {
         if (!prev) return prev;
-
-        const newColumns = removeCard(prev.columns, taskId);
-
-        const newTasks = { ...prev.tasks };
-        delete newTasks[taskId];
-
         return {
           ...prev,
-          columns: newColumns,
-          tasks: newTasks,
+          tasks: { ...prev.tasks, [taskId]: task },
+          columns: placeCard(prev.columns, taskId, originalColumnId, originalIndex),
         };
       });
-      // RTK cache'lerini de gecersiz kil: board/roadmap/insight gibi
-      // gorunumler kart silinince bayat kalmasin. BoardService plain fetch
-      // kullandigi icin RTK bu silmeyi bilmiyor - bu olmadan timeline'da
-      // silinen kart gorunmeye devam ediyordu.
-      dispatch(api.util.invalidateTags(['Card', 'Insight']));
-      toast.success(t('taskDeleted'));
-    } catch (error) {
-      // Onceden sessizce yutuluyordu: silme basarisiz olsa bile kullanici
-      // hicbir sey gormuyor, kart panoda duruyordu.
-      console.error("Görev silinirken hata:", error);
-      toast.error(t('taskDeleteError'));
-    }
+    };
+
+    // Optimistic: kart hemen panodan kalkar, gercek silme UNDO_MS sonra.
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      const newColumns = removeCard(prev.columns, taskId);
+      const newTasks = { ...prev.tasks };
+      delete newTasks[taskId];
+      return { ...prev, columns: newColumns, tasks: newTasks };
+    });
+
+    const timer = setTimeout(async () => {
+      pendingDeleteTimers.current.delete(taskId);
+      try {
+        await boardService.deleteTask(projectId, taskId);
+        refetchLabels();
+        // RTK cache'lerini de gecersiz kil: board/roadmap/insight gibi
+        // gorunumler kart silinince bayat kalmasin. BoardService plain fetch
+        // kullandigi icin RTK bu silmeyi bilmiyor - bu olmadan timeline'da
+        // silinen kart gorunmeye devam ediyordu.
+        dispatch(api.util.invalidateTags(['Card', 'Insight']));
+      } catch (error) {
+        console.error("Görev silinirken hata:", error);
+        toast.error(t('taskDeleteError'));
+        geriGetir();
+      }
+    }, UNDO_MS);
+    pendingDeleteTimers.current.set(taskId, timer);
+
+    toast(`"${task.title}" silindi`, {
+      duration: UNDO_MS,
+      action: {
+        label: 'Geri Al',
+        onClick: () => {
+          const bekleyen = pendingDeleteTimers.current.get(taskId);
+          if (bekleyen) {
+            clearTimeout(bekleyen);
+            pendingDeleteTimers.current.delete(taskId);
+          }
+          geriGetir();
+        },
+      },
+    });
   };
 
   const handleArchiveTask = async (taskId: string) => {
@@ -1456,6 +1494,84 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     },
     [projectId, clearSelection],
   );
+
+  // Toplu silme runBulkAction'dan BILEREK ayri: digerleri (tasima/etiket/
+  // atama) sunucudan hemen calisip panoyu tazeliyor, ama silme geri
+  // donulemez - 20 kart secip yanlislikla silen kullanicinin elinde hicbir
+  // sey kalmiyordu. Ayni UNDO_MS penceresi tekli silmeyle ayni mantikla:
+  // optimistic kaldirma + gecikmeli gercek istek + "Geri Al" toast'u.
+  const handleBulkDelete = useCallback((ids: string[]) => {
+    if (ids.length === 0 || !boardData) return;
+
+    const anlikBoard = boardData;
+    const secim: { task: Task; columnId: string; index: number | undefined }[] = [];
+    for (const id of ids) {
+      const task = anlikBoard.tasks[id];
+      if (!task) continue;
+      const columnId = task.columnId;
+      const index = anlikBoard.columns[columnId]?.taskIds.indexOf(id) ?? undefined;
+      secim.push({ task, columnId, index });
+    }
+    if (secim.length === 0) return;
+
+    const geriGetir = (hedefIdler?: Set<string>) => {
+      setBoardData((prev) => {
+        if (!prev) return prev;
+        let columns = prev.columns;
+        const tasks = { ...prev.tasks };
+        // Sondan basa: basa eklenen bir kart sonraki eklemelerin index'ini
+        // kaydirmasin diye orijinal sira tersten uygulaniyor.
+        for (let i = secim.length - 1; i >= 0; i--) {
+          const { task, columnId, index } = secim[i];
+          if (hedefIdler && !hedefIdler.has(task.id)) continue;
+          tasks[task.id] = task;
+          columns = placeCard(columns, task.id, columnId, index);
+        }
+        return { ...prev, columns, tasks };
+      });
+    };
+
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      let columns = prev.columns;
+      const tasks = { ...prev.tasks };
+      for (const { task } of secim) {
+        columns = removeCard(columns, task.id);
+        delete tasks[task.id];
+      }
+      return { ...prev, columns, tasks };
+    });
+    clearSelection();
+
+    const timer = setTimeout(async () => {
+      try {
+        const sonuc = await boardService.bulkCardAction(projectId, {
+          cardIds: secim.map((s) => s.task.id),
+          action: 'delete',
+        });
+        refetchLabels();
+        dispatch(api.util.invalidateTags(['Card', 'Insight']));
+        if (sonuc.basarisiz.length > 0) {
+          toast.error(`${sonuc.basarisiz.length} kart silinemedi: ${sonuc.basarisiz[0].sebep}`);
+          geriGetir(new Set(sonuc.basarisiz.map((b) => b.cardId)));
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Kartlar silinemedi.');
+        geriGetir();
+      }
+    }, UNDO_MS);
+
+    toast(`${secim.length} kart silindi`, {
+      duration: UNDO_MS,
+      action: {
+        label: 'Geri Al',
+        onClick: () => {
+          clearTimeout(timer);
+          geriGetir();
+        },
+      },
+    });
+  }, [boardData, projectId, clearSelection, dispatch, refetchLabels]);
 
   // Toplu izleme AYRI bir akis: runBulkAction islem sonrasi tum panoyu yeniden
   // cekiyor, ama izleme kartin kendisini degistirmiyor - bu kisisel bir
@@ -1967,7 +2083,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'label', labelId })
         }
         onArchive={() => runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'archive' })}
-        onDelete={() => runBulkAction({ cardIds: [...effectiveSelectedIds], action: 'delete' })}
+        onDelete={() => handleBulkDelete([...effectiveSelectedIds])}
         onWatch={runWatchAction}
         onClear={clearSelection}
       />
