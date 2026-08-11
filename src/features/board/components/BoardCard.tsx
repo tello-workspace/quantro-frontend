@@ -3,6 +3,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../services/boardService';
+import { GripVerticalIcon } from 'lucide-react';
 import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon, CheckCircleIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -81,6 +82,11 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   projectKey,
 }) => {
   const { t, lang } = useTranslation();
+  // disabled: selectionActive KALDIRILDI - surukleme artik asagidaki tutamactan
+  // basliyor (kart govdesi degil), o yuzden secim modunda dnd-kit'i tumden
+  // kapatmaya gerek yok. Ustelik kapali olsa secili kartlari birlikte tasima
+  // (ProjectBoard'daki cokluTasima) calismazdi - o da tutamactan surukleyerek
+  // baslatiliyor.
   const {
     attributes,
     listeners,
@@ -88,7 +94,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, disabled: selectionActive });
+  } = useSortable({ id: task.id });
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -112,8 +118,6 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       ref={setNodeRef}
       data-card-id={dataCardId}
       style={style}
-      {...attributes}
-      {...listeners}
       onClick={selectionActive && onToggleSelect ? onToggleSelect : onClick}
       onContextMenu={onContextMenu}
       title={
@@ -141,10 +145,28 @@ export const BoardCard: React.FC<BoardCardProps> = ({
             }`
       }`}
     >
+      {/* Tasima tutamaci: kart govdesinin tamami artik basip-surukleyince
+          marquee (coklu secim) baslatiyor - kartin YERINI degistirmek icin
+          ozel bu kucuk tutamac gerekiyor. stopPropagation olmadan bu
+          pointerdown, kolonun marquee dinleyicisine kabarcikla-nir (bubble)
+          ve dnd-kit'in surukleme baslatma sansi kalmadan marquee devreye
+          girerdi; o yuzden once durduruyor, sonra dnd-kit'in kendi
+          listener'ini elle cagiriyoruz. */}
+      <span
+        {...attributes}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          listeners?.onPointerDown?.(e);
+        }}
+        title={t('dragToReorder')}
+        className="absolute left-1 top-2 z-10 flex size-4 touch-none items-center justify-center rounded text-muted-foreground/30 opacity-0 transition-all hover:text-muted-foreground group-hover:opacity-100 cursor-grab active:cursor-grabbing"
+      >
+        <GripVerticalIcon className="size-3.5" />
+      </span>
       {/* Secim kutusu: normalde gizli, kartin uzerine gelince veya kart
-          seciliyken gorunur. onPointerDown durduruluyor cunku surukleme
-          dinleyicileri kok elemanda: durdurulmazsa kutuya tiklamak
-          sürükleme baslatiyor. */}
+          seciliyken gorunur. onPointerDown durduruluyor cunku govdeye
+          basip-surukleme artik marquee baslatiyor: durdurulmazsa kutuya
+          tiklamak marquee'ye donusurdu. */}
       {onToggleSelect && (
         <button
           type="button"

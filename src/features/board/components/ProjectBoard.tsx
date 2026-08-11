@@ -1240,13 +1240,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const marqueeClientY = useRef<number | null>(null);
   const marqueeZemin = useRef<HTMLElement | null>(null);
   const marqueeScrollRaf = useRef<number | null>(null);
-  // handleMarqueeStart useCallback([]) ile sabit - secim modunu guncel
-  // gorebilmesi icin secim set'ini senkron tutan bir ref. Boylece kart
-  // uzerinden marquee baslatma karari (secim modu aktif mi) stale closure
-  // olmaz.
-  const selectedCardIdsRef = useRef<Set<string>>(new Set());
-  selectedCardIdsRef.current = selectedCardIds;
-
   // Marquee baslangic noktasi + kartlar henuz toplanmadi. Move'da 5px esigi
   // gecilince gercek marquee baslar (pointer capture + rect toplama). Boylece
   // kart uzerindeki TIKLAMA (toggle) marquee'ye donup onClick'i oldurmez.
@@ -1312,22 +1305,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     // belli olmasa da native secim hic baslamasin.
     (e.currentTarget as HTMLElement).style.userSelect = 'none';
 
-    // Hedef kart ise: normal surukleme (shift yok) kart tasimasidir (dnd-kit).
-    // Kolon KARTLARLA DOLU oldugunda bos zemin kalmaz, marquee zemin yokken
-    // baslatilamaz (kullanici bunu bildirdi). Cozum:
-    //   - bos zemin  -> marquee her zaman baslar
-    //   - kart + Shift -> marquee (kart tasimayi bozmaz)
-    //   - kart + secim modu aktif -> marquee (toplu secimde hizli yayilma)
-    //   - kart + Shift'siz + secim yok -> kart tasima (dnd-kit)
-    const hedef = e.target as HTMLElement;
-    const karttaMi = !!hedef.closest('[data-card-id]');
-    if (karttaMi) {
-      const secimModuAktif = (selectedCardIdsRef.current?.size ?? 0) > 0;
-      if (!e.shiftKey && !secimModuAktif) return;
-    }
-
-    // preventDefault YAPMA: karta tiklamak (bas + birak, hareket yok) onClick
-    // ile toggle olsun. Marquee yalnizca 5px esigi asilinca baslar (Move'da).
+    // Kart TASIMA artik kartin kendi gövdesinden degil, BoardCard'daki kucuk
+    // tutamactan basliyor (bkz. BoardCard.tsx) - o tutamac kendi pointerdown'ini
+    // stopPropagation ile burada durduruyor, bu yuzden buraya hic ulasmiyor.
+    // Yani buraya ulasan HER pointerdown (bos zemin veya kart govdesi farketmez)
+    // marquee/coklu secim baslatir - hangi kolon oldugu, Shift basili olup
+    // olmadigi, onceden secim olup olmadigi onemsiz; kullanici "basip
+    // surukleyince coklu secim her kolonda aynı sekilde calissin" istedi.
     marqueePending.current = { x: e.clientX, y: e.clientY };
   }, []);
 
