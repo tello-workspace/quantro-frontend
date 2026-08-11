@@ -603,6 +603,8 @@ interface TaskModalProps {
   conflict?: TaskModalConflictInfo;
   /** Kart anahtari oneki ("QNT"). Kartin numarasiyla QNT-42 rozetini kurar. */
   projectKey?: string;
+  /** Efor tahmini alaninda "puan" mi "saat" mi yazacagini belirler */
+  estimateUnit?: 'POINTS' | 'HOURS';
 }
 
 /**
@@ -646,6 +648,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   availableCards = [],
   columnId,
   projectKey,
+  estimateUnit = 'POINTS',
   initialTitle,
   initialDueDate,
   onCreateTask,
@@ -1984,6 +1987,25 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <label htmlFor="estimate" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
+                      Efor Tahmini ({estimateUnit === 'HOURS' ? 'saat' : 'puan'})
+                    </label>
+                    <Input
+                      id="estimate"
+                      type="number"
+                      min={0}
+                      max={9999}
+                      value={task.estimate ?? ''}
+                      onChange={(e) => {
+                        const deger = e.target.value;
+                        setTask({ ...task, estimate: deger === '' ? null : Number(deger) });
+                      }}
+                      disabled={isFilling}
+                      placeholder="—"
+                      className="h-9"
+                    />
                   </div>
                 </div>
 

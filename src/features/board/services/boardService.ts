@@ -99,6 +99,8 @@ export interface Task {
   parent?: { id: string; title: string } | null;
   subtasks?: { id: string; title: string; done: boolean }[];
   customFieldValues?: { fieldId: string; value: string | null }[];
+  /** Efor tahmini - birimi BoardData.estimateUnit ("puan"/"saat") belirler */
+  estimate?: number | null;
 }
 
 // Backend /cards/:id (GET, PATCH) assignees/labels'i nested CardAssignee[]/
@@ -123,11 +125,13 @@ export interface RawCard {
   parent?: { id: string; title: string } | null;
   subtasks?: { id: string; title: string; column?: { isDone: boolean } }[];
   customFieldValues?: { fieldId: string; value: string | null }[];
+  estimate?: number | null;
 }
 
 export function normalizeCard(raw: RawCard): Task {
   return {
     id: raw.id,
+    estimate: raw.estimate,
     number: raw.number,
     title: raw.title,
     description: raw.description ?? undefined,
@@ -184,6 +188,8 @@ export interface BoardData {
   myRole?: 'ADMIN' | 'MEMBER';
   /** Kart anahtari oneki ("QNT"). Kart numarasiyla birlesince QNT-42 olur. */
   projectKey?: string;
+  /** Efor tahmini birimi - kolon basliginda "puan" mi "saat" mi yazacagini belirler */
+  estimateUnit?: 'POINTS' | 'HOURS';
 }
 
 export const boardService = {
@@ -295,6 +301,7 @@ export const boardService = {
     // gonderme, mevcut degeri koru. null/string = kullanici gercekten
     // degistirdi (ya da fetch edilmis mevcut deger) -> gonder.
     if (task.parentCardId !== undefined) body.parentCardId = task.parentCardId;
+    if (task.estimate !== undefined) body.estimate = task.estimate;
 
     const res = await fetch(`${API_BASE_URL}/cards/${task.id}`, {
       method: 'PATCH',

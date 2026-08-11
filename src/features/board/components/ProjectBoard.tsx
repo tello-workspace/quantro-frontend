@@ -1592,6 +1592,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           onToggleSelect={toggleCardSelection}
           onCardContextMenu={handleCardContextMenu}
           projectKey={boardData.projectKey}
+          estimateUnit={boardData.estimateUnit}
           onMarqueeStart={handleMarqueeStart}
           onMarqueeMove={handleMarqueeMove}
           onMarqueeEnd={handleMarqueeEnd}
@@ -1730,6 +1731,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             tasks={calendarTasks}
             columns={boardData.columns}
             onTaskClick={handleTaskClick}
+            estimateUnit={boardData.estimateUnit}
           />
         ) : viewMode === 'calendar' ? (
           <CalendarView
@@ -1989,6 +1991,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         onArchiveTask={isAdmin ? handleArchiveTask : undefined}
         columnId={createRequestColumnId}
         projectKey={boardData.projectKey}
+        estimateUnit={boardData.estimateUnit}
         initialTitle={initialTitle}
         initialDueDate={initialDueDate}
         onCreateTask={handleCreateTask}

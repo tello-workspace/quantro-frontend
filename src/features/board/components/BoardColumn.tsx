@@ -35,6 +35,8 @@ interface BoardColumnProps {
   onCardContextMenu?: (taskId: string, e: React.MouseEvent) => void;
   /** Kart anahtari oneki ("QNT") - kartlarda QNT-42 olarak gosterilir */
   projectKey?: string;
+  /** Efor tahmini toplaminin yanindaki birim etiketi ("puan"/"saat") */
+  estimateUnit?: 'POINTS' | 'HOURS';
   /** Surukle-ciz (marquee) seciminin kolon zemininden baslatilmasini ister.
    *  Bu pointer olaylari yalnizca kart DISINDAKI zeminde calisir; kart
    *  uzerindeki surukleme dnd-kit'in sorumlulugunda kalmaya devam eder. */
@@ -69,6 +71,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   onToggleSelect,
   onCardContextMenu,
   projectKey,
+  estimateUnit,
   onMarqueeStart,
   onMarqueeMove,
   onMarqueeEnd,
@@ -151,6 +154,11 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
 
   const realCount = totalCount ?? tasks.length;
   const isLimitExceeded = wipLimit !== undefined && wipLimit !== null && realCount >= wipLimit;
+  // WIP limiti kart SAYISINI olcuyor ama "3 kart" ile "3 puan" cok farkli
+  // seyler - hic tahmini olmayan kolonlarda (0) rozet hic gosterilmiyor,
+  // gereksiz gurultu yapmasin.
+  const estimateSum = tasks.reduce((sum, task) => sum + (task.estimate ?? 0), 0);
+  const estimateLabel = estimateUnit === 'HOURS' ? 'sa' : 'p';
 
   return (
     <div className="relative shrink-0">
@@ -253,6 +261,11 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               ? `${tasks.length} / ${totalCount}${wipLimit ? ` (limit ${wipLimit})` : ''}`
               : `${tasks.length}${wipLimit ? ` / ${wipLimit}` : ''}`}
           </Badge>
+          {estimateSum > 0 && (
+            <Badge variant="outline" className="shrink-0 text-[11px] tabular-nums" title="Kolon efor tahmini toplamı">
+              {estimateSum} {estimateLabel}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           {isLimitExceeded && (

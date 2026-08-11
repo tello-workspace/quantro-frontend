@@ -10,9 +10,10 @@ interface TableViewProps {
   tasks: Task[];
   columns: Record<string, Column>;
   onTaskClick: (taskId: string) => void;
+  estimateUnit?: 'POINTS' | 'HOURS';
 }
 
-type SortKey = 'title' | 'columnId' | 'priority' | 'dueDate';
+type SortKey = 'title' | 'columnId' | 'priority' | 'dueDate' | 'estimate';
 type SortDir = 'asc' | 'desc';
 
 const PRIORITY_ORDER: Record<Priority, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, URGENT: 3 };
@@ -36,7 +37,7 @@ const PRIORITY_ROW_BG: Record<Priority, string> = {
 // Jira/Trello'daki "List/Table" gorunumu: pano gibi surukle-birak degil,
 // tum kartlari tek bir siralanabilir tabloda gosterir - buyuk backlog'larda
 // hizli tarama/siralama icin Kanban'dan daha uygun.
-export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClick }) => {
+export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClick, estimateUnit }) => {
   const [sortKey, setSortKey] = useState<SortKey>('dueDate');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
@@ -67,6 +68,8 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
           const bd = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
           return (ad - bd) * dirMul;
         }
+        case 'estimate':
+          return ((a.estimate ?? -1) - (b.estimate ?? -1)) * dirMul;
         default:
           return 0;
       }
@@ -87,6 +90,7 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
     { key: 'columnId', label: 'Sütun' },
     { key: 'priority', label: 'Öncelik' },
     { key: 'dueDate', label: 'Teslim Tarihi' },
+    { key: 'estimate', label: estimateUnit === 'HOURS' ? 'Saat' : 'Puan' },
   ];
 
   return (
@@ -128,6 +132,9 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
               <td className="py-2 px-2 text-muted-foreground">
                 {task.dueDate ? new Date(task.dueDate).toLocaleDateString('tr-TR') : '—'}
               </td>
+              <td className="py-2 px-2 text-muted-foreground tabular-nums">
+                {task.estimate ?? '—'}
+              </td>
               <td className="py-2 px-2 text-muted-foreground">
                 {(task.assignees ?? []).map((a) => a.name).join(', ') || '—'}
               </td>
@@ -135,7 +142,7 @@ export const TableView: React.FC<TableViewProps> = ({ tasks, columns, onTaskClic
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={6} className="py-8 text-center text-muted-foreground">
+              <td colSpan={7} className="py-8 text-center text-muted-foreground">
                 Gösterilecek kart yok.
               </td>
             </tr>
