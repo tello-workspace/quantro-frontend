@@ -1300,6 +1300,18 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     // tusla baslansin.
     if (e.button !== 0) return;
 
+    // dnd-kit'in PointerSensor'u 5px'lik activationConstraint bekliyor
+    // (asagida sensor tanimi), ama tarayicinin native metin secimi hic
+    // esik beklemeden mousedown+move ile aninda baslar. Kart + Shift'siz +
+    // secim yok durumunda asagida marquee baslatmadan erken donuyoruz -
+    // o durumda dnd-kit devreye girene kadar gecen 0-5px'lik pencerede
+    // hicbir sey native secimi durdurmuyordu ve kullanici "surukluyorum,
+    // kart secilmiyor, sadece yazi seciliyor" halini yasiyordu (butun
+    // kolonlarda - bu kod her kolon icin ayni). select-none'u erken
+    // return'den ONCE, kosulsuz uyguluyoruz ki hangi yola girecegi henuz
+    // belli olmasa da native secim hic baslamasin.
+    (e.currentTarget as HTMLElement).style.userSelect = 'none';
+
     // Hedef kart ise: normal surukleme (shift yok) kart tasimasidir (dnd-kit).
     // Kolon KARTLARLA DOLU oldugunda bos zemin kalmaz, marquee zemin yokken
     // baslatilamaz (kullanici bunu bildirdi). Cozum:
@@ -1363,6 +1375,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   }, []);
 
   const handleMarqueeEnd = useCallback((e: React.PointerEvent) => {
+    // handleMarqueeStart'ta kosulsuz uygulanan select-none'un karsiligi -
+    // marquee hic baslamamis olsa da (duz kart tasima/tiklama) geri alinmali.
+    (e.currentTarget as HTMLElement).style.userSelect = '';
     const baslangic = marqueeRef.current;
     const rectler = marqueeCardRects.current;
     marqueeRef.current = null;
