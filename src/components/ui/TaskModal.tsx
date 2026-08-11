@@ -25,6 +25,8 @@ import {
   useCreateCommentMutation,
   useUpdateCommentMutation,
   useDeleteCommentMutation,
+  useResolveCommentMutation,
+  useToggleCommentReactionMutation,
 } from '@/features/comments/commentsApi';
 import { useAddDependencyMutation, useRemoveDependencyMutation } from '@/features/dependencies/dependenciesApi';
 import { useGetCustomFieldsQuery, useSetCustomFieldValueMutation } from '@/features/customFields/customFieldsApi';
@@ -95,6 +97,74 @@ interface CommentMember {
   user: { id: string; name: string };
 }
 
+const QUICK_EMOJIS = ['👍', '❤️', '🎉', '😂', '👀'];
+
+// Reaksiyon pilleri: ayni emoji icin kac kisi tepki verdigini gruplayip
+// gosterir, kendi tepkini tiklarsan kalkar (toggle - backend de bu semantikte).
+const CommentReactionBar: React.FC<{
+  reactions: { userId: string; emoji: string }[];
+  myUserId?: string;
+  onToggle: (emoji: string) => void;
+}> = ({ reactions, myUserId, onToggle }) => {
+  const { t } = useTranslation();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const grouped = new Map<string, string[]>();
+  for (const r of reactions) {
+    grouped.set(r.emoji, [...(grouped.get(r.emoji) ?? []), r.userId]);
+  }
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      {[...grouped.entries()].map(([emoji, userIds]) => {
+        const mine = !!myUserId && userIds.includes(myUserId);
+        return (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => onToggle(emoji)}
+            className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors ${
+              mine
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:bg-accent/40'
+            }`}
+          >
+            <span>{emoji}</span>
+            <span className="tabular-nums">{userIds.length}</span>
+          </button>
+        );
+      })}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setPickerOpen((o) => !o)}
+          title={t('commentAddReaction')}
+          className="inline-flex items-center justify-center rounded-full border border-border px-1.5 py-0.5 text-xs text-muted-foreground/60 hover:text-foreground hover:bg-accent/40 transition-colors"
+        >
+          +
+        </button>
+        {pickerOpen && (
+          <div className="absolute bottom-full left-0 z-10 mb-1 flex gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-lg">
+            {QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => {
+                  onToggle(emoji);
+                  setPickerOpen(false);
+                }}
+                className="rounded px-1 py-0.5 text-sm hover:bg-accent/60"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = ({ cardId, members }) => {
   const confirm = useConfirm();
   const { t } = useTranslation();
@@ -103,10 +173,14 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
   const [createComment, { isLoading: isPosting }] = useCreateCommentMutation();
   const [updateComment] = useUpdateCommentMutation();
   const [deleteComment] = useDeleteCommentMutation();
+  const [resolveComment] = useResolveCommentMutation();
+  const [toggleReaction] = useToggleCommentReactionMutation();
 
   const [newText, setNewText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   // @Mention otomatik tamamlama: cursor'u tam takip etmek yerine metnin
   // SONUNDAKI "@kelime" parcasina bakiyoruz - tipik kullanim (yorumun
@@ -128,6 +202,17 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
       setNewText('');
     } catch {
       toast.error(t('commentPostError'));
+    }
+  };
+
+  const handleReply = async (parentCommentId: string) => {
+    if (!replyText.trim()) return;
+    try {
+      await createComment({ cardId, text: replyText.trim(), parentCommentId }).unwrap();
+      setReplyingToId(null);
+      setReplyText('');
+    } catch {
+      toast.error(t('commentReplyError'));
     }
   };
 
@@ -162,68 +247,180 @@ const CommentsSection: React.FC<{ cardId: string; members: CommentMember[] }> = 
     }
   };
 
+  const handleToggleResolve = async (commentId: string, resolved: boolean) => {
+    try {
+      await resolveComment({ commentId, cardId, resolved }).unwrap();
+    } catch {
+      toast.error(t('commentResolveError'));
+    }
+  };
+
+  const handleToggleReaction = async (commentId: string, emoji: string) => {
+    try {
+      await toggleReaction({ commentId, cardId, emoji }).unwrap();
+    } catch {
+      // Sessiz gec: bir emoji tepkisi basarisiz olursa ayri bir toast
+      // gurultu yapar, kullanici zaten butona tekrar basip deneyebilir.
+    }
+  };
+
+  const renderCommentBody = (
+    c: { id: string; text: string; authorId: string; reactions?: { userId: string; emoji: string }[] },
+    isEditing: boolean,
+  ) =>
+    isEditing ? (
+      <div className="mt-1 space-y-1">
+        <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={2} />
+        <div className="flex gap-2">
+          <Button size="xs" onClick={() => handleSaveEdit(c.id)}>
+            {t('save')}
+          </Button>
+          <Button size="xs" variant="ghost" onClick={() => setEditingId(null)}>
+            {t('cancel')}
+          </Button>
+        </div>
+      </div>
+    ) : (
+      <>
+        <p className="text-muted-foreground whitespace-pre-wrap mt-0.5">{c.text}</p>
+        <CommentReactionBar
+          reactions={c.reactions ?? []}
+          myUserId={me?.id}
+          onToggle={(emoji) => handleToggleReaction(c.id, emoji)}
+        />
+      </>
+    );
+
+  const totalCount = comments.reduce((sum, c) => sum + 1 + (c.replies?.length ?? 0), 0);
+
   return (
     <div>
       <label className="block text-sm font-medium text-muted-foreground mb-1.5">
-        {t('commentsCountLabel')} {comments.length > 0 && `(${comments.length})`}
+        {t('commentsCountLabel')} {totalCount > 0 && `(${totalCount})`}
       </label>
 
-      <div className="space-y-3 max-h-56 overflow-y-auto mb-3 pr-1">
+      <div className="space-y-3 max-h-72 overflow-y-auto mb-3 pr-1">
         {comments.length === 0 && (
           <p className="text-xs text-muted-foreground">{t('noComments')}</p>
         )}
-        {comments.map((c) => (
-          <div key={c.id} className="text-sm">
-            <div className="flex items-center gap-2">
-              <Avatar size="sm" className="border border-border">
-                {c.author.avatarUrl && <AvatarImage src={c.author.avatarUrl} alt={c.author.name} />}
-                <AvatarFallback className="text-[9px]">{initials(c.author.name)}</AvatarFallback>
-              </Avatar>
-              <span className="font-medium text-foreground text-xs">{c.author.name}</span>
-              <span className="text-xs text-muted-foreground">{timeAgo(c.createdAt, t)}</span>
-            </div>
-
-            {editingId === c.id ? (
-              <div className="mt-1 space-y-1">
-                <Textarea
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  rows={2}
-                />
-                <div className="flex gap-2">
-                  <Button size="xs" onClick={() => handleSaveEdit(c.id)}>
-                    {t('save')}
-                  </Button>
-                  <Button size="xs" variant="ghost" onClick={() => setEditingId(null)}>
-                    {t('cancel')}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start justify-between gap-2 mt-0.5">
-                <p className="text-muted-foreground whitespace-pre-wrap">{c.text}</p>
-                {c.authorId === me?.id && (
-                  <div className="flex gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => startEditing(c.id, c.text)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      {t('edit')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(c.id)}
-                      className="text-xs text-muted-foreground hover:text-destructive"
-                    >
-                      {t('delete')}
-                    </button>
-                  </div>
+        {comments.map((c) => {
+          const resolved = !!c.resolvedAt;
+          return (
+            <div key={c.id} className="text-sm">
+              <div className="flex items-center gap-2">
+                <Avatar size="sm" className="border border-border">
+                  {c.author.avatarUrl && <AvatarImage src={c.author.avatarUrl} alt={c.author.name} />}
+                  <AvatarFallback className="text-[9px]">{initials(c.author.name)}</AvatarFallback>
+                </Avatar>
+                <span className="font-medium text-foreground text-xs">{c.author.name}</span>
+                <span className="text-xs text-muted-foreground">{timeAgo(c.createdAt, t)}</span>
+                {c.editedAt && (
+                  <span className="text-[10px] text-muted-foreground/70">{t('commentEdited')}</span>
                 )}
               </div>
-            )}
-          </div>
-        ))}
+
+              {renderCommentBody(c, editingId === c.id)}
+
+              {editingId !== c.id && (
+                <div className="flex items-center gap-2.5 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplyingToId(replyingToId === c.id ? null : c.id);
+                      setReplyText('');
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {t('commentReply')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleResolve(c.id, !resolved)}
+                    className={`text-xs ${resolved ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {resolved ? `✓ ${t('commentResolved')} · ${t('commentReopen')}` : t('commentResolve')}
+                  </button>
+                  {c.authorId === me?.id && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => startEditing(c.id, c.text)}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {t('edit')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(c.id)}
+                        className="text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        {t('delete')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {replyingToId === c.id && (
+                <div className="mt-2 flex gap-2 pl-3 border-l-2 border-border">
+                  <Input
+                    type="text"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder={t('commentReplyPlaceholder')}
+                    className="flex-1 h-8 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleReply(c.id);
+                    }}
+                    autoFocus
+                  />
+                  <Button size="xs" onClick={() => handleReply(c.id)} disabled={!replyText.trim()}>
+                    {t('commentPostBtn')}
+                  </Button>
+                </div>
+              )}
+
+              {(c.replies ?? []).length > 0 && (
+                <div className="mt-2 space-y-2.5 pl-3 border-l-2 border-border">
+                  {c.replies!.map((r) => (
+                    <div key={r.id} className="text-sm">
+                      <div className="flex items-center gap-2">
+                        <Avatar size="sm" className="border border-border">
+                          {r.author.avatarUrl && <AvatarImage src={r.author.avatarUrl} alt={r.author.name} />}
+                          <AvatarFallback className="text-[9px]">{initials(r.author.name)}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium text-foreground text-xs">{r.author.name}</span>
+                        <span className="text-xs text-muted-foreground">{timeAgo(r.createdAt, t)}</span>
+                        {r.editedAt && (
+                          <span className="text-[10px] text-muted-foreground/70">{t('commentEdited')}</span>
+                        )}
+                      </div>
+                      {renderCommentBody(r, editingId === r.id)}
+                      {editingId !== r.id && r.authorId === me?.id && (
+                        <div className="flex items-center gap-2.5 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => startEditing(r.id, r.text)}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            {t('edit')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(r.id)}
+                            className="text-xs text-muted-foreground hover:text-destructive"
+                          >
+                            {t('delete')}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <form onSubmit={handlePost} className="flex gap-2 relative">
