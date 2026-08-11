@@ -88,6 +88,25 @@ function timeAgo(dateStr: string, t: (key: Parameters<ReturnType<typeof useTrans
   return `${days} ${t('daysAgo')}`;
 }
 
+/**
+ * Kaydet/talep gonder yukunde giden alanlarin karsilastirilabilir ozeti.
+ * Etiket, ek, checklist gibi bolumler kendi uclarina aninda yaziyor;
+ * bu yuzden burada yer almiyorlar.
+ *
+ * dueDate saatiyle birlikte geliyor ("2026-01-01T00:00:00.000Z") ama form
+ * yalnizca gun yaziyor ("2026-01-01"); ayni gunun degisiklik sayilmamasi
+ * icin gune indiriliyor.
+ */
+function kartOzeti(task: Task): string {
+  return JSON.stringify({
+    title: task.title?.trim() ?? '',
+    description: task.description?.trim() ?? '',
+    priority: task.priority ?? null,
+    dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+    assigneeIds: [...(task.assignees ?? []).map((a) => a.id)].sort(),
+  });
+}
+
 function initials(name: string): string {
   return name
     .split(' ')
@@ -1041,6 +1060,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const { data: me } = useGetMeQuery();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(false);
+  const originalTaskRef = useRef<Task | null>(null);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(NEW_LABEL_COLORS[0]);
@@ -1144,6 +1164,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     const loadTask = async () => {
       if (!isOpen) {
         setTask(null);
+        originalTaskRef.current = null;
         setLoading(false);
         return;
       }
@@ -1157,6 +1178,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           const data = await fetchTaskDetails(taskId);
           if (!cancelled) {
             setTask(data);
+            originalTaskRef.current = data;
           }
         } catch (err) {
           console.error(t('taskLoadError'), err);
@@ -1171,7 +1193,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       if (taskId === 'new') {
         setOnizlemeModu(false);
         setLoading(false);
-        setTask({
+        const bosKart: Task = {
           id: 'new',
           columnId: columnId || '',
           title: initialTitle || '',
@@ -1183,7 +1205,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           blockedBy: [],
           blocking: [],
           lastActivityAt: new Date().toISOString(),
-        });
+        };
+        setTask(bosKart);
+        originalTaskRef.current = bosKart;
       }
     };
 
@@ -1239,8 +1263,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     });
   };
 
+  // Kart acildigi haliyle ayni ise gonderilecek bir sey yok. Yoksa admin
+  // onune "hicbir alani degismemis" bos talepler dusuyordu; onaylayanin
+  // isini bosa cikariyor, kart gecmisini kirletiyordu.
+  const degisiklikVar =
+    !!task && !!originalTaskRef.current && kartOzeti(task) !== kartOzeti(originalTaskRef.current);
+
+  // Yeni kartta baslik zorunlu; mevcut kartta en az bir alan degismeli.
+  const gonderilebilir =
+    taskId === 'new' ? !!task?.title.trim() : degisiklikVar;
+
   const handleSave = async () => {
     if (!task) return;
+    // Dugme zaten pasif; buton disi bir yol (enter, test, eski render)
+    // bos talebi gecirmesin diye burada da duruyoruz.
+    if (!gonderilebilir) return;
 
     if (taskId === 'new') {
       if (!task.title.trim() || !columnId) return;
@@ -2503,7 +2540,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <Button type="button" variant="outline" onClick={onClose} disabled={isFilling || isRequesting}>
                 {t('cancel')}
               </Button>
-              <Button type="button" onClick={handleSave} disabled={isFilling || isRequesting}>
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isFilling || isRequesting || !gonderilebilir}
+                title={
+                  gonderilebilir
+                    ? undefined
+                    : taskId === 'new'
+                    ? t('titleRequiredHint')
+                    : t('noChangesHint')
+                }
+              >
                 {taskId === 'new'
                   ? isAdmin
                     ? t('createCardBtn')

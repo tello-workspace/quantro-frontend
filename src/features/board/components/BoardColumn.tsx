@@ -345,7 +345,14 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               >
                 {t('cancel')}
               </Button>
-              <Button type="submit" size="sm">
+              {/* Bos baslikla basildiginda form sessizce hicbir sey
+                  yapmiyordu; dugme artik durumu gosteriyor. */}
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!titleInput.trim()}
+                title={titleInput.trim() ? undefined : t('titleRequiredHint')}
+              >
                 {isAdmin ? t('add') : t('sendRequestBtn')}
               </Button>
             </div>
