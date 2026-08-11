@@ -123,26 +123,26 @@ export default function ProjectManagePage() {
               barin ceyregini kaplayip geri kalani bos kaliyordu. Sinif
               adlari statik - Tailwind uretilmis sinifi ancak kaynakta
               acikca goruyorsa cikti dosyasina koyuyor. */}
-          <TabsList className={`grid h-auto w-full gap-1 p-1 ${TAB_GRID[visibleTabs.length] ?? 'grid-cols-2 sm:grid-cols-4'}`}>
+          <TabsList className={`grid h-auto w-full gap-1 p-1.5 ${TAB_GRID[visibleTabs.length] ?? 'grid-cols-2 sm:grid-cols-4'}`}>
             {visibleTabs.includes('automations') && (
-              <TabsTrigger value="automations" className="h-9 gap-1.5 px-2">
+              <TabsTrigger value="automations" className="h-11 gap-2 px-3">
                 <Zap className="size-4" /> {t('automations')}
               </TabsTrigger>
             )}
             {visibleTabs.includes('fields') && (
-              <TabsTrigger value="fields" className="h-9 gap-1.5 px-2">
+              <TabsTrigger value="fields" className="h-11 gap-2 px-3">
                 <ListPlus className="size-4" /> {t('customFieldsTab')}
                 {customFields.length > 0 && <CountBadge value={customFields.length} />}
               </TabsTrigger>
             )}
             {visibleTabs.includes('triage') && (
-              <TabsTrigger value="triage" className="h-9 gap-1.5 px-2">
+              <TabsTrigger value="triage" className="h-11 gap-2 px-3">
                 <Inbox className="size-4" /> {isAdmin ? t('triageTab') : t('myRequests')}
                 {triagePendingCount > 0 && <CountBadge value={triagePendingCount} highlight />}
               </TabsTrigger>
             )}
             {visibleTabs.includes('access') && (
-              <TabsTrigger value="access" className="h-9 gap-1.5 px-2">
+              <TabsTrigger value="access" className="h-11 gap-2 px-3">
                 <ShieldCheck className="size-4" /> {t('accessTab')}
               </TabsTrigger>
             )}
