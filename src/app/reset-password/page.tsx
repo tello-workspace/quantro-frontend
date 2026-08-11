@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LayoutGrid, Loader2 } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ApiError {
   data?: { error?: { code: string; message: string } };
@@ -23,6 +24,7 @@ export default function ResetPasswordPage() {
 }
 
 function ResetPasswordForm() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
@@ -39,7 +41,7 @@ function ResetPasswordForm() {
     setErrorMsg('');
 
     if (password !== confirmPassword) {
-      setErrorMsg('Şifreler eşleşmiyor');
+      setErrorMsg(t('passwordMismatch'));
       return;
     }
 
@@ -49,7 +51,7 @@ function ResetPasswordForm() {
       setTimeout(() => router.push('/login'), 2000);
     } catch (err) {
       const apiError = err as ApiError;
-      setErrorMsg(apiError?.data?.error?.message || 'Şifre sıfırlanamadı. Bağlantının süresi dolmuş olabilir.');
+      setErrorMsg(apiError?.data?.error?.message || t('resetPasswordError'));
     }
   };
 
@@ -65,18 +67,14 @@ function ResetPasswordForm() {
             <span className="mx-auto mb-2 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
               <LayoutGrid className="size-5" />
             </span>
-            <CardTitle className="text-xl">Yeni şifre belirle</CardTitle>
-            <CardDescription>Hesabın için yeni bir şifre gir.</CardDescription>
+            <CardTitle className="text-xl">{t('resetPasswordTitle')}</CardTitle>
+            <CardDescription>{t('resetPasswordDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             {!token ? (
-              <p className="py-4 text-center text-sm text-destructive">
-                Geçersiz bağlantı. Lütfen şifre sıfırlama isteğini tekrar başlat.
-              </p>
+              <p className="py-4 text-center text-sm text-destructive">{t('resetPasswordInvalidLink')}</p>
             ) : done ? (
-              <p className="py-4 text-center text-sm text-foreground">
-                Şifren güncellendi. Giriş sayfasına yönlendiriliyorsun...
-              </p>
+              <p className="py-4 text-center text-sm text-foreground">{t('resetPasswordDone')}</p>
             ) : (
               <>
                 {errorMsg && (
@@ -90,7 +88,7 @@ function ResetPasswordForm() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="new-password">Yeni şifre</Label>
+                    <Label htmlFor="new-password">{t('newPasswordLabel')}</Label>
                     <Input
                       id="new-password"
                       type="password"
@@ -105,7 +103,7 @@ function ResetPasswordForm() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="confirm-password">Yeni şifre (tekrar)</Label>
+                    <Label htmlFor="confirm-password">{t('newPasswordConfirmLabel')}</Label>
                     <Input
                       id="confirm-password"
                       type="password"
@@ -121,7 +119,7 @@ function ResetPasswordForm() {
 
                   <Button type="submit" disabled={isLoading} className="h-10 w-full cursor-pointer">
                     {isLoading && <Loader2 className="size-4 animate-spin" />}
-                    {isLoading ? 'Kaydediliyor...' : 'Şifreyi güncelle'}
+                    {isLoading ? t('saving') : t('updatePassword')}
                   </Button>
                 </form>
               </>
@@ -130,7 +128,7 @@ function ResetPasswordForm() {
         </Card>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           <Link href="/login" className="text-primary hover:underline">
-            ← Girişe dön
+            {t('backToLogin')}
           </Link>
         </p>
       </div>

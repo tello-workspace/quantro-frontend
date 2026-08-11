@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LayoutGrid, Loader2, MailCheck } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
@@ -34,23 +36,19 @@ export default function ForgotPasswordPage() {
             <span className="mx-auto mb-2 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
               <LayoutGrid className="size-5" />
             </span>
-            <CardTitle className="text-xl">Şifreni mi unuttun?</CardTitle>
-            <CardDescription>
-              E-posta adresini gir, sana şifre sıfırlama bağlantısı gönderelim.
-            </CardDescription>
+            <CardTitle className="text-xl">{t('forgotPasswordTitle')}</CardTitle>
+            <CardDescription>{t('forgotPasswordDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             {sent ? (
               <div className="flex flex-col items-center gap-3 py-4 text-center">
                 <MailCheck className="size-8 text-primary" />
-                <p className="text-sm text-foreground">
-                  Bu email adresi kayıtlıysa, birazdan gelen kutunda bir şifre sıfırlama bağlantısı bulacaksın.
-                </p>
+                <p className="text-sm text-foreground">{t('forgotPasswordSentMsg')}</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="forgot-email">E-posta adresi</Label>
+                  <Label htmlFor="forgot-email">{t('emailLabel')}</Label>
                   <Input
                     id="forgot-email"
                     type="email"
@@ -65,7 +63,7 @@ export default function ForgotPasswordPage() {
 
                 <Button type="submit" disabled={isLoading} className="h-10 w-full cursor-pointer">
                   {isLoading && <Loader2 className="size-4 animate-spin" />}
-                  {isLoading ? 'Gönderiliyor...' : 'Sıfırlama bağlantısı gönder'}
+                  {isLoading ? t('sending') : t('sendResetLink')}
                 </Button>
               </form>
             )}
@@ -73,7 +71,7 @@ export default function ForgotPasswordPage() {
         </Card>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           <Link href="/login" className="text-primary hover:underline">
-            ← Girişe dön
+            {t('backToLogin')}
           </Link>
         </p>
       </div>

@@ -8,10 +8,12 @@ import { supabase } from '@/lib/supabaseClient';
 import { api } from '@/lib/api';
 import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 export default function AuthCallbackPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const dispatch = useDispatch();
   const [errorMsg, setErrorMsg] = useState('');
@@ -19,14 +21,14 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const syncSession = async () => {
       if (!supabase) {
-        setErrorMsg('Google ile giriş tamamlanamadı (Supabase eksik).');
+        setErrorMsg(t('oauthMissingSupabase'));
         return;
       }
       const { data, error } = await supabase.auth.getSession();
       const accessToken = data.session?.access_token;
 
       if (error || !accessToken) {
-        setErrorMsg('Google ile giriş tamamlanamadı.');
+        setErrorMsg(t('oauthFailed'));
         return;
       }
 
@@ -39,21 +41,22 @@ export default function AuthCallbackPage() {
         const json = await res.json();
 
         if (!res.ok || !json.success) {
-          throw new Error(json.error?.message || 'Giriş yapılamadı.');
+          throw new Error(json.error?.message || t('oauthGenericError'));
         }
 
         localStorage.setItem('token', json.data.token);
         // Onceki kullanicinin cache'i yeni token ile gosterilmesin (bkz. LoginForm).
         dispatch(api.util.resetApiState());
         window.dispatchEvent(new Event('auth:changed'));
-        toast.success('Giriş yapıldı!');
+        toast.success(t('oauthSuccess'));
         router.push('/projects');
       } catch {
-        setErrorMsg('Giriş yapılamadı. Lütfen tekrar deneyin.');
+        setErrorMsg(t('oauthGenericError'));
       }
     };
 
     syncSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, dispatch]);
 
   return (
@@ -62,11 +65,11 @@ export default function AuthCallbackPage() {
         <div className="text-center">
           <p className="text-destructive mb-4">{errorMsg}</p>
           <Button variant="link" onClick={() => router.push('/login')}>
-            Giriş sayfasına dön
+            {t('backToLoginPage')}
           </Button>
         </div>
       ) : (
-        <p className="text-muted-foreground">Giriş yapılıyor...</p>
+        <p className="text-muted-foreground">{t('oauthSigningIn')}</p>
       )}
     </div>
   );

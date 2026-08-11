@@ -25,11 +25,16 @@ const baseQueryWithLogout = async (args: string | FetchArgs, api: BaseQueryApi, 
   // için token'ın süresi dolduğunu gösterir. Sadece /auth/me'ye daraltmak
   // yanlıştı: kullanıcı uzun süre beklerse, ilk istek 401 döner ama logout
   // tetiklenmez, "boş sayfa + disabled butonlar" kalırdı.
+  // Oturumsuz erisilebilen sayfalar: burada 401 normal (henuz token yok ya
+  // da token'in gecerliligi bu sayfanin KENDI akisiyla ilgisiz) - global
+  // "oturum sona erdi" yonlendirmesi bu sayfalarin kendi islerini (OAuth
+  // donusu, sifre sifirlama, email dogrulama) yarida kesip /login'e atardi.
+  const OTURUMSUZ_SAYFALAR = ['/login', '/register', '/auth/callback', '/reset-password', '/verify-email', '/forgot-password'];
+
   if (result.error && 'status' in result.error && result.error.status === 401) {
     if (
       typeof window !== 'undefined' &&
-      window.location.pathname !== '/login' &&
-      window.location.pathname !== '/register'
+      !OTURUMSUZ_SAYFALAR.includes(window.location.pathname)
     ) {
       // Kullanıcıya bilgi ver: boş sayfa yerine "Oturum süreniz doldu".
       if (!oturumSuresiToastuGosterildi) {

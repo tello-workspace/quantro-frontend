@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useVerifyEmailMutation } from '@/features/auth/authApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LayoutGrid, Loader2 } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ApiError {
   data?: { error?: { code: string; message: string } };
@@ -20,6 +21,7 @@ export default function VerifyEmailPage() {
 }
 
 function VerifyEmailContent() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
@@ -32,7 +34,7 @@ function VerifyEmailContent() {
   useEffect(() => {
     if (!token) {
       setStatus('error');
-      setErrorMsg('Geçersiz bağlantı. Lütfen doğrulama linkini yeniden isteyin.');
+      setErrorMsg(t('verifyEmailInvalidLink'));
       return;
     }
 
@@ -45,7 +47,7 @@ function VerifyEmailContent() {
       .catch((err) => {
         const apiError = err as ApiError;
         setStatus('error');
-        setErrorMsg(apiError?.data?.error?.message || 'Doğrulama başarısız. Bağlantının süresi dolmuş olabilir.');
+        setErrorMsg(apiError?.data?.error?.message || t('verifyEmailError'));
       });
     // token degismedigi surece bir kez calissin - verifyEmail referansi her render'da yeniden olusabiliyor
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,11 +65,11 @@ function VerifyEmailContent() {
             <span className="mx-auto mb-2 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
               <LayoutGrid className="size-5" />
             </span>
-            <CardTitle className="text-xl">Email Doğrulama</CardTitle>
+            <CardTitle className="text-xl">{t('verifyEmailTitle')}</CardTitle>
             <CardDescription>
-              {status === 'pending' && 'Email adresin doğrulanıyor...'}
-              {status === 'success' && 'Email adresin doğrulandı! 🎉'}
-              {status === 'error' && 'Doğrulama başarısız oldu.'}
+              {status === 'pending' && t('verifyEmailPending')}
+              {status === 'success' && t('verifyEmailSuccess')}
+              {status === 'error' && t('verifyEmailFailed')}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4 text-center">
@@ -75,7 +77,7 @@ function VerifyEmailContent() {
               <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
             )}
             {status === 'success' && (
-              <p className="text-sm text-muted-foreground">Giriş sayfasına yönlendiriliyorsun...</p>
+              <p className="text-sm text-muted-foreground">{t('redirectingToLogin')}</p>
             )}
             {status === 'error' && (
               <p className="text-sm text-destructive">{errorMsg}</p>
@@ -84,7 +86,7 @@ function VerifyEmailContent() {
         </Card>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           <Link href="/login" className="text-primary hover:underline">
-            ← Girişe dön
+            {t('backToLogin')}
           </Link>
         </p>
       </div>

@@ -545,6 +545,38 @@ const translations = {
     sessionUnavailableTitle: "Oturum açılamadı",
     sessionUnavailableDesc:
       "Giriş bilgilerin duruyor ama sunucuya şu an ulaşılamıyor, bu yüzden hesabın yüklenemedi. Birkaç saniye sonra tekrar dene; sorun sürerse çıkış yapıp yeniden giriş yap.",
+
+    // Giris oncesi sayfalar (sifre sifirlama, email dogrulama, OAuth donusu,
+    // sifremi unuttum) - bkz. useTranslation'daki tarayici-dili fallback'i.
+    backToLogin: "← Girişe dön",
+    forgotPasswordTitle: "Şifreni mi unuttun?",
+    forgotPasswordDesc: "E-posta adresini gir, sana şifre sıfırlama bağlantısı gönderelim.",
+    forgotPasswordSentMsg: "Bu email adresi kayıtlıysa, birazdan gelen kutunda bir şifre sıfırlama bağlantısı bulacaksın.",
+    emailLabel: "E-posta adresi",
+    sendResetLink: "Sıfırlama bağlantısı gönder",
+    sending: "Gönderiliyor...",
+    resetPasswordTitle: "Yeni şifre belirle",
+    resetPasswordDesc: "Hesabın için yeni bir şifre gir.",
+    resetPasswordInvalidLink: "Geçersiz bağlantı. Lütfen şifre sıfırlama isteğini tekrar başlat.",
+    resetPasswordDone: "Şifren güncellendi. Giriş sayfasına yönlendiriliyorsun...",
+    resetPasswordError: "Şifre sıfırlanamadı. Bağlantının süresi dolmuş olabilir.",
+    passwordMismatch: "Şifreler eşleşmiyor",
+    newPasswordLabel: "Yeni şifre",
+    newPasswordConfirmLabel: "Yeni şifre (tekrar)",
+    updatePassword: "Şifreyi güncelle",
+    verifyEmailTitle: "Email Doğrulama",
+    verifyEmailPending: "Email adresin doğrulanıyor...",
+    verifyEmailSuccess: "Email adresin doğrulandı! 🎉",
+    verifyEmailFailed: "Doğrulama başarısız oldu.",
+    verifyEmailInvalidLink: "Geçersiz bağlantı. Lütfen doğrulama linkini yeniden isteyin.",
+    verifyEmailError: "Doğrulama başarısız. Bağlantının süresi dolmuş olabilir.",
+    redirectingToLogin: "Giriş sayfasına yönlendiriliyorsun...",
+    oauthSigningIn: "Giriş yapılıyor...",
+    oauthSuccess: "Giriş yapıldı!",
+    oauthMissingSupabase: "Google ile giriş tamamlanamadı (Supabase eksik).",
+    oauthFailed: "Google ile giriş tamamlanamadı.",
+    oauthGenericError: "Giriş yapılamadı. Lütfen tekrar deneyin.",
+    backToLoginPage: "Giriş sayfasına dön",
   },
   en: {
     // General Buttons & Controls
@@ -1089,6 +1121,36 @@ const translations = {
     sessionUnavailableTitle: "Couldn't open your session",
     sessionUnavailableDesc:
       "You're still signed in, but the server can't be reached right now, so your account couldn't load. Try again in a few seconds; if it keeps failing, log out and sign in again.",
+
+    backToLogin: "← Back to login",
+    forgotPasswordTitle: "Forgot your password?",
+    forgotPasswordDesc: "Enter your email and we'll send you a password reset link.",
+    forgotPasswordSentMsg: "If this email is registered, you'll find a password reset link in your inbox shortly.",
+    emailLabel: "Email address",
+    sendResetLink: "Send reset link",
+    sending: "Sending...",
+    resetPasswordTitle: "Set a new password",
+    resetPasswordDesc: "Enter a new password for your account.",
+    resetPasswordInvalidLink: "Invalid link. Please request a new password reset.",
+    resetPasswordDone: "Your password has been updated. Redirecting to login...",
+    resetPasswordError: "Couldn't reset password. The link may have expired.",
+    passwordMismatch: "Passwords don't match",
+    newPasswordLabel: "New password",
+    newPasswordConfirmLabel: "New password (again)",
+    updatePassword: "Update password",
+    verifyEmailTitle: "Email Verification",
+    verifyEmailPending: "Verifying your email...",
+    verifyEmailSuccess: "Your email has been verified! 🎉",
+    verifyEmailFailed: "Verification failed.",
+    verifyEmailInvalidLink: "Invalid link. Please request a new verification email.",
+    verifyEmailError: "Verification failed. The link may have expired.",
+    redirectingToLogin: "Redirecting to login...",
+    oauthSigningIn: "Signing in...",
+    oauthSuccess: "Signed in!",
+    oauthMissingSupabase: "Google sign-in couldn't complete (Supabase missing).",
+    oauthFailed: "Google sign-in couldn't complete.",
+    oauthGenericError: "Sign-in failed. Please try again.",
+    backToLoginPage: "Back to login",
   }
 };
 
@@ -1096,11 +1158,29 @@ export type TranslationKey = keyof typeof translations.tr;
 
 export type Dil = "tr" | "en";
 
+const DIL_ANAHTARI = "quantro-lang";
+
+// Giris yapilmamis durumda (oturum acilmadan once dil zaten User kaydindan
+// gelmiyor) tarayici tercihine dusulur: once bu sekmede daha once secilmis/
+// algilanmis bir dil var mi (localStorage), yoksa navigator.language.
+function tarayiciDili(): Dil {
+  if (typeof window === "undefined") return "tr";
+  const kayitli = window.localStorage.getItem(DIL_ANAHTARI);
+  if (kayitli === "en" || kayitli === "tr") return kayitli;
+  return navigator.language?.toLowerCase().startsWith("en") ? "en" : "tr";
+}
+
 export function useTranslation() {
-  const { data: me } = useGetMeQuery();
+  // useGetMeQuery /auth/me'ye gider - token yoksa (giris yapilmamis sayfalar:
+  // sifre sifirlama, email dogrulama, OAuth donusu) bu istek 401 doner ve
+  // api.ts'deki global handler'i tetikleyip kullaniciyi /login'e atardi.
+  // Token yoksa istegi hic atmiyoruz; dil boyle sayfalarda zaten User
+  // kaydindan gelemez, tarayici tercihi kullanilir.
+  const hasToken = typeof window !== "undefined" && !!window.localStorage.getItem("token");
+  const { data: me } = useGetMeQuery(undefined, { skip: !hasToken });
   // Acikca daraltiliyor: cagiran taraflar (ornegin teslim suresi metni) dile
   // gore dallaniyor ve genis bir `string` tipi orada kullanilamaz.
-  const lang: Dil = me?.language === "en" ? "en" : "tr";
+  const lang: Dil = me?.language === "en" ? "en" : me?.language === "tr" ? "tr" : tarayiciDili();
 
   // t'yi useCallback ile sabitle: her render'da yeni referans üretilirse,
   // onu dependency olarak alan useEffect'ler (TaskModal vb.) her render'da
