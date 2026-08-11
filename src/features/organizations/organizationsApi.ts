@@ -1,8 +1,10 @@
 import { api } from '@/lib/api';
 
+export type OrgRole = 'ADMIN' | 'MEMBER' | 'GUEST';
+
 interface OrgMember {
   userId: string;
-  role: 'ADMIN' | 'MEMBER';
+  role: OrgRole;
   user: { id: string; name: string; email: string; avatarUrl?: string | null };
 }
 interface OrgDetail {
@@ -10,7 +12,7 @@ interface OrgDetail {
   name:string;
   description: string | null;
   ownerId: string;
-  myRole: 'ADMIN' | 'MEMBER';
+  myRole: OrgRole;
   members: OrgMember[];
 }
 
@@ -18,7 +20,7 @@ interface Organization {
   id: string;
   name: string;
   description: string | null;
-  role: 'ADMIN' | 'MEMBER';
+  role: OrgRole;
   memberCount: number;
   projectCount: number;
 }
@@ -30,7 +32,7 @@ interface OrgsResponse {
 
 export interface PendingInvitation {
   id: string;
-  role: 'ADMIN' | 'MEMBER';
+  role: OrgRole;
   createdAt: string;
   invitedUser: { id: string; name: string; email: string };
 }
@@ -60,7 +62,7 @@ export const organizationsApi = api.injectEndpoints({
       transformResponse: (response: { success: boolean; data: { id: string; name: string } }) => response.data,
       invalidatesTags: ['Project'],
     }),
-    addMember: builder.mutation<{ id: string }, { orgId: string; email: string; role?: 'ADMIN' | 'MEMBER' }>({
+    addMember: builder.mutation<{ id: string }, { orgId: string; email: string; role?: OrgRole }>({
       query: ({ orgId, ...body }) => ({
         url: `/organizations/${orgId}/members`,
         method: 'POST',
@@ -109,7 +111,7 @@ export const organizationsApi = api.injectEndpoints({
       },
       invalidatesTags: (_result, _error, { orgId }) => [{ type: 'Project', id: orgId }, 'Project'],
     }),
-    updateMemberRole: builder.mutation<void, { orgId: string; userId: string; role: 'ADMIN' | 'MEMBER' }>({
+    updateMemberRole: builder.mutation<void, { orgId: string; userId: string; role: OrgRole }>({
       query: ({ orgId, ...body }) => ({
         url: `/organizations/${orgId}/members`,
         method: 'PATCH',

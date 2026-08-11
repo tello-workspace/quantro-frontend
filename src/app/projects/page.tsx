@@ -4,6 +4,7 @@ import {
   useGetMyOrganizationsQuery,
   useAddMemberMutation,
   useGetOrganizationByIdQuery,
+  type OrgRole,
 } from '@/features/organizations/organizationsApi';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -89,7 +90,7 @@ export default function ProjectsPage() {
   );
 }
 
-function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: number; role: 'ADMIN' | 'MEMBER' }[] }) {
+function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: number; role: OrgRole }[] }) {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
   const router = useRouter();

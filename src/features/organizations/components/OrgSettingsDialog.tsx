@@ -145,7 +145,7 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: 'ADMIN' | 'MEMBER') => {
+  const handleRoleChange = async (userId: string, newRole: 'ADMIN' | 'MEMBER' | 'GUEST') => {
     try {
       await updateMemberRole({ orgId, userId, role: newRole }).unwrap();
       toast.success('Kullanıcı rolü güncellendi');
@@ -268,20 +268,23 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                       {isAdmin && !isOwner ? (
                         <select
                           value={m.role}
-                          onChange={(e) => handleRoleChange(m.userId, e.target.value as 'ADMIN' | 'MEMBER')}
+                          onChange={(e) => handleRoleChange(m.userId, e.target.value as 'ADMIN' | 'MEMBER' | 'GUEST')}
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all cursor-pointer focus:outline-none h-4.5 border-0 shadow-sm ${
                             m.role === 'ADMIN'
                               ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                              : m.role === 'GUEST'
+                              ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 hover:bg-amber-500/30'
                               : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
                           }`}
                         >
                           <option value="MEMBER" className="bg-background text-foreground text-xs font-normal">{t('roleMember')}</option>
                           <option value="ADMIN" className="bg-background text-foreground text-xs font-normal">{t('roleAdmin')}</option>
+                          <option value="GUEST" className="bg-background text-foreground text-xs font-normal">Misafir</option>
                         </select>
                       ) : (
                         !isOwner && (
                           <Badge variant={m.role === 'ADMIN' ? 'default' : 'secondary'} className="text-[10px] px-2 py-0 h-4 font-semibold">
-                            {m.role === 'ADMIN' ? 'Admin' : 'Üye'}
+                            {m.role === 'ADMIN' ? 'Admin' : m.role === 'GUEST' ? 'Misafir' : 'Üye'}
                           </Badge>
                         )
                       )}

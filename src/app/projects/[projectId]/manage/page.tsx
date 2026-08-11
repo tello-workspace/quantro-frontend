@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Inbox, ListPlus, Zap } from 'lucide-react';
+import { ArrowLeft, Inbox, ListPlus, Zap, ShieldCheck } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { boardService, type Column } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetProjectByIdQuery } from '@/features/projects/projectsApi';
+import { ProjectAccessSection } from '@/features/projects/components/ProjectAccessSection';
 import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { useGetCustomFieldsQuery } from '@/features/customFields/customFieldsApi';
@@ -17,9 +18,9 @@ import { CustomFieldsSection } from '@/features/customFields/components/CustomFi
 import { ChangeRequestsSection } from '@/features/requests/components/ChangeRequestsDialog';
 import { useTranslation } from '@/hooks/useTranslation';
 
-type TabKey = 'automations' | 'fields' | 'triage';
+type TabKey = 'automations' | 'fields' | 'triage' | 'access';
 
-const TAB_KEYS: TabKey[] = ['automations', 'fields', 'triage'];
+const TAB_KEYS: TabKey[] = ['automations', 'fields', 'triage', 'access'];
 
 // Pano ust barinda yan yana duran Sprintler / Otomasyonlar / Ek Alanlar /
 // Triage butonlari filtrelerle birlikte sikisiyordu. Hepsi bu sayfada tek
@@ -101,7 +102,7 @@ export default function ProjectManagePage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as TabKey)}>
-          <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-3">
+          <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4">
             {isAdmin && (
               <TabsTrigger value="automations" className="gap-1.5 py-1.5">
                 <Zap className="size-4" /> {t('automations')}
@@ -117,6 +118,11 @@ export default function ProjectManagePage() {
               <TabsTrigger value="triage" className="gap-1.5 py-1.5">
                 <Inbox className="size-4" /> Triage
                 {triagePendingCount > 0 && <CountBadge value={triagePendingCount} highlight />}
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="access" className="gap-1.5 py-1.5">
+                <ShieldCheck className="size-4" /> Erişim
               </TabsTrigger>
             )}
           </TabsList>
@@ -158,6 +164,25 @@ export default function ProjectManagePage() {
                   projectFilter={projectId}
                   typeFilter="CARD_CREATE"
                 />
+              </SectionShell>
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="access" className="mt-5">
+              <SectionShell
+                title="Erişim"
+                description="Projeyi kimin görebileceğini ve GUEST rolündeki kişilerin hangi projelere erişebileceğini yönet."
+              >
+                {project && (
+                  <ProjectAccessSection
+                    orgId={orgId}
+                    projectId={projectId}
+                    visibility={project.visibility}
+                    orgMembers={members}
+                    canManage={isAdmin}
+                  />
+                )}
               </SectionShell>
             </TabsContent>
           )}
