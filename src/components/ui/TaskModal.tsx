@@ -104,6 +104,10 @@ function kartOzeti(task: Task): string {
     priority: task.priority ?? null,
     dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
     assigneeIds: [...(task.assignees ?? []).map((a) => a.id)].sort(),
+    // Efor tahmini ve zaman takibi tahmini de yalnizca kaydette gidiyor;
+    // burada olmazsa sadece bunlari degistiren kullanici kaydedemez.
+    estimate: task.estimate ?? null,
+    estimateMinutes: task.estimateMinutes ?? null,
   });
 }
 
