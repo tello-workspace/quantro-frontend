@@ -21,6 +21,7 @@ import { BoardCard, CardConflictInfo } from './BoardCard';
 import { BoardFilters } from './BoardFilters';
 import { ArchiveModal } from './ArchiveModal';
 import { CardMoveModal } from './CardMoveModal';
+import { SavedViewsMenu } from './SavedViewsMenu';
 import { BulkActionBar } from './BulkActionBar';
 import { CardContextMenu, type CardContextMenuState } from './CardContextMenu';
 import { TimelineView } from '@/features/roadmap/components/TimelineView';
@@ -1815,6 +1816,23 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         >
           <Archive className="size-3.5" /> Arşiv
         </button>
+
+        <SavedViewsMenu
+          projectId={projectId}
+          currentFilters={{
+            search: search || undefined,
+            priorities: selectedPriorities.size > 0 ? [...selectedPriorities] : undefined,
+            assigneeIds: selectedAssigneeIds.size > 0 ? [...selectedAssigneeIds] : undefined,
+            labelIds: selectedLabelIds.size > 0 ? [...selectedLabelIds] : undefined,
+          }}
+          hasActiveFilters={hasActiveFilters}
+          onApply={(filters) => {
+            setSearch(filters.search ?? '');
+            setSelectedPriorities(new Set(filters.priorities ?? []));
+            setSelectedAssigneeIds(new Set(filters.assigneeIds ?? []));
+            setSelectedLabelIds(new Set(filters.labelIds ?? []));
+          }}
+        />
 
         <div className="flex-1 min-w-0">
           <BoardFilters

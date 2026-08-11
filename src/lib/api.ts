@@ -75,6 +75,6 @@ const baseQueryWithLogout = async (args: string | FetchArgs, api: BaseQueryApi, 
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithLogout,
-  tagTypes: ['Project', 'Card', 'Notification', 'Insight', 'Chat', 'ChangeRequest', 'Me', 'MyAssignedCards', 'ApiToken', 'WatchedCards', 'Document'],
+  tagTypes: ['Project', 'Card', 'Notification', 'Insight', 'Chat', 'ChangeRequest', 'Me', 'MyAssignedCards', 'ApiToken', 'WatchedCards', 'Document', 'SavedView'],
   endpoints: () => ({}),
 })
