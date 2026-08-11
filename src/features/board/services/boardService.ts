@@ -101,6 +101,9 @@ export interface Task {
   customFieldValues?: { fieldId: string; value: string | null }[];
   /** Efor tahmini - birimi BoardData.estimateUnit ("puan"/"saat") belirler */
   estimate?: number | null;
+  /** Zaman takibi - estimate'ten AYRI eksen, gercek dakika (kaba puanlama degil) */
+  estimateMinutes?: number | null;
+  spentMinutes?: number;
 }
 
 // Backend /cards/:id (GET, PATCH) assignees/labels'i nested CardAssignee[]/
@@ -126,12 +129,16 @@ export interface RawCard {
   subtasks?: { id: string; title: string; column?: { isDone: boolean } }[];
   customFieldValues?: { fieldId: string; value: string | null }[];
   estimate?: number | null;
+  estimateMinutes?: number | null;
+  spentMinutes?: number;
 }
 
 export function normalizeCard(raw: RawCard): Task {
   return {
     id: raw.id,
     estimate: raw.estimate,
+    estimateMinutes: raw.estimateMinutes,
+    spentMinutes: raw.spentMinutes,
     number: raw.number,
     title: raw.title,
     description: raw.description ?? undefined,
@@ -302,6 +309,7 @@ export const boardService = {
     // degistirdi (ya da fetch edilmis mevcut deger) -> gonder.
     if (task.parentCardId !== undefined) body.parentCardId = task.parentCardId;
     if (task.estimate !== undefined) body.estimate = task.estimate;
+    if (task.estimateMinutes !== undefined) body.estimateMinutes = task.estimateMinutes;
 
     const res = await fetch(`${API_BASE_URL}/cards/${task.id}`, {
       method: 'PATCH',

@@ -44,6 +44,11 @@ import {
   useUpdateChecklistItemMutation,
   useDeleteChecklistItemMutation,
 } from '@/features/checklist/checklistApi';
+import {
+  useGetTimeLogsQuery,
+  useCreateTimeLogMutation,
+  useDeleteTimeLogMutation,
+} from '@/features/timeTracking/timeLogApi';
 import { toast } from "sonner";
 import { useConfirm } from '@/hooks/useConfirm';
 import { Button } from '@/components/ui/button';
@@ -601,6 +606,186 @@ const ChecklistSection: React.FC<{ cardId: string }> = ({ cardId }) => {
         />
         <Button type="submit" size="sm" disabled={isAdding || !newText.trim()}>
           {t('add')}
+        </Button>
+      </form>
+    </div>
+  );
+};
+
+function formatMinutes(mins: number): string {
+  if (mins <= 0) return '0dk';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}dk`;
+  if (m === 0) return `${h}sa`;
+  return `${h}sa ${m}dk`;
+}
+
+// Card.estimate'ten (kaba boyutlandirma/puan) BILEREK ayri bir eksen: gercek
+// dakika cinsinden tahmin + TimeLog tablosundaki elle girilen kayitlarin
+// toplami. Baslat/durdur timer YOK - kartin kendi karari (once manuel,
+// timer sekme kapanma/cok cihaz gibi ayri bir problem sinifi).
+const TimeTrackingSection: React.FC<{
+  cardId: string;
+  estimateMinutes: number | null | undefined;
+  spentMinutes: number;
+  isAdmin: boolean;
+  onEstimateChange: (minutes: number | null) => void;
+}> = ({ cardId, estimateMinutes, spentMinutes, isAdmin, onEstimateChange }) => {
+  const { t } = useTranslation();
+  const confirm = useConfirm();
+  const { data: me } = useGetMeQuery();
+  const { data: logs = [] } = useGetTimeLogsQuery(cardId);
+  const [createLog, { isLoading: isLogging }] = useCreateTimeLogMutation();
+  const [deleteLog] = useDeleteTimeLogMutation();
+
+  const [hoursInput, setHoursInput] = useState('');
+  const [minutesInput, setMinutesInput] = useState('');
+  const [note, setNote] = useState('');
+  const [estimateHours, setEstimateHours] = useState(
+    estimateMinutes != null ? String(Math.round((estimateMinutes / 60) * 100) / 100) : '',
+  );
+
+  const pct =
+    estimateMinutes && estimateMinutes > 0 ? Math.min(100, Math.round((spentMinutes / estimateMinutes) * 100)) : null;
+  const over = estimateMinutes != null && estimateMinutes > 0 && spentMinutes > estimateMinutes;
+
+  const handleEstimateBlur = () => {
+    const val = estimateHours.trim();
+    if (val === '') {
+      onEstimateChange(null);
+      return;
+    }
+    const hours = Number(val);
+    if (Number.isNaN(hours) || hours < 0) return;
+    onEstimateChange(Math.round(hours * 60));
+  };
+
+  const handleAddLog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const h = parseInt(hoursInput || '0', 10) || 0;
+    const m = parseInt(minutesInput || '0', 10) || 0;
+    const total = h * 60 + m;
+    if (total <= 0) return;
+    try {
+      await createLog({ cardId, minutes: total, note: note.trim() || undefined }).unwrap();
+      setHoursInput('');
+      setMinutesInput('');
+      setNote('');
+    } catch {
+      toast.error(t('timeLogAddError'));
+    }
+  };
+
+  const handleDeleteLog = async (logId: string) => {
+    const ok = await confirm({
+      title: t('timeLogDeleteTitle'),
+      description: t('timeLogDeleteDesc'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    try {
+      await deleteLog({ logId, cardId }).unwrap();
+    } catch {
+      toast.error(t('timeLogDeleteError'));
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-muted-foreground mb-1.5">{t('timeTrackingLabel')}</label>
+
+      <div className="flex flex-wrap items-center gap-4 mb-2 text-sm">
+        <div>
+          <span className="text-xs text-muted-foreground">{t('timeSpentLabel')}: </span>
+          <span className={`font-medium ${over ? 'text-destructive' : 'text-foreground'}`}>
+            {formatMinutes(spentMinutes)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">{t('timeEstimateLabel')}:</span>
+          {isAdmin ? (
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={estimateHours}
+              onChange={(e) => setEstimateHours(e.target.value)}
+              onBlur={handleEstimateBlur}
+              placeholder="—"
+              className="h-7 w-20 text-sm"
+            />
+          ) : (
+            <span className="text-foreground">{estimateMinutes != null ? formatMinutes(estimateMinutes) : '—'}</span>
+          )}
+          {isAdmin && <span className="text-xs text-muted-foreground">{t('hoursUnit')}</span>}
+        </div>
+      </div>
+
+      {pct !== null && (
+        <div className="mb-3 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${over ? 'bg-destructive' : 'bg-primary'}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+
+      {logs.length > 0 && (
+        <ul className="space-y-1 mb-2 max-h-32 overflow-y-auto pr-1">
+          {logs.map((log) => (
+            <li key={log.id} className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span className="truncate">
+                <span className="font-medium text-foreground">{log.user.name}</span>
+                {' · '}
+                {formatMinutes(log.minutes)}
+                {log.note && <span> · {log.note}</span>}
+                {' · '}
+                {new Date(log.loggedAt).toLocaleDateString('tr-TR')}
+              </span>
+              {log.userId === me?.id && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteLog(log.id)}
+                  className="shrink-0 hover:text-destructive"
+                >
+                  {t('delete')}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={handleAddLog} className="flex flex-wrap items-center gap-1.5">
+        <Input
+          type="number"
+          min={0}
+          value={hoursInput}
+          onChange={(e) => setHoursInput(e.target.value)}
+          placeholder="sa"
+          className="h-8 w-14 text-sm"
+        />
+        <Input
+          type="number"
+          min={0}
+          max={59}
+          value={minutesInput}
+          onChange={(e) => setMinutesInput(e.target.value)}
+          placeholder="dk"
+          className="h-8 w-14 text-sm"
+        />
+        <Input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={t('timeLogNotePlaceholder')}
+          className="h-8 flex-1 min-w-24 text-sm"
+        />
+        <Button type="submit" size="sm" disabled={isLogging || (!hoursInput && !minutesInput)}>
+          {t('timeLogAddBtn')}
         </Button>
       </form>
     </div>
@@ -2243,6 +2428,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
               {showSettings && taskId !== 'new' && (
                 <ChecklistSection cardId={task.id} />
+              )}
+
+              {showSettings && taskId !== 'new' && (
+                <TimeTrackingSection
+                  cardId={task.id}
+                  estimateMinutes={task.estimateMinutes}
+                  spentMinutes={task.spentMinutes ?? 0}
+                  isAdmin={isAdmin}
+                  onEstimateChange={(minutes) => setTask({ ...task, estimateMinutes: minutes })}
+                />
               )}
 
               {/* Ekler VARSAYILAN gorunumde: kart, gorsellerin ayar
