@@ -12,19 +12,20 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/hooks/useConfirm';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation, type TranslationKey } from '@/hooks/useTranslation';
 
 interface CustomFieldsSectionProps {
   orgId: string;
   projectId: string;
 }
 
-const TYPE_LABEL: Record<CustomFieldType, string> = {
-  TEXT: 'Metin',
-  NUMBER: 'Sayı',
-  DATE: 'Tarih',
-  SELECT: 'Seçenek listesi',
-  CHECKBOX: 'Onay kutusu',
+// Metin degil anahtar: dizi modul kapsaminda, t() render aninda cozuluyor.
+const TYPE_LABEL_KEYS: Record<CustomFieldType, TranslationKey> = {
+  TEXT: 'cfTypeText',
+  NUMBER: 'cfTypeNumber',
+  DATE: 'cfTypeDate',
+  SELECT: 'cfTypeSelect',
+  CHECKBOX: 'cfTypeCheckbox',
 };
 
 // Projeye ozel kart alanlari (Jira'daki Custom Fields). Onceden panodaki
@@ -64,32 +65,32 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId,
     e.preventDefault();
     if (!name.trim()) return;
     if (type === 'SELECT' && options.length === 0) {
-      toast.error('Seçenek listesi için en az bir seçenek eklemelisin.');
+      toast.error(t('cfNeedOption'));
       return;
     }
     try {
       await createField({ orgId, projectId, name: name.trim(), type, options }).unwrap();
-      toast.success('Ek alan oluşturuldu.');
+      toast.success(t('cfCreated'));
       resetForm();
     } catch (err) {
       const msg = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-      toast.error(msg || 'Ek alan oluşturulamadı.');
+      toast.error(msg || t('cfCreateError'));
     }
   };
 
   const handleDelete = async (fieldId: string) => {
     const ok = await confirm({
-      title: 'Ek Alanı Sil',
-      description: 'Bu alan ve tüm kartlardaki değerleri silinecek. Emin misin?',
-      confirmText: 'Sil',
-      cancelText: 'İptal',
+      title: t('cfDeleteTitle'),
+      description: t('cfDeleteDesc'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       variant: 'destructive',
     });
     if (!ok) return;
     try {
       await deleteField({ fieldId, projectId }).unwrap();
     } catch {
-      toast.error('Ek alan silinemedi.');
+      toast.error(t('cfDeleteError'));
     }
   };
 
@@ -109,7 +110,7 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId,
               <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{field.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {TYPE_LABEL[field.type]}
+                  {t(TYPE_LABEL_KEYS[field.type])}
                   {field.type === 'SELECT' && field.options.length > 0 && `: ${field.options.join(', ')}`}
                 </p>
               </div>
@@ -138,8 +139,8 @@ export const CustomFieldsSection: React.FC<CustomFieldsSectionProps> = ({ orgId,
             onChange={(e) => setType(e.target.value as CustomFieldType)}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
           >
-            {(Object.keys(TYPE_LABEL) as CustomFieldType[]).map((t) => (
-              <option key={t} value={t} className="bg-popover">{TYPE_LABEL[t]}</option>
+            {(Object.keys(TYPE_LABEL_KEYS) as CustomFieldType[]).map((tur) => (
+              <option key={tur} value={tur} className="bg-popover">{t(TYPE_LABEL_KEYS[tur])}</option>
             ))}
           </select>
 

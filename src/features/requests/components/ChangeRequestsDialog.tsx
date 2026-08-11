@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation, type TranslationKey } from '@/hooks/useTranslation';
 
 interface BodyProps {
   orgId: string;
@@ -44,20 +44,24 @@ interface Props extends Omit<BodyProps, 'renderHeader' | 'listClassName'> {
   onOpenChange: (open: boolean) => void;
 }
 
-const PRIORITY_LABEL: Record<string, string> = {
-  URGENT: 'Acil',
-  HIGH: 'Yüksek',
-  MEDIUM: 'Orta',
-  LOW: 'Düşük',
+// Metin degil anahtar: haritalar modul kapsaminda, t() ise hook - cevrilmis
+// karsilik ancak render aninda cozulebiliyor.
+const PRIORITY_LABEL_KEYS: Record<string, TranslationKey> = {
+  URGENT: 'priorityUrgent',
+  HIGH: 'priorityHigh',
+  MEDIUM: 'priorityMedium',
+  LOW: 'priorityLow',
 };
 
-function zamanFarki(dateStr: string): string {
+type Cevir = (key: TranslationKey) => string;
+
+function zamanFarki(dateStr: string, t: Cevir): string {
   const dk = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
-  if (dk < 1) return 'az önce';
-  if (dk < 60) return `${dk} dk önce`;
+  if (dk < 1) return t('justNow');
+  if (dk < 60) return `${dk} ${t('minsAgo')}`;
   const sa = Math.floor(dk / 60);
-  if (sa < 24) return `${sa} sa önce`;
-  return `${Math.floor(sa / 24)} gün önce`;
+  if (sa < 24) return `${sa} ${t('hoursAgo')}`;
+  return `${Math.floor(sa / 24)} ${t('daysAgo')}`;
 }
 
 function RequestLabels({ orgId, projectId, labelIds }: { orgId: string; projectId: string; labelIds?: string[] }) {
@@ -88,6 +92,7 @@ function RequestLabels({ orgId, projectId, labelIds }: { orgId: string; projectI
 }
 
 function RequestDependencies({ projectId, blockerIds }: { projectId: string; blockerIds?: string[] }) {
+  const { t } = useTranslation();
   const [titles, setTitles] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -97,7 +102,7 @@ function RequestDependencies({ projectId, blockerIds }: { projectId: string; blo
         const details = await boardService.getTaskDetails(projectId, id);
         setTitles((prev) => ({ ...prev, [id]: details.title }));
       } catch {
-        setTitles((prev) => ({ ...prev, [id]: `Kart ID: ${id}` }));
+        setTitles((prev) => ({ ...prev, [id]: `${t('crCardIdFallback')} ${id}` }));
       }
     });
   }, [blockerIds, projectId]);
@@ -107,14 +112,14 @@ function RequestDependencies({ projectId, blockerIds }: { projectId: string; blo
   return (
     <div className="flex flex-wrap gap-1 mt-1.5 items-center">
       <span className="text-xs text-muted-foreground text-amber-500 font-medium mr-1">
-        Bağımlılıklar ({blockerIds.length}):
+        {t('crDependencies')} ({blockerIds.length}):
       </span>
       {blockerIds.map((id) => (
         <span
           key={id}
           className="text-[10px] px-1.5 py-0.5 rounded border border-amber-300 text-amber-600 bg-amber-50 dark:bg-amber-950/20 font-medium shadow-sm"
         >
-          {titles[id] || 'Yükleniyor...'}
+          {titles[id] || t('loading')}
         </span>
       ))}
     </div>
@@ -132,6 +137,7 @@ function RequestDiff({
   payload: any;
   members?: any[];
 }) {
+  const { t } = useTranslation();
   const [current, setCurrent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -155,46 +161,46 @@ function RequestDiff({
   const changes: { field: string; oldVal: string; newVal: string }[] = [];
 
   if (payload.title && payload.title !== current.title) {
-    changes.push({ field: 'Başlık', oldVal: current.title, newVal: payload.title });
+    changes.push({ field: t('crFieldTitle'), oldVal: current.title, newVal: payload.title });
   }
   if (payload.description !== undefined && payload.description !== (current.description ?? '')) {
     changes.push({
-      field: 'Açıklama',
-      oldVal: current.description || '(boş)',
-      newVal: payload.description || '(boş)',
+      field: t('crFieldDescription'),
+      oldVal: current.description || t('crEmptyValue'),
+      newVal: payload.description || t('crEmptyValue'),
     });
   }
   if (payload.priority && payload.priority !== current.priority) {
     changes.push({
-      field: 'Öncelik',
-      oldVal: PRIORITY_LABEL[current.priority] ?? current.priority,
-      newVal: PRIORITY_LABEL[payload.priority] ?? payload.priority,
+      field: t('crFieldPriority'),
+      oldVal: getPriorityText(current.priority, t),
+      newVal: getPriorityText(payload.priority, t),
     });
   }
   if (payload.dueDate !== undefined) {
     const oldDate = current.dueDate ? current.dueDate.split('T')[0] : '';
     const newDate = payload.dueDate ? payload.dueDate.split('T')[0] : '';
     if (newDate !== oldDate) {
-      changes.push({ field: 'Bitiş', oldVal: oldDate || '(yok)', newVal: newDate || '(yok)' });
+      changes.push({ field: t('crFieldDueDate'), oldVal: oldDate || t('crNoneValue'), newVal: newDate || t('crNoneValue') });
     }
   }
   if (payload.assigneeIds) {
-    const oldNames = (current.assignees || []).map((a: any) => a.name).sort().join(', ') || '(yok)';
+    const oldNames = (current.assignees || []).map((a: any) => a.name).sort().join(', ') || t('crNoneValue');
     const newNames = payload.assigneeIds
       .map((id: string) => members.find((m: any) => m.userId === id)?.user.name ?? '?')
-      .sort().join(', ') || '(yok)';
+      .sort().join(', ') || t('crNoneValue');
     if (oldNames !== newNames) {
-      changes.push({ field: 'Atananlar', oldVal: oldNames, newVal: newNames });
+      changes.push({ field: t('crFieldAssignees'), oldVal: oldNames, newVal: newNames });
     }
   }
   if (payload.labelIds) {
     // etiketler async, karsilastirmayi basit tut
-    changes.push({ field: 'Etiketler', oldVal: '(mevcut)', newVal: `${payload.labelIds.length} etiket` });
+    changes.push({ field: t('crFieldLabels'), oldVal: t('crCurrentValue'), newVal: `${payload.labelIds.length} ${t('crLabelCountSuffix')}` });
   }
   if (payload.blockerIds) {
     const oldBlockers = (current.blockedBy || []).length;
     if (oldBlockers !== payload.blockerIds.length) {
-      changes.push({ field: 'Bağımlılıklar', oldVal: `${oldBlockers} adet`, newVal: `${payload.blockerIds.length} adet` });
+      changes.push({ field: t('crDependencies'), oldVal: `${oldBlockers} ${t('crCountSuffix')}`, newVal: `${payload.blockerIds.length} ${t('crCountSuffix')}` });
     }
   }
 
@@ -224,8 +230,9 @@ const getPriorityColor = (prio: string) => {
   }
 };
 
-const getPriorityText = (prio: string) => {
-  return PRIORITY_LABEL[prio] || prio;
+const getPriorityText = (prio: string, t: Cevir) => {
+  const key = PRIORITY_LABEL_KEYS[prio];
+  return key ? t(key) : prio;
 };
 
 // Talebin ne istedigini okunabilir ve gorsel sekilde gosterir
@@ -265,14 +272,14 @@ function TalepIcerigi({
           <Inbox className="size-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground truncate">{p.name || 'İsimsiz Sütun'}</p>
+          <p className="font-semibold text-foreground truncate">{p.name || t('crUnnamedColumn')}</p>
           {p.description && (
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {p.description}
             </p>
           )}
           <p className="text-[10px] text-muted-foreground/60 mt-1 uppercase font-semibold tracking-wider">
-            {request.type === 'COLUMN_CREATE' ? 'Yeni Sütun Oluşturma' : 'Yeni Proje Oluşturma'}
+            {request.type === 'COLUMN_CREATE' ? t('crNewColumnRequest') : t('crNewProjectRequest')}
           </p>
         </div>
       </div>
@@ -294,11 +301,11 @@ function TalepIcerigi({
         {/* Card Header: Title & Priority */}
         <div className="flex items-start justify-between gap-3">
           <h4 className="font-semibold text-sm text-foreground tracking-tight leading-snug">
-            {p.title || 'Başlıksız Görev'}
+            {p.title || t('crUntitledCard')}
           </h4>
           {p.priority && (
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${getPriorityColor(p.priority)}`}>
-              {getPriorityText(p.priority)}
+              {getPriorityText(p.priority, t)}
             </span>
           )}
         </div>
@@ -362,7 +369,7 @@ function TalepIcerigi({
       {request.type === 'CARD_UPDATE' && request.targetCard && request.projectId && !editedPayload && (
         <div className="mt-3">
           <p className="text-xs font-semibold text-amber-500 mb-1.5 flex items-center gap-1">
-            <Clock className="size-3.5" /> Değişiklik Detayları
+            <Clock className="size-3.5" /> {t('crChangeDetails')}
           </p>
           <RequestDiff
             projectId={request.projectId}
@@ -439,7 +446,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
         payload,
       }).unwrap();
 
-      toast.success(action === 'approve' ? 'Talep onaylandı ve uygulandı.' : 'Talep reddedildi.');
+      toast.success(action === 'approve' ? t('crApproved') : t('crRejected'));
       
       setEditingRequestId((current) => (current === request.id ? null : current));
       setEditedPayloads((prev) => {
@@ -454,7 +461,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
       });
     } catch (err) {
       const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
-      toast.error(mesaj || 'Talep değerlendirilemedi.');
+      toast.error(mesaj || t('crReviewError'));
     }
   };
 
@@ -474,8 +481,8 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
             <p className="text-sm font-medium text-foreground">Talep yok</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {isAdmin
-                ? 'Üyeler değişiklik talebi gönderdiğinde burada görünür.'
-                : 'Kart düzenlemek istediğinde talep gönderebilirsin.'}
+                ? t('crEmptyAdmin')
+                : t('crEmptyMember')}
             </p>
           </div>
         )}
@@ -489,13 +496,13 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
               )}
               <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="size-3.5" />
-                {zamanFarki(request.createdAt)}
+                {zamanFarki(request.createdAt, t)}
               </span>
             </div>
 
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{request.requestedBy.name}</span> tarafından gönderildi
+                {t('crSentByPrefix')} <span className="font-medium text-foreground">{request.requestedBy.name}</span> {t('crSentBySuffix')}
               </p>
               {isAdmin && (request.type === 'CARD_CREATE' || request.type === 'CARD_UPDATE') && (
                 <button
@@ -520,7 +527,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
                   className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium cursor-pointer"
                 >
                   <Edit2 className="size-3.5" />
-                  Düzenle
+                  {t('edit')}
                 </button>
               )}
             </div>
@@ -535,7 +542,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
               <div className="space-y-4 bg-muted/20 p-5 rounded-xl border border-border/80 mt-4 text-left">
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                    Görev Başlığı
+                    {t('crCardTitleLabel')}
                   </label>
                   <Input
                     className="h-9 text-sm"
@@ -551,7 +558,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                    Açıklama
+                    {t('crFieldDescription')}
                   </label>
                   <Textarea
                     rows={3}
@@ -587,7 +594,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
 
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                      Öncelik
+                      {t('crFieldPriority')}
                     </label>
                     <select
                       value={editedPayloads[request.id]?.priority || 'MEDIUM'}
@@ -609,7 +616,7 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                    Atanan Kişiler
+                    {t('crAssignees')}
                   </label>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {(editedPayloads[request.id]?.assigneeIds || []).map((assigneeId: string) => {
@@ -710,10 +717,10 @@ const ChangeRequestsBody: React.FC<BodyProps> = ({
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <Badge variant="secondary" className="text-xs px-3 py-1">{requestTypeLabel(request.type)}</Badge>
                   <Badge variant={request.status === 'APPROVED' ? 'default' : 'destructive'} className="text-xs px-3 py-1">
-                    {request.status === 'APPROVED' ? 'Onaylandı' : 'Reddedildi'}
+                    {request.status === 'APPROVED' ? t('crApprovedBadge') : t('crRejectedBadge')}
                   </Badge>
                   <span className="ml-auto text-xs text-muted-foreground">
-                    {request.reviewedAt ? zamanFarki(request.reviewedAt) : ''}
+                    {request.reviewedAt ? zamanFarki(request.reviewedAt, t) : ''}
                   </span>
                 </div>
                 <TalepIcerigi request={request} members={members} />
@@ -739,7 +746,9 @@ export const ChangeRequestsDialog: React.FC<Props> = ({
   onOpenChange,
   projectFilter,
   typeFilter,
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-2xl w-full">
       {/* Portal kapaliyken icerigi unmount ettigi icin sorgular yalnizca
@@ -753,22 +762,23 @@ export const ChangeRequestsDialog: React.FC<Props> = ({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg">
               <Inbox className="size-5 text-primary" />
-              {isTriage ? 'Triage: Yeni Kart Talepleri' : isAdmin ? 'Bekleyen Talepler' : 'Taleplerim'}
+              {isTriage ? t('crTriageTitle') : isAdmin ? t('crPendingRequests') : t('myRequests')}
               {pendingCount > 0 && <Badge className="text-xs px-3 py-0.5">{pendingCount}</Badge>}
             </DialogTitle>
             <DialogDescription>
               {isTriage
-                ? 'Üyelerin bu projede önerdiği yeni kartlar. Önceliği/atananı/etiketleri düzenleyip onayla, panoya öyle girsin.'
+                ? t('triageDesc')
                 : isAdmin
-                  ? 'Üyelerin gönderdiği değişiklik talepleri. Onaylarsan değişiklik otomatik uygulanır.'
-                  : 'Gönderdiğin talepler ve sonuçları.'}
+                  ? t('crPendingDesc')
+                  : t('crMyRequestsDesc')}
             </DialogDescription>
           </DialogHeader>
         )}
       />
     </DialogContent>
   </Dialog>
-);
+  );
+};
 
 // Proje yonetim sayfasindaki Triage sekmesi icin modalsiz surum: baslik
 // sekmenin kendisinde duruyor, liste sayfayla birlikte akiyor.

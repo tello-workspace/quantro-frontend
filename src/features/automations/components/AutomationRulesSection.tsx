@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/hooks/useConfirm';
-import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslation, type TranslationKey } from '@/hooks/useTranslation';
 
 interface ColumnOption {
   id: string;
@@ -57,7 +57,10 @@ const ACTION_I18N_KEY: Record<AutomationActionType, 'automationActionAddLabel' |
   SEND_NOTIFICATION: 'automationActionNotify',
   CREATE_CARD: 'automationActionCreateCard',
 };
-const DAY_OF_WEEK_LABEL = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+// Gun ve oncelik adlari da anahtar: diziler modul kapsaminda, t() hook.
+const DAY_OF_WEEK_KEYS: TranslationKey[] = [
+  'daySunday', 'dayMonday', 'dayTuesday', 'dayWednesday', 'dayThursday', 'dayFriday', 'daySaturday',
+];
 
 // Backend ForbiddenError dönerse (403) yetkisiz kullanıcıya net bir mesaj
 // göster. Varsayılan hata mesajı backend'den gelebilir; 403'te "yetkiniz yok"
@@ -76,11 +79,11 @@ function getAutomationError(
   return { message: errData?.message || fallback, isForbidden: false };
 }
 
-const PRIORITY_LABEL: Record<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT', string> = {
-  LOW: 'Düşük',
-  MEDIUM: 'Orta',
-  HIGH: 'Yüksek',
-  URGENT: 'Acil',
+const PRIORITY_LABEL_KEYS: Record<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT', TranslationKey> = {
+  LOW: 'priorityLow',
+  MEDIUM: 'priorityMedium',
+  HIGH: 'priorityHigh',
+  URGENT: 'priorityUrgent',
 };
 
 // Otomasyon kurallari listesi + olusturma formu. Onceden panodaki
@@ -237,7 +240,7 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
     if (rule.trigger === 'SCHEDULED') {
       return rule.scheduleDayOfWeek == null
         ? t('automationScheduledNightly')
-        : `${t('automationScheduledWeekly')} ${DAY_OF_WEEK_LABEL[rule.scheduleDayOfWeek]} ${t('automationScheduledNightlyWeekly')}`;
+        : `${t('automationScheduledWeekly')} ${t(DAY_OF_WEEK_KEYS[rule.scheduleDayOfWeek])} ${t('automationScheduledNightlyWeekly')}`;
     }
     if (rule.trigger === 'CARD_DUE_SOON') {
       return `${t('automationDueSoonDesc')} ${rule.dueSoonDays} ${t('automationDueSoonDesc2')}`;
@@ -266,7 +269,7 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
                     {t('automationConditionSectionLabel')}:{' '}
                     {[
                       rule.conditionPriority
-                        ? `${t('automationConditionPriority')} ${PRIORITY_LABEL[rule.conditionPriority]}`
+                        ? `${t('automationConditionPriority')} ${t(PRIORITY_LABEL_KEYS[rule.conditionPriority])}`
                         : null,
                       rule.conditionLabelId
                         ? `${t('automationConditionLabelEquals')} ${labels.find((l) => l.id === rule.conditionLabelId)?.name ?? '—'}`
@@ -356,8 +359,8 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
                 >
                   <option value="" className="bg-popover">{t('automationEveryDay')}</option>
-                  {DAY_OF_WEEK_LABEL.map((label, i) => (
-                    <option key={i} value={i} className="bg-popover">{label}</option>
+                  {DAY_OF_WEEK_KEYS.map((gunKey, i) => (
+                    <option key={i} value={i} className="bg-popover">{t(gunKey)}</option>
                   ))}
                 </select>
               </div>
@@ -477,8 +480,8 @@ export const AutomationRulesSection: React.FC<AutomationRulesSectionProps> = ({
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
               >
                 <option value="" className="bg-popover">{t('automationPriorityFilterNone')}</option>
-                {(Object.keys(PRIORITY_LABEL) as (keyof typeof PRIORITY_LABEL)[]).map((p) => (
-                  <option key={p} value={p} className="bg-popover">{t('automationOnlyPriority')} {PRIORITY_LABEL[p]}</option>
+                {(Object.keys(PRIORITY_LABEL_KEYS) as (keyof typeof PRIORITY_LABEL_KEYS)[]).map((p) => (
+                  <option key={p} value={p} className="bg-popover">{t('automationOnlyPriority')} {t(PRIORITY_LABEL_KEYS[p])}</option>
                 ))}
               </select>
               <select

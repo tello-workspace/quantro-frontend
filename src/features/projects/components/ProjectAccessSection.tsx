@@ -12,6 +12,7 @@ import {
   useAddProjectMemberMutation,
   useRemoveProjectMemberMutation,
 } from '@/features/projects/projectsApi';
+import { useTranslation, type TranslationKey } from '@/hooks/useTranslation';
 
 interface OrgMemberOption {
   userId: string;
@@ -26,10 +27,17 @@ interface ProjectAccessSectionProps {
   canManage: boolean;
 }
 
-const VISIBILITY_OPTIONS: { value: ProjectVisibility; label: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { value: 'ORG', label: 'Organizasyon', desc: 'Organizasyondaki herkes görür (varsayılan).', icon: Globe },
-  { value: 'TEAM', label: 'Ekip', desc: 'Sadece adminler ve aşağıya eklenen kişiler görür.', icon: Users },
-  { value: 'PRIVATE', label: 'Özel', desc: 'Sadece proje sahibi ve aşağıya eklenen kişiler görür - adminler bile otomatik göremez.', icon: Lock },
+// Metinler degil ANAHTARLAR tutuluyor: dizi modul kapsaminda, t() ise
+// hook - cevrilmis metin ancak render aninda cozulebilir.
+const VISIBILITY_OPTIONS: {
+  value: ProjectVisibility;
+  labelKey: TranslationKey;
+  descKey: TranslationKey;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { value: 'ORG', labelKey: 'paVisOrg', descKey: 'paVisOrgDesc', icon: Globe },
+  { value: 'TEAM', labelKey: 'paVisTeam', descKey: 'paVisTeamDesc', icon: Users },
+  { value: 'PRIVATE', labelKey: 'paVisPrivate', descKey: 'paVisPrivateDesc', icon: Lock },
 ];
 
 function initials(name: string): string {
@@ -43,6 +51,7 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
   orgMembers,
   canManage,
 }) => {
+  const { t } = useTranslation();
   const { data: members = [] } = useGetProjectMembersQuery({ orgId, projectId });
   const [updateVisibility, { isLoading: isUpdatingVisibility }] = useUpdateProjectVisibilityMutation();
   const [addMember, { isLoading: isAdding }] = useAddProjectMemberMutation();
@@ -55,9 +64,9 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
   const handleVisibilityChange = async (next: ProjectVisibility) => {
     try {
       await updateVisibility({ orgId, projectId, visibility: next }).unwrap();
-      toast.success('Proje görünürlüğü güncellendi');
+      toast.success(t('paVisibilityUpdated'));
     } catch (err: any) {
-      toast.error(err?.data?.error?.message || 'Görünürlük güncellenemedi');
+      toast.error(err?.data?.error?.message || t('paVisibilityError'));
     }
   };
 
@@ -67,7 +76,7 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
       await addMember({ orgId, projectId, userId: selectedUserId }).unwrap();
       setSelectedUserId('');
     } catch (err: any) {
-      toast.error(err?.data?.error?.message || 'Üye eklenemedi');
+      toast.error(err?.data?.error?.message || t('paAddError'));
     }
   };
 
@@ -75,14 +84,14 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
     try {
       await removeMember({ orgId, projectId, userId }).unwrap();
     } catch (err: any) {
-      toast.error(err?.data?.error?.message || 'Üye çıkarılamadı');
+      toast.error(err?.data?.error?.message || t('paRemoveError'));
     }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-2">Görünürlük</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-2">{t('paVisibility')}</h3>
         <div className="grid gap-2 sm:grid-cols-3">
           {VISIBILITY_OPTIONS.map((opt) => {
             const Icon = opt.icon;
@@ -98,9 +107,9 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <Icon className="size-3.5" /> {opt.label}
+                  <Icon className="size-3.5" /> {t(opt.labelKey)}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{opt.desc}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t(opt.descKey)}</p>
               </button>
             );
           })}
@@ -109,9 +118,9 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
 
       {visibility !== 'ORG' && (
         <div>
-          <h3 className="text-sm font-semibold text-foreground mb-2">Erişimi Olan Kişiler</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-2">{t('paPeopleWithAccess')}</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Proje sahibi her zaman görür. GUEST rolündeki kullanıcılar görünürlükten bağımsız olarak buraya eklenmek zorundadır.
+            {t('paPeopleHint')}
           </p>
 
           {canManage && (
@@ -121,7 +130,7 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
                 onChange={(e) => setSelectedUserId(e.target.value)}
                 className="flex-1 text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="">Kişi seç...</option>
+                <option value="">{t('paSelectPerson')}</option>
                 {candidates.map((m) => (
                   <option key={m.userId} value={m.userId}>
                     {m.user.name} ({m.user.email})
@@ -129,13 +138,13 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
                 ))}
               </select>
               <Button type="button" size="sm" onClick={handleAdd} disabled={!selectedUserId || isAdding}>
-                Ekle
+                {t('add')}
               </Button>
             </div>
           )}
 
           {members.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Henüz açıkça eklenmiş kimse yok.</p>
+            <p className="text-sm text-muted-foreground">{t('paNobody')}</p>
           ) : (
             <ul className="space-y-1.5">
               {members.map((m) => (
@@ -147,7 +156,7 @@ export const ProjectAccessSection: React.FC<ProjectAccessSectionProps> = ({
                     <p className="text-sm text-foreground truncate">{m.user.name}</p>
                   </div>
                   {canManage && (
-                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => handleRemove(m.userId)} title="Erişimi kaldır">
+                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => handleRemove(m.userId)} title={t('paRemoveAccess')}>
                       <UserMinus className="size-3.5" />
                     </Button>
                   )}
