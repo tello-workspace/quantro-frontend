@@ -129,12 +129,16 @@ export default function ProjectManagePage() {
               barin ceyregini kaplayip geri kalani bos kaliyordu. Sinif
               adlari statik - Tailwind uretilmis sinifi ancak kaynakta
               acikca goruyorsa cikti dosyasina koyuyor. */}
-          {/* items-stretch: bilesenin kendi items-center'i sekmeleri satirin
-              ortasina koyuyor, satir sekmeden yuksek kaldiginda altta ve
-              ustte bosluk kaliyor ve sekmeler yuvanin icinde degil
-              uzerinde duruyormus gibi gorunuyordu. Stretch ile satiri
-              tamamen dolduruyorlar; yuvanin yuksekligi = sekme + p-1. */}
-          <TabsList className={`grid h-auto w-full items-stretch gap-1 p-1 ${TAB_GRID[visibleTabs.length] ?? 'grid-cols-2 sm:grid-cols-4'}`}>
+          {/* Aktif sekme yuvanin alt kenarina yapisik duruyordu. Sebep
+              hizalama degil GOLGE: butun sekmeler ayni sabit h-9 oldugu
+              icin satirda bosluk yok, ama aktif sekmeye data-active:shadow-sm
+              uygulaniyor ve golge asagi dusuyor. 4px'lik (p-1) ic bosluga
+              sigmayinca pill alttan tasiyormus gibi gorunuyor, ust taraf
+              temiz kaldigi icin de "asagi kaymis" izlenimi veriyor.
+              p-1.5 golgeye yer aciyor. items-center acikca yaziliyor:
+              sekmelerin yuksekligi sabit oldugu icin stretch zaten
+              baslangica hizalamaya dusuyordu, belirsizlik kalmasin. */}
+          <TabsList className={`grid h-auto w-full items-center gap-1 p-1.5 ${TAB_GRID[visibleTabs.length] ?? 'grid-cols-2 sm:grid-cols-4'}`}>
             {visibleTabs.includes('automations') && (
               <TabsTrigger value="automations" className="h-9 gap-1.5 px-2">
                 <Zap className="size-4" /> {t('automations')}
