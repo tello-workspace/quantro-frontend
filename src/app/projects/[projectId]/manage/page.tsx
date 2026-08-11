@@ -93,8 +93,14 @@ export default function ProjectManagePage() {
   const boardHref = `/projects/${projectId}${orgId ? `?orgId=${orgId}` : ''}`;
 
   return (
+    // Yatay dolgu panonun kendisiyle ayni (px-4 sm:px-6): kullanici bu
+    // sayfaya panodan gelip panoya donuyor, iki ekranin sol kenari ayni
+    // hizada baslasin. Icerik de mx-auto ile ortalanmiyordu - dar bir
+    // sutun ekranin ortasinda yuzuyor, pano tam genislikteyken gecis
+    // sarsici oluyordu. max-w-7xl yalnizca cok genis ekranlarda tavan:
+    // otomasyon kurallari ve talep listeleri 2500px'e yayilmasin.
     <main className="min-h-[calc(100vh-56px)] bg-background px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-5xl">
+      <div className="w-full max-w-7xl">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
           <Link
             href={`/projects${orgId ? `?orgId=${orgId}` : ''}`}
