@@ -127,7 +127,12 @@ export const BoardCard: React.FC<BoardCardProps> = ({
           .filter(Boolean)
           .join(' · ') || undefined
       }
-      className={`group relative cursor-pointer overflow-hidden rounded-xl border p-3 pl-4 transition-all duration-200 shrink-0 ${
+      // select-none kalici: Ctrl+A butun panonun metnini seciyor, kartlar
+      // maviye boyaniyordu. Surukleme etkilenmiyor - dnd-kit pointer
+      // olaylariyla calisiyor, metin secimine ihtiyaci yok; aksine native
+      // secim surukleme sirasinda araya giren tarafti. Kart metnini
+      // kopyalamak isteyen karti aciyor: detay modali secilebilir kaliyor.
+      className={`group relative cursor-pointer select-none overflow-hidden rounded-xl border p-3 pl-4 transition-all duration-200 shrink-0 ${
         selected ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''
       } ${
         isDragging
