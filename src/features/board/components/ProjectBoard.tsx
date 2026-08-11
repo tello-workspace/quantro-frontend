@@ -167,6 +167,34 @@ function removeCard(columns: BoardData['columns'], cardId: string): BoardData['c
   return next;
 }
 
+const bekle = (ms: number) => new Promise<void>((coz) => setTimeout(coz, ms));
+
+/**
+ * Surukleme yazmalarini birkac kez deneyen sarmalayici.
+ *
+ * Backend uyku modundan uyanirken (Render) veya ag bir an takildiginda tek
+ * bir basarisiz istek, ekranda kartin eski yerine geri sicramasi olarak
+ * goruluyordu - kullanicinin gozunde surukleme "tutmamis" oluyor, sonra
+ * socket'ten gercek sonuc gelince kart tekrar yeni yerine atliyordu. Iki
+ * kez daha deneyip bu gecikmeyi kullaniciya hic gostermiyoruz.
+ *
+ * Bilerek yalnizca gecikme/ag hatasi icin degil her hata icin deneniyor:
+ * tasima istegi idempotent (ayni kart, ayni kolon, ayni pozisyon), tekrar
+ * gondermek yeni bir yan etki uretmiyor.
+ */
+async function yenidenDene<T>(istek: () => Promise<T>, kez = 2): Promise<T> {
+  let sonHata: unknown;
+  for (let deneme = 0; deneme <= kez; deneme++) {
+    try {
+      return await istek();
+    } catch (hata) {
+      sonHata = hata;
+      if (deneme < kez) await bekle(400 * 2 ** deneme);
+    }
+  }
+  throw sonHata;
+}
+
 export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, projectName, initialOpenCardId, initialOpenCardKey }) => {
   const { t, lang } = useTranslation();
   const dispatch = useDispatch();
@@ -345,7 +373,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const gripToColumnId = (gripId: string) => gripId.replace('col-grip-', '');
 
   // collision detection: kolon tasiniyorsa sadece col-drop hedeflerine bak,
-  // kart tasiniyorsa normal closestCenter calissin.
+  // kart tasiniyorsa col-drop hedefleri HARIC her yere.
+  //
+  // Once kart suruklerken de col-drop bolgeleri aday sayiliyordu: kart iki
+  // kolonun arasindan gecerken kolon birakma serid isaretlenip "kart buraya
+  // birakilabilir" izlenimi veriyordu - oysa handleDragEnd o id'yi kart icin
+  // zaten kolon olarak cozemez, birakinca hicbir sey olmazdi.
   const collisionDetectionFn: CollisionDetection = useCallback((args) => {
     const { active, droppableContainers } = args;
     if (isColumnGrip(active.id as string)) {
@@ -354,7 +387,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       );
       return closestCorners({ ...args, droppableContainers: filtered });
     }
-    return closestCenter(args);
+    return closestCenter({
+      ...args,
+      droppableContainers: droppableContainers.filter(
+        (c) => !String(c.id).startsWith('col-drop-'),
+      ),
+    });
   }, []);
 
   const sensors = useSensors(sensor);
@@ -606,6 +644,39 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     setActiveId(event.active.id as string);
   };
 
+  /**
+   * Surukleme yazmasi butun denemelere ragmen basarisiz oldugunda cagrilir.
+   *
+   * Eskiden burada surukleme oncesi anlik goruntuye (previousBoardData)
+   * geri donuluyordu. Iki sorunu vardi:
+   *   1. Kart kullanicinin gozu onunde eski yerine sicriyordu - oysa yazma
+   *      cogu zaman aslinda gecmisti, yalnizca cevabi gec/hic gelmemisti;
+   *      birkac saniye sonra socket dogruyu getirince kart bir daha
+   *      atliyordu. Ekranda iki kez zipliyordu.
+   *   2. O anlik goruntu bayat: surukleme sirasinda baska bir kullanici bir
+   *      sey degistirdiyse onun degisikligi de siliniyordu.
+   *
+   * Simdi: optimistik gorunum OLDUGU GIBI kaliyor, kisa bir nefes verip
+   * veritabanini yeniden okuyoruz ve tek dogru kaynak olarak onu yaziyoruz.
+   * Yazma gecmisse ekranda hicbir sey oynamiyor.
+   */
+  const sunucuylaEsitle = useCallback(
+    async (mesaj: string, gercektenOldu?: (taze: BoardData) => boolean) => {
+      await bekle(1200);
+      try {
+        const taze = await boardService.getBoardData(projectId);
+        if (!taze) return;
+        setBoardData(taze);
+        // Yazma aslinda gecmisse kullaniciyi bosuna korkutmuyoruz: ekranda
+        // zaten hicbir sey degismedi, soylenecek bir hata da yok.
+        if (gercektenOldu && !gercektenOldu(taze)) toast.error(mesaj);
+      } catch {
+        toast.error(mesaj);
+      }
+    },
+    [projectId],
+  );
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
@@ -643,7 +714,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         reorderedColumns[cid] = { ...boardData.columns[cid] };
       });
 
-      const prevData = boardData;
       setBoardData((prev) => {
         if (!prev) return prev;
         const rebuilt: BoardData['columns'] = {};
@@ -654,10 +724,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       });
 
       try {
-        await boardService.reorderColumns(orgId, projectId, newOrder);
+        await yenidenDene(() => boardService.reorderColumns(orgId, projectId, newOrder));
       } catch (error) {
-        console.error("Sütun sıralaması güncellenemedi, geri alınıyor:", error);
-        setBoardData(prevData);
+        console.error('Sütun sıralaması güncellenemedi:', error);
+        await sunucuylaEsitle(
+          'Sütun sıralaması kaydedilemedi.',
+          (taze) => Object.keys(taze.columns).join(',') === newOrder.join(','),
+        );
       }
       return;
     }
@@ -730,8 +803,6 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
     const newPosition = calculateFractionalPosition(prevPos, nextPos);
 
-    const previousBoardData = boardData;
-
     if (cokluTasima) {
       // prevPos ile nextPos arasina N kart icin esit araliklı yuva aciyoruz;
       // tek kartlik calculateFractionalPosition bir orta nokta veriyor,
@@ -777,12 +848,14 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       });
 
       try {
-        const sonuc = await boardService.bulkCardAction(projectId, {
-          cardIds: tasinacakIds,
-          action: 'move',
-          columnId: destinationColumn.id,
-          positions: pozisyonlar,
-        });
+        const sonuc = await yenidenDene(() =>
+          boardService.bulkCardAction(projectId, {
+            cardIds: tasinacakIds,
+            action: 'move',
+            columnId: destinationColumn.id,
+            positions: pozisyonlar,
+          }),
+        );
 
         if (sonuc.basarisiz.length > 0) {
           toast.error(`${sonuc.basarisiz.length} kart taşınamadı: ${sonuc.basarisiz[0].sebep}`);
@@ -793,9 +866,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         }
         clearSelection();
       } catch (error) {
-        console.error('Toplu taşımada hata, değişiklik geri alınıyor:', error);
-        setBoardData(previousBoardData);
-        toast.error(error instanceof Error ? error.message : 'Kartlar taşınamadı.');
+        console.error('Toplu taşımada hata:', error);
+        await sunucuylaEsitle(
+          error instanceof Error ? error.message : 'Kartlar taşınamadı.',
+          (taze) => tasinacakIds.every((id) => taze.tasks[id]?.columnId === destinationColumn.id),
+        );
       }
       return;
     }
@@ -828,10 +903,15 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     });
 
     try {
-      await boardService.moveTask(projectId, activeTaskId, destinationColumn.id, newPosition);
+      await yenidenDene(() =>
+        boardService.moveTask(projectId, activeTaskId, destinationColumn.id, newPosition),
+      );
     } catch (error) {
-      console.error("Kart taşınırken veritabanı hatası, değişiklik geri alınıyor:", error);
-      setBoardData(previousBoardData);
+      console.error('Kart taşınırken veritabanı hatası:', error);
+      await sunucuylaEsitle(
+        'Kart taşınamadı.',
+        (taze) => taze.tasks[activeTaskId]?.columnId === destinationColumn.id,
+      );
     }
   };
 

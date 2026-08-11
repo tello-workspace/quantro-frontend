@@ -1,6 +1,6 @@
 // src/features/board/components/BoardColumn.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { useDroppable, useDraggable } from '@dnd-kit/core';
+import { useDroppable, useDraggable, useDndContext } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { Task } from '../services/boardService';
@@ -86,6 +86,16 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   const { setNodeRef: cardDropRef, isOver: cardIsOver } = useDroppable({ id: cardDropId });
   // Column drop zone — separate element in the header area
   const { setNodeRef: colDropRef, isOver: colIsOver } = useDroppable({ id: `col-drop-${id}`, disabled: !!laneKey });
+  // Kolon birakma seridi YALNIZCA kolon suruklenirken isaretlenmeli. Kart
+  // suruklerken de yanip kartin oraya birakilabilecegi izlenimini
+  // veriyordu. Asil cozum ProjectBoard'daki collision detection'da (kart
+  // suruklerken col-drop hedefleri artik aday degil); burasi ikinci
+  // emniyet - droppable'i devre disi birakmiyoruz, cunku surukleme
+  // basladiktan sonra kayit olan bir droppable dnd-kit tarafindan
+  // olculmemis olur ve kolon tasima bozulurdu.
+  const { active } = useDndContext();
+  const kolonSurukleniyor = String(active?.id ?? '').startsWith('col-grip-');
+  const colDropAktif = colIsOver && kolonSurukleniyor;
   // Column grip drag handle
   const { attributes, listeners, setNodeRef: dragRef, isDragging } = useDraggable({
     id: `col-grip-${id}`,
@@ -166,7 +176,7 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
       <div
         ref={colDropRef}
         className={`absolute inset-y-0 -left-2 w-4 z-20 transition-colors rounded-lg ${
-          colIsOver ? 'bg-primary/20 ring-2 ring-primary scale-x-125' : ''
+          colDropAktif ? 'bg-primary/20 ring-2 ring-primary scale-x-125' : ''
         }`}
       />
       {katli ? (
