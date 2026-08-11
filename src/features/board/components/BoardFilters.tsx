@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { Priority } from '../services/boardService';
 import { PriorityIcon } from './PriorityIcon';
@@ -56,17 +56,90 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  // Arama kutusu kapaliyken yalnizca bir daire; acilinca bara genisliyor.
+  // Filtre satirinda surekli 192px yer kapliyordu, oysa cogu zaman bos
+  // duruyor - kazanilan yer oncelik/kisi/etiket filtrelerine gidiyor.
+  const [aramaAcik, setAramaAcik] = useState(false);
+  const aramaRef = useRef<HTMLInputElement>(null);
+
+  // Kayitli gorunum yuklendiginde arama disaridan dolabiliyor: dolu bir
+  // filtrenin daire arkasinda gizli kalmasi, kullanicinin panoyu neden
+  // eksik gordugunu anlamamasi demek. Doluyken her zaman acik.
+  const acik = aramaAcik || search.length > 0;
+
+  useEffect(() => {
+    if (aramaAcik) aramaRef.current?.focus();
+  }, [aramaAcik]);
+
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-1.5 shrink-0">
-      <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+      <div
+        className={`relative flex h-8 shrink-0 items-center transition-[width] duration-200 ease-out ${
+          acik ? 'w-48' : 'w-8'
+        }`}
+      >
+        {/* Kapaliyken tiklama hedefi bu daire. Acikken input'un altinda
+            kalan bir ikon olarak duruyor: pointer/tab disi, yoksa
+            kutunun icine tiklamak kutuyu kapatmaya calisirdi. */}
+        <button
+          type="button"
+          onClick={() => setAramaAcik(true)}
+          aria-label="Kart ara"
+          aria-expanded={acik}
+          tabIndex={acik ? -1 : 0}
+          className={`absolute left-0 flex size-8 items-center justify-center rounded-full border transition-colors ${
+            acik
+              ? 'pointer-events-none border-transparent'
+              : 'border-zinc-300 bg-white hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900'
+          }`}
+        >
+          <MagnifyingGlassIcon className="h-4 w-4 text-zinc-400" />
+        </button>
+
         <input
+          ref={aramaRef}
           type="text"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
+          // Escape aramayi temizleyip kapatiyor - kapatirken metni birakmak
+          // gorunmez bir filtre birakirdi.
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              onSearchChange('');
+              setAramaAcik(false);
+              e.currentTarget.blur();
+            }
+          }}
+          // Bos ise odak kaybinda kendiliginden toparlaniyor; doluyken
+          // acik kaliyor (bkz. yukaridaki `acik`).
+          onBlur={() => setAramaAcik(false)}
           placeholder="Kart ara..."
-          className="pl-8 pr-3 py-1.5 text-sm w-48 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          tabIndex={acik ? 0 : -1}
+          className={`h-8 w-full rounded-full border border-zinc-300 bg-white pl-8 text-sm text-zinc-900 transition-opacity focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 ${
+            search ? 'pr-8' : 'pr-3'
+          } ${acik ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         />
+
+        {acik && search && (
+          <button
+            type="button"
+            // onMouseDown: input'un blur'undan once calissin, yoksa once
+            // blur olup buton fareyle bulusamadan yer degistirebiliyor.
+            onMouseDown={(e) => e.preventDefault()}
+            // Temizledikten sonra ACIK kaliyor: aksi halde metin varken
+            // odak disina cikilmis bir kutuda X'e basmak kutuyu daireye
+            // dondururken odagi gorunmez input'ta birakiyor, kullanicinin
+            // yazdigi bir daha goremeyecegi bir aramaya gidiyordu.
+            onClick={() => {
+              onSearchChange('');
+              setAramaAcik(true);
+            }}
+            aria-label="Aramayı temizle"
+            className="absolute right-2 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-200"
+          >
+            <XMarkIcon className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-1">
