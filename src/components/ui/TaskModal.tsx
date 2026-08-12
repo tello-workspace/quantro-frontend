@@ -9,6 +9,7 @@ import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon
 import { EyeIcon as EyeIconSolid } from '@heroicons/react/24/solid';
 import { useGetWatchStatusQuery, useWatchCardMutation, useUnwatchCardMutation } from '@/features/watchers/watchApi';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
+import { CardRecurrenceSection } from '@/features/automations/components/CardRecurrenceSection';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
 import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType, Priority, CardType } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
@@ -2524,6 +2525,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   spentMinutes={task.spentMinutes ?? 0}
                   isAdmin={isAdmin}
                   onEstimateChange={(minutes) => setTask({ ...task, estimateMinutes: minutes })}
+                />
+              )}
+
+              {showSettings && taskId !== 'new' && isAdmin && (
+                <CardRecurrenceSection
+                  cardId={task.id}
+                  orgId={orgId}
+                  projectId={projectId}
+                  columnId={task.columnId}
+                  cardTitle={task.title}
                 />
               )}
 

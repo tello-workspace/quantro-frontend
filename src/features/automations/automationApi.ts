@@ -26,6 +26,7 @@ export interface AutomationRule {
   dueSoonDays: number | null;
   conditionPriority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | null;
   conditionLabelId: string | null;
+  sourceCardId: string | null;
 }
 
 export interface CreateAutomationRuleInput {
@@ -41,6 +42,7 @@ export interface CreateAutomationRuleInput {
   dueSoonDays?: number | null;
   conditionPriority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | null;
   conditionLabelId?: string | null;
+  sourceCardId?: string | null;
 }
 
 interface ApiEnvelope<T> {
@@ -80,6 +82,11 @@ export const automationApi = api.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { projectId }) => [{ type: 'Project', id: `automations-${projectId}` }],
     }),
+    getCardRecurrence: builder.query<AutomationRule | null, string>({
+      query: (cardId) => `/cards/${cardId}/recurrence`,
+      transformResponse: (response: ApiEnvelope<AutomationRule | null>) => response.data,
+      providesTags: (_result, _error, cardId) => [{ type: 'Card', id: `recurrence-${cardId}` }],
+    }),
   }),
 });
 
@@ -88,4 +95,5 @@ export const {
   useCreateAutomationRuleMutation,
   useToggleAutomationRuleMutation,
   useDeleteAutomationRuleMutation,
+  useGetCardRecurrenceQuery,
 } = automationApi;

@@ -6,6 +6,7 @@ import {
   useGetNotificationPrefsQuery,
   useSetNotificationPrefMutation,
 } from '@/features/notifications/notificationsApi';
+import { useGetMeQuery, useSetDigestPreferenceMutation } from '@/features/auth/meApi';
 import { useTranslation } from '@/hooks/useTranslation';
 
 // Bildirim tiplerinin gorunur adlari. Backend NotificationType enum'iyla
@@ -37,6 +38,16 @@ export const NotificationPrefsSection: React.FC = () => {
   const { t } = useTranslation();
   const { data: prefs = [], isLoading } = useGetNotificationPrefsQuery();
   const [setPref] = useSetNotificationPrefMutation();
+  const { data: me } = useGetMeQuery();
+  const [setDigestPref] = useSetDigestPreferenceMutation();
+
+  const handleDigestToggle = async () => {
+    try {
+      await setDigestPref({ enabled: !me?.dailyDigestEnabled }).unwrap();
+    } catch {
+      toast.error(t('notificationPrefsError'));
+    }
+  };
 
   // Kapali tipler: prefs listesinde enabled=false olanlar
   const mutedTypes = React.useMemo(
@@ -58,6 +69,31 @@ export const NotificationPrefsSection: React.FC = () => {
 
   return (
     <div className="space-y-1">
+      {me && (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <div>
+            <p className="text-sm font-medium text-foreground">Günlük özet e-postası</p>
+            <p className="text-xs text-muted-foreground">
+              Her sabah yaklaşan teslim tarihleri, yeni atanan kartlar ve bekleyen talepler
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={me.dailyDigestEnabled}
+            onClick={handleDigestToggle}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+              me.dailyDigestEnabled ? 'bg-emerald-500' : 'bg-muted'
+            }`}
+          >
+            <span
+              className={`inline-block size-4 transform rounded-full bg-white shadow transition-transform ${
+                me.dailyDigestEnabled ? 'translate-x-[18px]' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      )}
       {Object.entries(NOTIFICATION_TYPE_LABELS).map(([type, label]) => {
         const isMuted = mutedTypes.has(type);
         return (

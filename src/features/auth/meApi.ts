@@ -26,6 +26,7 @@ export interface Me {
   hasAiApiKey: boolean;
   aiBaseUrl: string | null;
   aiModel: string | null;
+  dailyDigestEnabled: boolean;
 }
 
 export interface UpdateProfileInput {
@@ -96,6 +97,15 @@ export const meApi = api.injectEndpoints({
       transformResponse: (response: ApiEnvelope<Me>) => response.data,
       invalidatesTags: ['Me'],
     }),
+    setDigestPreference: builder.mutation<{ enabled: boolean }, { enabled: boolean }>({
+      query: (body) => ({
+        url: '/me/digest-preference',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (response: ApiEnvelope<{ enabled: boolean }>) => response.data,
+      invalidatesTags: ['Me'],
+    }),
     uploadAvatar: builder.mutation<{ id: string; avatarUrl: string | null }, File>({
       query: (file) => {
         const formData = new FormData();
@@ -143,6 +153,7 @@ export const meApi = api.injectEndpoints({
 export const {
   useGetMeQuery,
   useUpdateProfileMutation,
+  useSetDigestPreferenceMutation,
   useUploadAvatarMutation,
   useSetPresetAvatarMutation,
   useSyncGithubProfileMutation,
