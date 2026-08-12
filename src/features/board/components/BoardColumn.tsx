@@ -4,13 +4,23 @@ import { useDroppable, useDraggable, useDndContext } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { Task } from '../services/boardService';
-import { PlusIcon, GripVerticalIcon, PencilIcon, Trash2Icon, BookmarkIcon } from 'lucide-react';
+import { PlusIcon, GripVerticalIcon, PencilIcon, Trash2Icon, BookmarkIcon, Settings2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useConfirm } from '@/hooks/useConfirm';
 import type { CardTemplate } from '@/features/templates/templateApi';
+import type { ColumnRuleMode } from '../services/boardService';
 import { useTranslation } from '@/hooks/useTranslation';
+
+export interface ColumnTransitionRules {
+  transitionMode: ColumnRuleMode;
+  requireAssignee: boolean;
+  requireChecklistComplete: boolean;
+  requireDescription: boolean;
+  requireNoOpenBlockers: boolean;
+}
 
 interface BoardColumnProps {
   id: string;
@@ -49,6 +59,9 @@ interface BoardColumnProps {
   laneKey?: string;
   /** Swimlane basliginda kolon basligi tekrar etmesin diye gizlenebilir */
   hideHeader?: boolean;
+  /** Bu koluna GECIS kurallari (bkz. ColumnTransitionRules) - undefined ise ayar butonu gizlenir */
+  transitionRules?: ColumnTransitionRules;
+  onUpdateTransitionRules?: (columnId: string, rules: ColumnTransitionRules) => void;
 }
 
 export const BoardColumn: React.FC<BoardColumnProps> = ({
@@ -77,6 +90,8 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
   onMarqueeEnd,
   laneKey,
   hideHeader = false,
+  transitionRules,
+  onUpdateTransitionRules,
 }) => {
   const { t } = useTranslation();
   // Card drop zone — main column body
@@ -286,6 +301,12 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
               {t('wipLimitFull')}
             </span>
           )}
+          {isAdmin && transitionRules && onUpdateTransitionRules && (
+            <ColumnRulesPopover
+              rules={transitionRules}
+              onChange={(rules) => onUpdateTransitionRules(id, rules)}
+            />
+          )}
           {isAdmin && (
             <button
               onClick={handleDelete}
@@ -413,5 +434,71 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
     </div>
       )}
     </div>
+  );
+};
+
+const KURAL_SECENEKLERI: { key: keyof Omit<ColumnTransitionRules, 'transitionMode'>; label: string }[] = [
+  { key: 'requireAssignee', label: 'Atanan kişi zorunlu' },
+  { key: 'requireChecklistComplete', label: 'Checklist tamamlanmış olmalı' },
+  { key: 'requireDescription', label: 'Açıklama boş olamaz' },
+  { key: 'requireNoOpenBlockers', label: 'Bloklayan kart kapalı olmalı' },
+];
+
+// Kolon GECIS kurallari: admin bu koluna kart TASIRKEN hangi kosullarin
+// aranacagini ve ihlalde ne olacagini (uyar/engelle) buradan ayarlar.
+const ColumnRulesPopover: React.FC<{
+  rules: ColumnTransitionRules;
+  onChange: (rules: ColumnTransitionRules) => void;
+}> = ({ rules, onChange }) => {
+  const aktif = rules.transitionMode !== 'OFF';
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            className={`flex shrink-0 items-center justify-center rounded-md p-1 transition-colors cursor-pointer ${
+              aktif ? 'text-primary' : 'text-muted-foreground/30 hover:text-foreground'
+            }`}
+            title="Kolon geçiş kuralları"
+          >
+            <Settings2Icon className="h-3.5 w-3.5" />
+          </button>
+        }
+      />
+      <PopoverContent className="w-64 p-3" align="end">
+        <p className="mb-2 text-xs font-semibold text-foreground">Bu koluna geçiş kuralları</p>
+        <div className="mb-3 flex gap-1">
+          {(['OFF', 'WARN', 'ENFORCE'] as const).map((mod) => (
+            <button
+              key={mod}
+              type="button"
+              onClick={() => onChange({ ...rules, transitionMode: mod })}
+              className={`flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                rules.transitionMode === mod
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-accent'
+              }`}
+            >
+              {mod === 'OFF' ? 'Kapalı' : mod === 'WARN' ? 'Uyar' : 'Engelle'}
+            </button>
+          ))}
+        </div>
+        {aktif && (
+          <div className="space-y-1.5">
+            {KURAL_SECENEKLERI.map((secenek) => (
+              <label key={secenek.key} className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rules[secenek.key]}
+                  onChange={(e) => onChange({ ...rules, [secenek.key]: e.target.checked })}
+                  className="size-3.5 rounded border-border"
+                />
+                {secenek.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };

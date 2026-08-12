@@ -617,7 +617,18 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           ...prev,
           columns: {
             ...prev.columns,
-            [payload.id]: { id: payload.id, title: payload.name, wipLimit: payload.wipLimit ?? null, isDone: payload.isDone, taskIds: [] },
+            [payload.id]: {
+              id: payload.id,
+              title: payload.name,
+              wipLimit: payload.wipLimit ?? null,
+              isDone: payload.isDone,
+              taskIds: [],
+              transitionMode: 'OFF',
+              requireAssignee: false,
+              requireChecklistComplete: false,
+              requireDescription: false,
+              requireNoOpenBlockers: false,
+            },
           },
         };
       });
@@ -956,15 +967,53 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     });
 
     try {
-      await yenidenDene(() =>
+      const sonuc = await yenidenDene(() =>
         boardService.moveTask(projectId, activeTaskId, destinationColumn.id, newPosition),
       );
+      // WARN modundaki gecis kurali ihlali - tasima oldu ama eksik var,
+      // kullaniciya bilgi ver (engel degil).
+      if (sonuc.transitionWarnings && sonuc.transitionWarnings.length > 0) {
+        toast.warning(`"${destinationColumn.title}" sütununa geçti ama: ${sonuc.transitionWarnings.join(', ')}`);
+      }
     } catch (error) {
       console.error('Kart taşınırken veritabanı hatası:', error);
-      await sunucuylaEsitle(
-        'Kart taşınamadı.',
-        (taze) => taze.tasks[activeTaskId]?.columnId === destinationColumn.id,
-      );
+      const mesaj = error instanceof Error ? error.message : 'Kart taşınamadı.';
+      // ENFORCE modunda reddedilen bir tasima admin icin "yine de tasi"
+      // secenegiyle geliyor - member'a bu secenek gosterilmiyor, backend
+      // zaten force'u sadece admin'den kabul ediyor.
+      if (isAdmin) {
+        toast.error(mesaj, {
+          action: {
+            label: 'Yine de taşı',
+            onClick: async () => {
+              try {
+                await boardService.moveTask(projectId, activeTaskId, destinationColumn.id, newPosition, true);
+                setBoardData((prev) => {
+                  if (!prev) return prev;
+                  const existingTask = prev.tasks[activeTaskId];
+                  return {
+                    ...prev,
+                    tasks: existingTask
+                      ? { ...prev.tasks, [activeTaskId]: { ...existingTask, columnId: destinationColumn.id, position: newPosition } }
+                      : prev.tasks,
+                    columns: placeCard(prev.columns, activeTaskId, destinationColumn.id, destinationColumn.taskIds.length),
+                  };
+                });
+              } catch (zorlaHata) {
+                toast.error(zorlaHata instanceof Error ? zorlaHata.message : 'Kart taşınamadı.');
+              }
+            },
+          },
+        });
+      } else {
+        toast.error(mesaj);
+      }
+      // sunucuylaEsitle KULLANILMIYOR: o kendi toast'ini da basardi, mesaji
+      // (ve "Yine de tasi" secenegini) yukarida zaten gosterdik - iki kez
+      // hata gostermemek icin burada sadece optimistik gorunumu duzeltmek
+      // uzere sunucudan taze veri cekiyoruz, ek bir toast yok.
+      const taze = await boardService.getBoardData(projectId);
+      if (taze) setBoardData(taze);
     }
   };
 
@@ -1312,6 +1361,11 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
               wipLimit: newCol.wipLimit,
               isDone: newCol.isDone,
               taskIds: [],
+              transitionMode: newCol.transitionMode,
+              requireAssignee: newCol.requireAssignee,
+              requireChecklistComplete: newCol.requireChecklistComplete,
+              requireDescription: newCol.requireDescription,
+              requireNoOpenBlockers: newCol.requireNoOpenBlockers,
             },
           },
         };
@@ -1799,6 +1853,28 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     }
   }, [isAdmin, t]);
 
+  const handleUpdateTransitionRules = useCallback(async (columnId: string, rules: {
+    transitionMode: 'OFF' | 'WARN' | 'ENFORCE';
+    requireAssignee: boolean;
+    requireChecklistComplete: boolean;
+    requireDescription: boolean;
+    requireNoOpenBlockers: boolean;
+  }) => {
+    if (!isAdmin) return;
+    // Optimistik: kural degisikligi anlik yansisin, PATCH arka planda gitsin.
+    setBoardData((prev) => {
+      if (!prev || !prev.columns[columnId]) return prev;
+      return { ...prev, columns: { ...prev.columns, [columnId]: { ...prev.columns[columnId], ...rules } } };
+    });
+    try {
+      await boardService.updateColumn(columnId, rules);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Geçiş kuralları güncellenemedi.');
+      const taze = await boardService.getBoardData(projectId);
+      if (taze) setBoardData(taze);
+    }
+  }, [isAdmin, projectId]);
+
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">{t('boardLoading')}</div>;
   }
@@ -1864,6 +1940,14 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           onMarqueeMove={handleMarqueeMove}
           onMarqueeEnd={handleMarqueeEnd}
           laneKey={laneKey}
+          transitionRules={{
+            transitionMode: column.transitionMode,
+            requireAssignee: column.requireAssignee,
+            requireChecklistComplete: column.requireChecklistComplete,
+            requireDescription: column.requireDescription,
+            requireNoOpenBlockers: column.requireNoOpenBlockers,
+          }}
+          onUpdateTransitionRules={handleUpdateTransitionRules}
         />
       );
     });

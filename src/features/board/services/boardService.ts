@@ -185,12 +185,19 @@ export interface ArchivedTask {
   archivedBy: { id: string; name: string; avatarUrl?: string | null } | null;
 }
 
+export type ColumnRuleMode = 'OFF' | 'WARN' | 'ENFORCE';
+
 export interface Column {
   id: string;
   title: string;
   wipLimit: number | null;
   isDone: boolean;
   taskIds: string[];
+  transitionMode: ColumnRuleMode;
+  requireAssignee: boolean;
+  requireChecklistComplete: boolean;
+  requireDescription: boolean;
+  requireNoOpenBlockers: boolean;
 }
 
 export interface BoardData {
@@ -250,14 +257,26 @@ export const boardService = {
     }
   },
 
-  async moveTask(projectId: string, taskId: string, targetColumnId: string, position: number) {
+  async moveTask(
+    projectId: string,
+    taskId: string,
+    targetColumnId: string,
+    position: number,
+    force?: boolean,
+  ): Promise<RawCard & { transitionWarnings?: string[] }> {
     const res = await fetch(`${API_BASE_URL}/cards/${taskId}`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ columnId: targetColumnId, position }),
+      // force: hedef kolonda ENFORCE modunda bir gecis kurali ihlal edilmisse
+      // ve kullanici (admin) "yine de tasi" derse - bkz. handleDragEnd.
+      body: JSON.stringify({ columnId: targetColumnId, position, ...(force ? { force } : {}) }),
     });
-    if (!res.ok) throw new Error('Kart taşınamadı.');
-    return await res.json();
+    // Genel bir metin yerine backend'in asil sebebini (ornegin "Atanan kisi
+    // yok") gosteriyoruz - kullanici NEDEN reddedildigini gormeden "yine de
+    // tasi" secenegini degerlendiremez.
+    if (!res.ok) throw new Error(await readApiError(res, 'Kart taşınamadı.'));
+    const json = await res.json();
+    return extractData(json);
   },
 
   // Bir kartin ust gorevini (parentCardId) tek basina degistirir - hem "bu
@@ -421,7 +440,15 @@ export const boardService = {
     return json.data;
   },
 
-  async updateColumn(columnId: string, data: { name?: string; wipLimit?: number | null }): Promise<void> {
+  async updateColumn(columnId: string, data: {
+    name?: string;
+    wipLimit?: number | null;
+    transitionMode?: ColumnRuleMode;
+    requireAssignee?: boolean;
+    requireChecklistComplete?: boolean;
+    requireDescription?: boolean;
+    requireNoOpenBlockers?: boolean;
+  }): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/columns/${columnId}`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
@@ -466,6 +493,11 @@ export const boardService = {
       wipLimit: raw.wipLimit,
       isDone: raw.isDone,
       taskIds: [],
+      transitionMode: 'OFF',
+      requireAssignee: false,
+      requireChecklistComplete: false,
+      requireDescription: false,
+      requireNoOpenBlockers: false,
     };
   },
 };
