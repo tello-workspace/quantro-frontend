@@ -253,15 +253,55 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // Takvimden boş güne tıklanınca yeni kartın önceden dolu geleceği tarih
   const [initialDueDate, setInitialDueDate] = useState('');
 
-  const [search, setSearch] = useState('');
+  // Filtreler URL'ye yaziliyor ki bir link paylasilinca alici AYNI filtrelenmis
+  // gorunumu gorsun (kaydedilmis-gorunum akisindan bagimsiz, "bedava" olan
+  // ilk kademe). Ilk render'da mevcut URL'den okunuyor - sayfa yenilense de
+  // filtre kaybolmuyor.
+  const okuUrlListesi = (anahtar: string): string[] => {
+    if (typeof window === 'undefined') return [];
+    const deger = new URLSearchParams(window.location.search).get(anahtar);
+    return deger ? deger.split(',').filter(Boolean) : [];
+  };
+  const [search, setSearch] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('q') ?? '';
+  });
   const [isDesktopChatOpen, setIsDesktopChatOpen] = useState(false);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
-  const [selectedPriorities, setSelectedPriorities] = useState<Set<Priority>>(new Set());
-  const [selectedTypes, setSelectedTypes] = useState<Set<CardType>>(new Set());
-  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<Set<string>>(new Set());
-  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(new Set());
+  const [selectedPriorities, setSelectedPriorities] = useState<Set<Priority>>(
+    () => new Set(okuUrlListesi('priority') as Priority[]),
+  );
+  const [selectedTypes, setSelectedTypes] = useState<Set<CardType>>(
+    () => new Set(okuUrlListesi('type') as CardType[]),
+  );
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<Set<string>>(
+    () => new Set(okuUrlListesi('assignee')),
+  );
+  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(
+    () => new Set(okuUrlListesi('label')),
+  );
+
+  // Filtre degistikce URL'i GUNCELLE (history.replaceState - Next router'i
+  // tetiklemiyor, sayfa yeniden veri cekmiyor, sadece adres cubugu/paylasim
+  // linki guncel kalsin). orgId gibi diger query param'lara dokunmuyor -
+  // mevcut arama string'ine MERGE ediliyor, bastan kurulmuyor.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const setOrDelete = (anahtar: string, deger: string) => {
+      if (deger) params.set(anahtar, deger);
+      else params.delete(anahtar);
+    };
+    setOrDelete('q', search.trim());
+    setOrDelete('priority', [...selectedPriorities].join(','));
+    setOrDelete('type', [...selectedTypes].join(','));
+    setOrDelete('assignee', [...selectedAssigneeIds].join(','));
+    setOrDelete('label', [...selectedLabelIds].join(','));
+    const yeniUrl = `${window.location.pathname}${params.size > 0 ? `?${params.toString()}` : ''}`;
+    window.history.replaceState(null, '', yeniUrl);
+  }, [search, selectedPriorities, selectedTypes, selectedAssigneeIds, selectedLabelIds]);
 
   const togglePriority = (p: Priority) => {
     setSelectedPriorities((prev) => {
