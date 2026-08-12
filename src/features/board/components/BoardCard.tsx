@@ -7,6 +7,7 @@ import { CalendarDaysIcon, UserIcon, ClockIcon, ExclamationTriangleIcon, CheckCi
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useTranslation } from '@/hooks/useTranslation';
+import { CardTypeIcon } from './CardTypeIcon';
 
 export interface CardConflictInfo {
   filePath: string;
@@ -251,6 +252,13 @@ export const BoardCard: React.FC<BoardCardProps> = ({
 
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1">
+          {/* Is tipi ikonu (Epic/Story/Task/Bug/Alt-gorev) - Jira'daki gibi
+              anahtarin hemen solunda, tipi renk+sekilden aninda tanimlanabilir. */}
+          {task.type && task.type !== 'TASK' && (
+            <span title={t(`type${task.type.charAt(0)}${task.type.slice(1).toLowerCase()}` as any)}>
+              <CardTypeIcon type={task.type} />
+            </span>
+          )}
           {/* Insan-okunur kart anahtari (QNT-42). Panoda okunabilmesi asil
               amac: commit mesajina/Slack'e yazilirken kartin cuid'ini
               aramak zorunda kalinmasin. */}

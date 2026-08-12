@@ -195,6 +195,14 @@ const translations = {
     priorityLow: "Düşük",
     priorityNone: "Belirtilmemiş",
 
+    // Card Type Mapping
+    typeLabel: "Tip",
+    typeEpic: "Epic",
+    typeStory: "Story",
+    typeTask: "Görev",
+    typeBug: "Hata",
+    typeSubtask: "Alt Görev",
+
     // Board Column
     deleteColumnTitle: "Sütunu Sil",
     deleteColumnDesc: "Sütunu ve içindeki tüm kartları silmek istediğinize emin misiniz?",
@@ -868,6 +876,14 @@ const translations = {
     priorityMedium: "Medium",
     priorityLow: "Low",
     priorityNone: "Not specified",
+
+    // Card Type Mapping
+    typeLabel: "Type",
+    typeEpic: "Epic",
+    typeStory: "Story",
+    typeTask: "Task",
+    typeBug: "Bug",
+    typeSubtask: "Subtask",
 
     // Board Column
     deleteColumnTitle: "Delete Column",

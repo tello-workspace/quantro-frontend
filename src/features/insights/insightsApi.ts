@@ -39,12 +39,15 @@ export interface DeadlineRiskCard {
   assignees: InsightUser[];
 }
 
+export type CardType = 'EPIC' | 'STORY' | 'TASK' | 'BUG' | 'SUBTASK';
+
 export interface ProjectInsights {
   generatedAt: string;
   staleCards: StaleCard[];
   workload: WorkloadEntry[];
   wipViolations: WipViolation[];
   deadlineRisks: DeadlineRiskCard[];
+  typeBreakdown: Record<CardType, number>;
 }
 
 export interface WeeklySummary {

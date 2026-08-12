@@ -72,6 +72,7 @@ export interface DependencyCard {
 }
 
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type CardType = 'EPIC' | 'STORY' | 'TASK' | 'BUG' | 'SUBTASK';
 
 export interface Task {
   id: string;
@@ -84,6 +85,7 @@ export interface Task {
   columnId: string;
   position?: number;
   priority?: Priority;
+  type?: CardType;
   lastActivityAt?: string;
   assignees?: TaskAssignee[];
   labels?: TaskLabel[];
@@ -119,6 +121,7 @@ export interface RawCard {
   columnId: string;
   position?: number;
   priority?: Priority;
+  type?: CardType;
   lastActivityAt?: string;
   assignees?: { user: { id: string; name: string; avatarUrl?: string | null; badges?: { badge: BadgeInfo }[] } }[];
   labels?: { label: { id: string; name: string; color: string } }[];
@@ -147,6 +150,7 @@ export function normalizeCard(raw: RawCard): Task {
     columnId: raw.columnId,
     position: raw.position,
     priority: raw.priority,
+    type: raw.type,
     lastActivityAt: raw.lastActivityAt,
     assignees: raw.assignees?.map((a) => ({
       ...a.user,
@@ -293,6 +297,7 @@ export const boardService = {
       // priority eskiden gonderilmiyordu: AI'nin onerdigi (ya da elle
       // secilen) oncelik kaydedilmis gibi gorunup sessizce kayboluyordu
       priority: task.priority,
+      type: task.type,
     };
 
     // assigneeIds SADECE atama gercekten degistiyse gonderilir.

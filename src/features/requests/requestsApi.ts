@@ -19,6 +19,7 @@ export interface ChangeRequest {
     title?: string;
     description?: string | null;
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+    type?: 'EPIC' | 'STORY' | 'TASK' | 'BUG' | 'SUBTASK';
     dueDate?: string | null;
     assigneeIds?: string[];
     labelIds?: string[];

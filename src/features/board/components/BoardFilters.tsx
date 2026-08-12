@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import type { Priority } from '../services/boardService';
+import type { Priority, CardType } from '../services/boardService';
 import { PriorityIcon } from './PriorityIcon';
+import { CardTypeIcon } from './CardTypeIcon';
 import type { Label } from '@/features/labels/labelsApi';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -15,6 +16,8 @@ const PRIORITIES: { value: Priority; label: string; renk: string }[] = [
   { value: 'MEDIUM', label: 'Orta', renk: 'text-blue-500' },
   { value: 'LOW', label: 'Düşük', renk: 'text-zinc-400' },
 ];
+
+const TYPES: CardType[] = ['EPIC', 'STORY', 'TASK', 'BUG', 'SUBTASK'];
 
 interface Member {
   userId: string;
@@ -28,6 +31,8 @@ interface BoardFiltersProps {
   labels: Label[];
   selectedPriorities: Set<Priority>;
   onTogglePriority: (priority: Priority) => void;
+  selectedTypes: Set<CardType>;
+  onToggleType: (type: CardType) => void;
   selectedAssigneeIds: Set<string>;
   onToggleAssignee: (userId: string) => void;
   selectedLabelIds: Set<string>;
@@ -47,6 +52,8 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
   labels,
   selectedPriorities,
   onTogglePriority,
+  selectedTypes,
+  onToggleType,
   selectedAssigneeIds,
   onToggleAssignee,
   selectedLabelIds,
@@ -85,6 +92,27 @@ export const BoardFilters: React.FC<BoardFiltersProps> = ({
             >
               <PriorityIcon priority={p.value} className={`size-3.5 shrink-0 ${p.renk}`} />
               {p.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-1">
+        {TYPES.map((tip) => {
+          const active = selectedTypes.has(tip);
+          return (
+            <button
+              key={tip}
+              type="button"
+              onClick={() => onToggleType(tip)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition ${
+                active
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300'
+                  : 'border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400'
+              }`}
+            >
+              <CardTypeIcon type={tip} className="size-3.5 shrink-0" />
+              {t(`type${tip.charAt(0)}${tip.slice(1).toLowerCase()}` as Parameters<typeof t>[0])}
             </button>
           );
         })}

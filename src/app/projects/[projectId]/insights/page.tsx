@@ -9,6 +9,7 @@ import {
 } from '@/features/insights/insightsApi';
 import { WorkloadBarChart } from '@/features/insights/components/WorkloadBarChart';
 import { WipMeter } from '@/features/insights/components/WipMeter';
+import { CardTypeIcon } from '@/features/board/components/CardTypeIcon';
 import { useTranslation } from '@/hooks/useTranslation';
 
 function timeAgo(iso: string): string {
@@ -104,6 +105,29 @@ export default function ProjectInsightsPage() {
                 İş Yükü Dağılımı
               </h2>
               <WorkloadBarChart workload={insights.workload} />
+            </section>
+
+            {/* İş tipi kırılımı: aktif (Done disindaki) kartlarin CardType'a gore sayisi */}
+            <section>
+              <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                İş Tipi Kırılımı
+              </h2>
+              <div className="grid grid-cols-5 gap-3">
+                {(['EPIC', 'STORY', 'TASK', 'BUG', 'SUBTASK'] as const).map((tip) => (
+                  <div
+                    key={tip}
+                    className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center gap-1.5"
+                  >
+                    <CardTypeIcon type={tip} className="size-4" />
+                    <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                      {insights.typeBreakdown[tip]}
+                    </p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {t(`type${tip.charAt(0)}${tip.slice(1).toLowerCase()}` as Parameters<typeof t>[0])}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </section>
 
             {/* Deadline riskleri */}

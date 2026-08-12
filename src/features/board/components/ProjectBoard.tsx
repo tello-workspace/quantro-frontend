@@ -26,7 +26,7 @@ import { BulkActionBar } from './BulkActionBar';
 import { CardContextMenu, type CardContextMenuState } from './CardContextMenu';
 import { TimelineView } from '@/features/roadmap/components/TimelineView';
 import { CalendarView } from './CalendarView';
-import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority } from '../services/boardService';
+import { boardService, calculateFractionalPosition, getAuthHeaders, Task, BoardData, TaskAssignee, Priority, CardType } from '../services/boardService';
 import { TaskModal } from '@/components/ui/TaskModal';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetLabelsQuery, useAttachLabelMutation } from '@/features/labels/labelsApi';
@@ -259,6 +259,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const [newColumnName, setNewColumnName] = useState('');
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [selectedPriorities, setSelectedPriorities] = useState<Set<Priority>>(new Set());
+  const [selectedTypes, setSelectedTypes] = useState<Set<CardType>>(new Set());
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<Set<string>>(new Set());
   const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(new Set());
 
@@ -267,6 +268,14 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       const next = new Set(prev);
       if (next.has(p)) next.delete(p);
       else next.add(p);
+      return next;
+    });
+  };
+  const toggleType = (tip: CardType) => {
+    setSelectedTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(tip)) next.delete(tip);
+      else next.add(tip);
       return next;
     });
   };
@@ -290,6 +299,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   const hasActiveFilters =
     search.trim().length > 0 ||
     selectedPriorities.size > 0 ||
+    selectedTypes.size > 0 ||
     selectedAssigneeIds.size > 0 ||
     selectedLabelIds.size > 0;
 
@@ -347,6 +357,9 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       return false;
     }
     if (selectedPriorities.size > 0 && (!task.priority || !selectedPriorities.has(task.priority))) {
+      return false;
+    }
+    if (selectedTypes.size > 0 && !selectedTypes.has(task.type ?? 'TASK')) {
       return false;
     }
     if (
@@ -995,6 +1008,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       title: string;
       description?: string | null;
       priority?: Priority;
+      type?: CardType;
       dueDate?: string | null;
       assigneeIds?: string[];
       labelIds?: string[];
@@ -1015,6 +1029,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         title: payload.title,
         description: payload.description ?? undefined,
         priority: payload.priority ?? 'MEDIUM',
+        type: payload.type ?? 'TASK',
         dueDate: payload.dueDate ?? undefined,
         // avatarUrl da tasiniyor: yalnizca {id, name} yazmak yeni olusturulan
         // kartin avatarini bos harfe dusuruyordu.
@@ -1938,6 +1953,8 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             labels={labels}
             selectedPriorities={selectedPriorities}
             onTogglePriority={togglePriority}
+            selectedTypes={selectedTypes}
+            onToggleType={toggleType}
             selectedAssigneeIds={selectedAssigneeIds}
             onToggleAssignee={toggleAssignee}
             selectedLabelIds={selectedLabelIds}
@@ -1946,6 +1963,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             onClear={() => {
               setSearch('');
               setSelectedPriorities(new Set());
+              setSelectedTypes(new Set());
               setSelectedAssigneeIds(new Set());
               setSelectedLabelIds(new Set());
             }}

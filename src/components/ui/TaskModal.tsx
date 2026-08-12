@@ -4,12 +4,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PriorityIcon } from '@/features/board/components/PriorityIcon';
+import { CardTypeIcon } from '@/features/board/components/CardTypeIcon';
 import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { EyeIcon as EyeIconSolid } from '@heroicons/react/24/solid';
 import { useGetWatchStatusQuery, useWatchCardMutation, useUnwatchCardMutation } from '@/features/watchers/watchApi';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
 import { BookmarkIcon } from '@heroicons/react/24/outline';
-import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType, Priority } from '@/features/board/services/boardService';
+import { boardService, Task, TaskLabel, DependencyCard, DependencyRelationType, Priority, CardType } from '@/features/board/services/boardService';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
 import { useFillCardWithAiMutation } from '@/features/ai/aiApi';
@@ -984,6 +985,7 @@ interface CreateTaskPayload {
   title: string;
   description?: string | null;
   priority?: Priority;
+  type?: CardType;
   dueDate?: string | null;
   assigneeIds?: string[];
   labelIds?: string[];
@@ -1297,6 +1299,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 title: task.title.trim(),
                 description: task.description?.trim() || null,
                 priority: task.priority,
+                type: task.type,
                 dueDate: task.dueDate || null,
                 assigneeIds: task.assignees?.map((a) => a.id) ?? [],
                 labelIds: task.labels?.map((l) => l.id) ?? [],
@@ -1319,6 +1322,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             title: task.title.trim(),
             description: task.description?.trim() || null,
             priority: task.priority,
+            type: task.type,
             dueDate: task.dueDate || null,
             assigneeIds: task.assignees?.map((a) => a.id) ?? [],
             labelIds: task.labels?.map((l) => l.id) ?? [],
@@ -1343,6 +1347,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               title: task.title,
               description: task.description ?? null,
               priority: task.priority,
+              type: task.type,
               dueDate: task.dueDate ?? null,
               assigneeIds: task.assignees?.map((a) => a.id) ?? [],
             },
@@ -2405,6 +2410,47 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             <span className="flex items-center gap-1.5">
                               <PriorityIcon priority={oncelik} />
                               {t(`priority${oncelik.charAt(0)}${oncelik.slice(1).toLowerCase()}` as Parameters<typeof t>[0])}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label htmlFor="cardType" className="flex items-center gap-1.5 mb-1 text-sm font-medium text-muted-foreground">
+                      {t('typeLabel')}
+                    </label>
+                    <Select
+                      value={task.type || 'TASK'}
+                      onValueChange={(val) => {
+                        if (!val || !task) return;
+                        setTask({ ...task, type: val as CardType });
+                      }}
+                      disabled={isFilling}
+                    >
+                      <SelectTrigger
+                        id="cardType"
+                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <CardTypeIcon type={task.type || 'TASK'} />
+                          <SelectValue>
+                            {(deger: string | null) =>
+                              t(
+                                `type${(deger || 'TASK').charAt(0)}${(deger || 'TASK').slice(1).toLowerCase()}` as Parameters<
+                                  typeof t
+                                >[0],
+                              )
+                            }
+                          </SelectValue>
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(['EPIC', 'STORY', 'TASK', 'BUG', 'SUBTASK'] as CardType[]).map((tip) => (
+                          <SelectItem key={tip} value={tip}>
+                            <span className="flex items-center gap-1.5">
+                              <CardTypeIcon type={tip} />
+                              {t(`type${tip.charAt(0)}${tip.slice(1).toLowerCase()}` as Parameters<typeof t>[0])}
                             </span>
                           </SelectItem>
                         ))}
