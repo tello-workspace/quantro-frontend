@@ -11,6 +11,7 @@ import { useGetOrganizationByIdQuery } from '@/features/organizations/organizati
 import { useGetProjectByIdQuery } from '@/features/projects/projectsApi';
 import { ProjectAccessSection } from '@/features/projects/components/ProjectAccessSection';
 import { SaveAsTemplateSection } from '@/features/projects/components/SaveAsTemplateSection';
+import { WebhooksSection } from '@/features/projects/components/WebhooksSection';
 import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { useGetCustomFieldsQuery } from '@/features/customFields/customFieldsApi';
@@ -226,6 +227,12 @@ export default function ProjectManagePage() {
                 description="Bu projenin kolon+etiket yapısını bir şablon olarak kaydet - yeni proje açarken tekrar kullanılabilir."
               >
                 <SaveAsTemplateSection orgId={orgId} projectId={projectId} />
+              </SectionShell>
+              <SectionShell
+                title="Webhook'lar"
+                description="Kart olayları için Slack/Discord veya kendi sunucuna imzalı bildirim gönder."
+              >
+                <WebhooksSection projectId={projectId} />
               </SectionShell>
             </TabsContent>
           )}
