@@ -6,11 +6,16 @@ import { useParams, useSearchParams } from 'next/navigation';
 import {
   useGetProjectInsightsQuery,
   useGetWeeklySummaryQuery,
+  useGetCumulativeFlowQuery,
+  useGetCycleTimeQuery,
 } from '@/features/insights/insightsApi';
 import { WorkloadBarChart } from '@/features/insights/components/WorkloadBarChart';
 import { WipMeter } from '@/features/insights/components/WipMeter';
 import { CardTypeIcon } from '@/features/board/components/CardTypeIcon';
+import { SimpleLineChart, type LineSeries } from '@/components/ui/SimpleLineChart';
 import { useTranslation } from '@/hooks/useTranslation';
+
+const CFD_RENK_PALETI = ['#3B82F6', '#F97316', '#8B5CF6', '#22C55E', '#EAB308', '#EC4899', '#64748B'];
 
 function timeAgo(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / (24 * 60 * 60 * 1000));
@@ -34,6 +39,8 @@ export default function ProjectInsightsPage() {
 
   const { data: insights, isLoading: insightsLoading } = useGetProjectInsightsQuery({ projectId });
   const { data: summary, isLoading: summaryLoading } = useGetWeeklySummaryQuery({ projectId });
+  const { data: flow, isLoading: flowLoading } = useGetCumulativeFlowQuery({ projectId });
+  const { data: cycleTime, isLoading: cycleTimeLoading } = useGetCycleTimeQuery({ projectId });
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
@@ -185,6 +192,72 @@ export default function ProjectInsightsPage() {
             </section>
           </>
         ) : null}
+
+        {/* Kümülatif akış (CFD): sütun bazında zaman içindeki kart sayısı */}
+        <section>
+          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+            Kümülatif Akış (CFD)
+          </h2>
+          {flowLoading ? (
+            <p className="text-sm text-zinc-400">{t('loading')}</p>
+          ) : flow && flow.series.length > 0 ? (
+            <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+              <SimpleLineChart
+                labels={flow.series.map((s) => s.date.slice(5))}
+                series={flow.columns.map((col, i): LineSeries => ({
+                  label: col.name,
+                  color: CFD_RENK_PALETI[i % CFD_RENK_PALETI.length],
+                  values: flow.series.map((s) => s.counts[col.id] ?? 0),
+                }))}
+              />
+              {flow.totalCards > 0 && flow.cardsWithMoveHistory < flow.totalCards && (
+                <p className="mt-2 text-xs text-zinc-400">
+                  {flow.totalCards - flow.cardsWithMoveHistory} kart hiç taşınmadığı için mevcut sütununda sabit gösteriliyor.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-400">Henüz yeterli veri yok.</p>
+          )}
+        </section>
+
+        {/* Cycle time: yaratımdan Done'a giriş süresi, haftalık trend */}
+        <section>
+          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+            Cycle Time
+          </h2>
+          {cycleTimeLoading ? (
+            <p className="text-sm text-zinc-400">{t('loading')}</p>
+          ) : cycleTime && cycleTime.sampledCards > 0 ? (
+            <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+              <div className="flex items-center gap-6 mb-3">
+                <div>
+                  <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                    {cycleTime.overallAverageDays} gün
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">ortalama tamamlanma süresi</p>
+                </div>
+                {cycleTime.sampledCards < cycleTime.totalDoneCards && (
+                  <p className="text-xs text-zinc-400">
+                    {cycleTime.sampledCards} / {cycleTime.totalDoneCards} biten kart için hesaplanabildi
+                  </p>
+                )}
+              </div>
+              <SimpleLineChart
+                labels={cycleTime.weeklySeries.map((w) => w.weekStart.slice(5))}
+                series={[
+                  {
+                    label: 'Haftalık ortalama (gün)',
+                    color: '#3B82F6',
+                    values: cycleTime.weeklySeries.map((w) => w.averageDays ?? 0),
+                  },
+                ]}
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-400">Henüz tamamlanmış kart yok.</p>
+          )}
+        </section>
       </div>
     </main>
   );
