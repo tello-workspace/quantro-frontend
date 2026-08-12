@@ -9,6 +9,7 @@ export interface ProjectDocument {
   mimeType: string;
   createdAt: string;
   downloadUrl: string | null;
+  textStatus: 'ok' | 'pending' | 'unsupported';
   uploader: { id: string; name: string };
 }
 

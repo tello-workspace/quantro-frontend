@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, Download, FileText, Trash2, UploadCloud, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Download, FileText, Trash2, UploadCloud, X } from 'lucide-react';
 import { useGetProjectByIdQuery } from '@/features/projects/projectsApi';
 import { useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
@@ -158,7 +158,20 @@ export default function ProjectDocumentsPage() {
                 <div className="flex min-w-0 items-center gap-2">
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-foreground">{d.fileName}</p>
+                    <p className="flex items-center gap-1.5 truncate font-medium text-foreground">
+                      <span className="truncate">{d.fileName}</span>
+                      {d.textStatus !== 'ok' && (
+                        <span
+                          title={
+                            d.textStatus === 'unsupported'
+                              ? 'Bu dosya türünden metin çıkarılamıyor — Claude MCP üzerinden sadece indirme linkine erişebilir.'
+                              : 'Bu belgeden henüz metin çıkarılamadı (taranmış/bozuk olabilir) — Claude okumayı denediğinde otomatik tekrar denenir.'
+                          }
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {formatFileSize(d.fileSize)} · {d.uploader.name} · {timeAgo(d.createdAt)}
                     </p>
