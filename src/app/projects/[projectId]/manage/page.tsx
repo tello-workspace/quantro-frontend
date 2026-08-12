@@ -12,6 +12,7 @@ import { useGetProjectByIdQuery } from '@/features/projects/projectsApi';
 import { ProjectAccessSection } from '@/features/projects/components/ProjectAccessSection';
 import { SaveAsTemplateSection } from '@/features/projects/components/SaveAsTemplateSection';
 import { WebhooksSection } from '@/features/projects/components/WebhooksSection';
+import { ImportWizardDialog } from '@/features/projects/components/ImportWizardDialog';
 import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
 import { useGetCustomFieldsQuery } from '@/features/customFields/customFieldsApi';
@@ -233,6 +234,12 @@ export default function ProjectManagePage() {
                 description="Kart olayları için Slack/Discord veya kendi sunucuna imzalı bildirim gönder."
               >
                 <WebhooksSection projectId={projectId} />
+              </SectionShell>
+              <SectionShell
+                title="İçe Aktar"
+                description="Trello pano dışa aktarımı (.json) veya Jira issue dışa aktarımı (.csv) yükleyip bu projeye kart olarak aktar."
+              >
+                <ImportWizardDialog projectId={projectId} members={members} />
               </SectionShell>
             </TabsContent>
           )}
