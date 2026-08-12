@@ -28,8 +28,8 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               // gorseller: kendi + supabase (avatar/cover)
               "img-src 'self' data: blob: https://*.supabase.co",
-              // API + websocket (socket.io): backend Render hostu
-              "connect-src 'self' https://quantro-backend-1.onrender.com https://*.supabase.co wss://quantro-backend-1.onrender.com ws://localhost:4000 http://localhost:4000",
+              // API + websocket (socket.io): backend Render hostu + Sentry hata raporlama
+              "connect-src 'self' https://quantro-backend-1.onrender.com https://*.supabase.co wss://quantro-backend-1.onrender.com ws://localhost:4000 http://localhost:4000 https://*.ingest.de.sentry.io",
               "font-src 'self' data:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
