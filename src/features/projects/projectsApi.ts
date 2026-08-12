@@ -22,6 +22,19 @@ export interface ProjectMember {
   user: { id: string; name: string; email: string; avatarUrl: string | null };
 }
 
+export interface ProjectTemplateSummary {
+  id: string;
+  name: string;
+  columnCount: number;
+  labelCount: number;
+  createdBy?: { id: string; name: string };
+}
+
+export interface ProjectTemplateList {
+  builtin: ProjectTemplateSummary[];
+  custom: ProjectTemplateSummary[];
+}
+
 interface ProjectsResponse {
   success: boolean;
   data: Project[];
@@ -55,7 +68,7 @@ export const projectsApi = api.injectEndpoints({
       }),
       invalidatesTags: ['Project'],
     }),
-    createProject: builder.mutation<Project, { orgId: string; name: string; description?: string; key?: string }>({
+    createProject: builder.mutation<Project, { orgId: string; name: string; description?: string; key?: string; templateId?: string }>({
       query: ({ orgId, ...body }) => ({
         url: `/organizations/${orgId}/projects`,
         method: 'POST',
@@ -93,6 +106,26 @@ export const projectsApi = api.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { projectId }) => [{ type: 'ProjectMember', id: projectId }],
     }),
+    getProjectTemplates: builder.query<ProjectTemplateList, { orgId: string }>({
+      query: ({ orgId }) => `/organizations/${orgId}/project-templates`,
+      transformResponse: (response: { success: boolean; data: ProjectTemplateList }) => response.data,
+      providesTags: ['ProjectTemplate'],
+    }),
+    saveProjectAsTemplate: builder.mutation<void, { orgId: string; projectId: string; name: string }>({
+      query: ({ orgId, projectId, name }) => ({
+        url: `/organizations/${orgId}/projects/${projectId}/save-as-template`,
+        method: 'POST',
+        body: { name },
+      }),
+      invalidatesTags: ['ProjectTemplate'],
+    }),
+    deleteProjectTemplate: builder.mutation<void, { orgId: string; templateId: string }>({
+      query: ({ orgId, templateId }) => ({
+        url: `/organizations/${orgId}/project-templates/${templateId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['ProjectTemplate'],
+    }),
   }),
 });
 
@@ -106,4 +139,7 @@ export const {
   useGetProjectMembersQuery,
   useAddProjectMemberMutation,
   useRemoveProjectMemberMutation,
+  useGetProjectTemplatesQuery,
+  useSaveProjectAsTemplateMutation,
+  useDeleteProjectTemplateMutation,
 } = projectsApi;
