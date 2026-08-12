@@ -65,6 +65,8 @@ export function useRealtimeNotifications() {
             return { type: "warning" as const, icon: "🕐" };
           case "WIP_EXCEEDED":
             return { type: "warning" as const, icon: "📊" };
+          case "MAIL_RECEIVED":
+            return { type: "info" as const, icon: "📧" };
           default:
             return { type: "default" as const, icon: "🔔" };
         }

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check, Zap, ListPlus, Inbox } from 'lucide-react';
+import { LayoutGrid, ListChecks, UserCircle, ChevronsUpDown, FolderKanban, Check, Zap, ListPlus, Inbox, Mail } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -16,12 +16,15 @@ import {
 } from '@/components/ui/sidebar';
 import { useGetMyOrganizationsQuery, useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
+import { useGetUnreadMailCountQuery } from '@/features/mail/mailApi';
+import { useRealtimeMail } from '@/features/mail/useRealtimeMail';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/hooks/useTranslation';
 
 const NAV_ITEMS = [
   { href: '/projects', label: 'Panolarım', icon: LayoutGrid },
   { href: '/dashboard', label: 'Bana Atananlar', icon: ListChecks },
+  { href: '/mail', label: 'Mailbox', icon: Mail },
   { href: '/profile', label: 'Profil', icon: UserCircle },
 ];
 
@@ -40,6 +43,8 @@ export function AppSidebar() {
   const { data: org } = useGetOrganizationByIdQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
   const isAdmin = org?.myRole === 'ADMIN';
   const { data: projects = [], refetch: refetchProjects } = useGetProjectsQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
+  const { data: unreadMailCount = 0 } = useGetUnreadMailCountQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
+  useRealtimeMail();
   const [orgSelectOpen, setOrgSelectOpen] = useState(false);
 
   // activeOrgId ilk mount'ta undefined olabilir (orgs henuz yuklenmemis).
@@ -111,6 +116,11 @@ export function AppSidebar() {
                       <Link href={href}>
                         <item.icon />
                         <span>{item.label}</span>
+                        {item.href === '/mail' && unreadMailCount > 0 && (
+                          <span className="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">
+                            {unreadMailCount}
+                          </span>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

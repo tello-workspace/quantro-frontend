@@ -226,6 +226,9 @@ type SocketEventMap = {
   // Git Cakisma Erken Uyari
   "conflict:detected": (data: ConflictPayload) => void;
   "conflict:resolved": (data: ConflictResolvedPayload) => void;
+
+  // Sirket ici mailbox
+  "mail:new": (data: { mailId: string; subject: string; senderName: string }) => void;
   // Custom room events
   "join:project": (projectId: string) => void;
   "leave:project": (projectId: string) => void;
