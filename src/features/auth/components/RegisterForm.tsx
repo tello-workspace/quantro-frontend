@@ -42,7 +42,7 @@ export default function RegisterForm() {
     }
 
     try {
-      const result = await registerUser({ name, email, password }).unwrap();
+      await registerUser({ name, email, password }).unwrap();
 
       // Artık doğrulama gerekmiyor - doğrudan login sayfasına yönlendir
       toast.success('Kayıt başarılı! Giriş yapabilirsiniz.');

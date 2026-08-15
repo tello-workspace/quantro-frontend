@@ -1067,7 +1067,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const { data: me } = useGetMeQuery();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(false);
-  const originalTaskRef = useRef<Task | null>(null);
+  // Kartin ACILDIGI andaki hali - "degisiklik var mi" karsilastirmasi icin.
+  // Ref degil state: bu deger dogrudan render'da (gonderilebilir hesabinda)
+  // okunuyor ve ref okumak render'i tetiklemedigi icin buton bayat kalabilirdi.
+  // Zaten her atamasi setTask ile yan yana yapiliyor.
+  const [originalTask, setOriginalTask] = useState<Task | null>(null);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(NEW_LABEL_COLORS[0]);
@@ -1171,7 +1175,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     const loadTask = async () => {
       if (!isOpen) {
         setTask(null);
-        originalTaskRef.current = null;
+        setOriginalTask(null);
         setLoading(false);
         return;
       }
@@ -1185,7 +1189,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           const data = await fetchTaskDetails(taskId);
           if (!cancelled) {
             setTask(data);
-            originalTaskRef.current = data;
+            setOriginalTask(data);
           }
         } catch (err) {
           console.error(t('taskLoadError'), err);
@@ -1214,7 +1218,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           lastActivityAt: new Date().toISOString(),
         };
         setTask(bosKart);
-        originalTaskRef.current = bosKart;
+        setOriginalTask(bosKart);
       }
     };
 
@@ -1274,7 +1278,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   // onune "hicbir alani degismemis" bos talepler dusuyordu; onaylayanin
   // isini bosa cikariyor, kart gecmisini kirletiyordu.
   const degisiklikVar =
-    !!task && !!originalTaskRef.current && kartOzeti(task) !== kartOzeti(originalTaskRef.current);
+    !!task && !!originalTask && kartOzeti(task) !== kartOzeti(originalTask);
 
   // Yeni kartta baslik zorunlu; mevcut kartta en az bir alan degismeli.
   const gonderilebilir =

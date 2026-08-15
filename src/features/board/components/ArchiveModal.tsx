@@ -37,12 +37,25 @@ export const ArchiveModal: React.FC<ArchiveModalProps> = ({ isOpen, onClose, pro
 
   useEffect(() => {
     if (!isOpen) return;
-    setLoading(true);
-    boardService
-      .getArchivedCards(projectId)
-      .then(setCards)
-      .catch(() => toast.error('Arşivlenen kartlar alınamadı.'))
-      .finally(() => setLoading(false));
+    // setLoading effect GOVDESINDE degil, istek basladiktan sonra async
+    // akista cagriliyor: senkron setState fazladan bir render turu
+    // uretiyordu (react-hooks/set-state-in-effect). iptal bayragi ayrica
+    // modal kapanip yeniden acilirsa eski cevabin state'i ezmesini onler.
+    let iptal = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const kartlar = await boardService.getArchivedCards(projectId);
+        if (!iptal) setCards(kartlar);
+      } catch {
+        if (!iptal) toast.error('Arşivlenen kartlar alınamadı.');
+      } finally {
+        if (!iptal) setLoading(false);
+      }
+    })();
+    return () => {
+      iptal = true;
+    };
   }, [isOpen, projectId]);
 
   // Satirin tamami tiklanabilir oldugu icin yanlislikla basilma ihtimali

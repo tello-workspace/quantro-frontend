@@ -34,7 +34,7 @@ import { useAddDependencyMutation } from '@/features/dependencies/dependenciesAp
 import { toast } from "sonner";
 import { AIChatPanel } from '@/features/ai/AIChatPanel';
 import { useCreateChangeRequestMutation } from '@/features/requests/requestsApi';
-import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Zap, Rocket, Table2, ListPlus, Inbox, Download, SlidersHorizontal, GanttChartSquare, Archive } from 'lucide-react';
+import { Bot, GripVerticalIcon, LayoutGrid, CalendarDays, Table2, Download, SlidersHorizontal, GanttChartSquare, Archive } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRealtimeBoard } from '@/hooks/useRealtimeNotifications';
@@ -52,43 +52,6 @@ interface ProjectBoardProps {
   // Insan-okunur anahtarla derin baglanti: /projects/x?card=QNT-42
   // Bu, elle yazilabilen/paylasilabilen adres bicimi - cuid'li olan degil.
   initialOpenCardKey?: string;
-}
-
-interface CardSocketPayload {
-  id: string;
-  title: string;
-  description?: string | null;
-  columnId: string;
-  projectId: string;
-  assignees?: TaskAssignee[];
-  dueDate?: string | null;
-  startDate?: string | null;
-  position?: number;
-}
-
-interface CardMovedPayload {
-  cardId: string;
-  fromColumnId: string;
-  toColumnId: string;
-  projectId: string;
-}
-
-interface CardDeletedPayload {
-  cardId: string;
-  projectId: string;
-}
-
-interface ColumnSocketPayload {
-  id: string;
-  name: string;
-  projectId: string;
-  wipLimit: number | null;
-  isDone: boolean;
-}
-
-interface ColumnDeletedPayload {
-  columnId: string;
-  projectId: string;
 }
 
 // Pano state'inde tek bir degismez kural var: bir kart id'si TUM sutunlar
@@ -774,7 +737,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       newOrder.splice(newIndex, 0, draggedColId);
 
       const reorderedColumns: BoardData['columns'] = {};
-      newOrder.forEach((cid, idx) => {
+      newOrder.forEach((cid) => {
         reorderedColumns[cid] = { ...boardData.columns[cid] };
       });
 
@@ -1434,7 +1397,13 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   // uzerinden marquee baslatma karari (secim modu aktif mi) stale closure
   // olmaz.
   const selectedCardIdsRef = useRef<Set<string>>(new Set());
-  selectedCardIdsRef.current = selectedCardIds;
+  // Render sirasinda ref'e yazmak React'in kurallarina aykiri (concurrent
+  // render'da ayni render iki kez calisabilir). Senkronizasyon effect'e
+  // alindi: yazma commit'ten sonra, pointer olaylari da commit'ten sonra
+  // geldigi icin marquee karari yine guncel set'i gorur.
+  useEffect(() => {
+    selectedCardIdsRef.current = selectedCardIds;
+  }, [selectedCardIds]);
 
   // Marquee baslangic noktasi + kartlar henuz toplanmadi. Move'da 5px esigi
   // gecilince gercek marquee baslar (pointer capture + rect toplama). Boylece
@@ -2260,6 +2229,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
 
         {moveModalCard && (
           <CardMoveModal
+            // key: baska bir kart icin acilinca bilesen sifirdan kurulur,
+            // secimler kendiliginden temizlenir - modal icinde "acilista
+            // state'i sifirla" effect'i tutmaya gerek kalmaz.
+            key={moveModalCard.id}
             isOpen={!!moveModalCard}
             onClose={() => setMoveModalCard(null)}
             cardId={moveModalCard.id}

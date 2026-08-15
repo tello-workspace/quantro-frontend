@@ -15,6 +15,19 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
+      // Alt cizgi oneki "bunu bilerek kullanmiyorum" demek. RTK Query
+      // query fonksiyonlarinda sik geciyor: orgId yalnizca cache tag'i
+      // uretmek icin arguman nesnesinde bulunur, istek govdesine
+      // girmemesi icin destructuring ile ayiklanir (bkz. mailApi).
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+        },
+      ],
       // Mevcut kod tabaninda 37 yerde "any" var; hepsini simdi duzeltmek
       // ayri bir refactor. CI'i bugunku gercek duruma gore yesil baslatip
       // borcu uyari olarak gorunur tutuyoruz (backend'deki policy ile ayni).

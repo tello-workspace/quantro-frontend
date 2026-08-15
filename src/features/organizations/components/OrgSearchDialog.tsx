@@ -37,11 +37,11 @@ export const OrgSearchDialog: React.FC<OrgSearchDialogProps> = ({ orgId, open, o
   const [q, setQ] = useState('');
   const [trigger, { data: results, isFetching }] = useLazySearchOrganizationQuery();
 
+  // Yalnizca "bekle ve ara" kaldi. Kutuyu temizlemek bir OLAY (dialog
+  // kapanmasi) sonucu; effect icinde setState cagirmak yerine kapanisi
+  // isleyen handler'da yapiliyor.
   useEffect(() => {
-    if (!open) {
-      setQ('');
-      return;
-    }
+    if (!open) return;
     const trimmed = q.trim();
     if (trimmed.length < 2) return;
 
@@ -51,8 +51,13 @@ export const OrgSearchDialog: React.FC<OrgSearchDialogProps> = ({ orgId, open, o
     return () => clearTimeout(handle);
   }, [q, orgId, open, trigger]);
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next) setQ('');
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

@@ -3,7 +3,6 @@
 import {
   useGetMyOrganizationsQuery,
   useAddMemberMutation,
-  useGetOrganizationByIdQuery,
   type OrgRole,
 } from '@/features/organizations/organizationsApi';
 import Link from 'next/link';

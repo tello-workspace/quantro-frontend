@@ -1,7 +1,7 @@
 "use client";
 
 import { io, Socket } from "socket.io-client";
-import { useEffect, useRef, useState, useCallback, createContext, useContext, ReactNode } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, createContext, useContext, ReactNode } from "react";
 
 function getToken(): string | null {
   if (typeof window !== "undefined") {
@@ -287,6 +287,13 @@ export function SocketProvider({ children }: SocketProviderProps) {
   // kullanici icin akmaya devam ediyordu.
   const socketTokenRef = useRef<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  // Context'e VERILEN soket. socketRef callback'lerin kararli kalmasi icin
+  // gerekli (ref degisimi render tetiklemez), ama render ciktisinda ref
+  // okumak yanlis: ref degistiginde tuketiciler yeniden cizilmedigi icin
+  // bayat bir soket gorurlerdi. Bu yuzden render'a giden deger ayri bir
+  // state olarak tutuluyor; ikisi createSocket/disconnect icinde birlikte
+  // guncelleniyor.
+  const [socket, setSocket] = useState<Socket | null>(null);
   // Aktif olarak dinlenen tum handler'larin listesi
   const listenersRef = useRef<Map<string, Set<(...args: never[]) => void>>>(new Map());
 
@@ -326,7 +333,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       socket.emit("authenticate", token);
     });
 
-    socket.on("disconnect", (reason) => {
+    socket.on("disconnect", () => {
       setIsConnected(false);
     });
 
@@ -335,7 +342,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       setIsConnected(false);
     });
 
-    socket.on("authenticated", (user: any) => {
+    socket.on("authenticated", () => {
       syncSocketListeners(socket);
     });
 
@@ -344,6 +351,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     });
     socketRef.current = socket;
     socketTokenRef.current = token;
+    setSocket(socket);
   }, [syncSocketListeners]);
 
   // connect()'ten ONCE tanimli olmali: connect'in bagimlilik dizisi disconnect'e
@@ -353,6 +361,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       socketRef.current.disconnect();
       socketRef.current = null;
       socketTokenRef.current = null;
+      setSocket(null);
       setIsConnected(false);
     }
   }, []);
@@ -462,22 +471,27 @@ export function SocketProvider({ children }: SocketProviderProps) {
     };
   }, [syncConnection, disconnect]);
 
+  // Her render'da yeni bir nesne uretmek, degerin kendisi degismese bile
+  // TUM tuketicileri yeniden cizdirir - context'in en bilinen tuzagi.
+  const value = useMemo(
+    () => ({
+      socket,
+      isConnected,
+      connect,
+      disconnect,
+      on,
+      off,
+      emit,
+      joinProject,
+      leaveProject,
+      joinCard,
+      leaveCard,
+    }),
+    [socket, isConnected, connect, disconnect, on, off, emit, joinProject, leaveProject, joinCard, leaveCard],
+  );
+
   return (
-    <SocketContext.Provider
-      value={{
-        socket: socketRef.current,
-        isConnected,
-        connect,
-        disconnect,
-        on,
-        off,
-        emit,
-        joinProject,
-        leaveProject,
-        joinCard,
-        leaveCard,
-      }}
-    >
+    <SocketContext.Provider value={value}>
       {children}
     </SocketContext.Provider>
   );

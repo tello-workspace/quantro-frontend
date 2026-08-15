@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Paperclip, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -111,13 +111,19 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
   const [uploadAttachment, { isLoading: uploading }] = useUploadMailAttachmentMutation();
   const [deleteAttachment] = useDeleteMailAttachmentMutation();
 
-  useEffect(() => {
-    if (draft) {
-      setSubject(draft.subject);
-      setBody(draft.body);
-      setSelectedUserIds(draft.recipients.map((r) => r.userId));
-    }
-  }, [draft]);
+  // Sunucudan gelen taslagi forma BIR KEZ doldur. Effect + setState yerine
+  // "render sirasinda degisimi yakala" deseni: React bu durumda mevcut
+  // render'i atip yenisini calistirir, DOM'a fazladan bir tur cizilmez
+  // (bkz. react.dev "You Might Not Need an Effect" - adjusting state when
+  // a prop changes). Kullanicinin sonraki duzenlemeleri ezilmesin diye
+  // yalnizca taslak KIMLIGI degistiginde doluyor.
+  const [hydratedDraftId, setHydratedDraftId] = useState<string | null>(null);
+  if (draft && draft.id !== hydratedDraftId) {
+    setHydratedDraftId(draft.id);
+    setSubject(draft.subject);
+    setBody(draft.body);
+    setSelectedUserIds(draft.recipients.map((r) => r.userId));
+  }
 
   const sifirla = () => {
     setSubject('');
@@ -127,6 +133,8 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
     setGroupAdmins(false);
     setGroupProjects([]);
     setActiveMailId(draftId);
+    // Dialog tekrar acildiginda taslak yeniden doldurulabilsin.
+    setHydratedDraftId(null);
   };
 
   const buildGroups = (): RecipientGroup[] => {

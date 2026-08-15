@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
 import {
   useGetMeQuery,
@@ -26,7 +25,7 @@ import { TagInput } from '@/components/ui/TagInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, Bell, KeyRound } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Eye, EyeOff, Sparkles, Cpu, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Sparkles, Cpu, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   Select,
@@ -70,7 +69,6 @@ export default function ProfilePage() {
   const [removeAvatar] = useRemoveAvatarMutation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const router = useRouter();
   const [title, setTitle] = useState('');
   const [bio, setBio] = useState('');
   const [experience, setExperience] = useState('');

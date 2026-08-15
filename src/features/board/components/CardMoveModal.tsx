@@ -43,38 +43,44 @@ export const CardMoveModal: React.FC<CardMoveModalProps> = ({
   const [loadingColumns, setLoadingColumns] = useState(false);
   const [moving, setMoving] = useState(false);
 
-  // Modal her acilista temiz secim ile baslasin - onceki secimler kalirsa
-  // farkli bir karti tasirken yanlislikla eski hedefe gonderilebilir.
-  useEffect(() => {
-    if (isOpen) {
-      setTargetProjectId('');
-      setColumns([]);
-      setTargetColumnId('');
-    }
-  }, [isOpen]);
+  // Not: "acilista secimleri sifirla" effect'i kaldirildi. Cagiran taraf
+  // modal'i kart id'sine bagli bir key ile render ediyor (bkz. ProjectBoard),
+  // yani baska bir kart icin acilinca bilesen zaten sifirdan kuruluyor.
+  //
+  // Proje secili degilken kolon listesi de bos olmali; bunu effect icinde
+  // state sifirlayarak degil, render sirasinda TURETEREK yapiyoruz -
+  // "state'ten hesaplanabilen sey state olmamali".
+  const gorunenColumns = targetProjectId ? columns : [];
+  const secilenColumnId = targetProjectId ? targetColumnId : '';
 
   useEffect(() => {
-    if (!targetProjectId) {
-      setColumns([]);
-      setTargetColumnId('');
-      return;
-    }
-    setLoadingColumns(true);
-    boardService
-      .getBoardData(targetProjectId)
-      .then((data) => {
+    if (!targetProjectId) return;
+    // setState'ler effect govdesinde senkron degil, async akista: senkron
+    // cagri fazladan bir render turu uretiyordu. iptal bayragi, kullanici
+    // hizlica baska bir proje secerse eski cevabin yeniyi ezmesini onler.
+    let iptal = false;
+    (async () => {
+      setLoadingColumns(true);
+      try {
+        const data = await boardService.getBoardData(targetProjectId);
+        if (iptal) return;
         const cols = data ? Object.values(data.columns).map((c) => ({ id: c.id, title: c.title })) : [];
         setColumns(cols);
         setTargetColumnId(cols[0]?.id ?? '');
-      })
-      .finally(() => setLoadingColumns(false));
+      } finally {
+        if (!iptal) setLoadingColumns(false);
+      }
+    })();
+    return () => {
+      iptal = true;
+    };
   }, [targetProjectId]);
 
   const handleMove = async () => {
-    if (!targetColumnId) return;
+    if (!secilenColumnId) return;
     setMoving(true);
     try {
-      const result = await boardService.moveTaskToProject(cardId, targetColumnId);
+      const result = await boardService.moveTaskToProject(cardId, secilenColumnId);
       const dropped = [...result.droppedLabels, ...result.droppedCustomFields];
       if (dropped.length > 0) {
         toast.warning(`Kart taşındı. Hedef projede karşılığı olmayan alanlar düştü: ${dropped.join(', ')}`);
@@ -117,12 +123,12 @@ export const CardMoveModal: React.FC<CardMoveModalProps> = ({
           {targetProjectId && (
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Hedef kolon</label>
-              <Select value={targetColumnId} onValueChange={(v) => setTargetColumnId(v ?? '')} disabled={loadingColumns}>
+              <Select value={secilenColumnId} onValueChange={(v) => setTargetColumnId(v ?? '')} disabled={loadingColumns}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={loadingColumns ? 'Yükleniyor...' : 'Kolon seçin'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {columns.map((c) => (
+                  {gorunenColumns.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                   ))}
                 </SelectContent>
@@ -137,7 +143,7 @@ export const CardMoveModal: React.FC<CardMoveModalProps> = ({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>İptal</Button>
-          <Button type="button" onClick={handleMove} disabled={!targetColumnId || moving}>
+          <Button type="button" onClick={handleMove} disabled={!secilenColumnId || moving}>
             {moving ? 'Taşınıyor...' : 'Taşı'}
           </Button>
         </DialogFooter>

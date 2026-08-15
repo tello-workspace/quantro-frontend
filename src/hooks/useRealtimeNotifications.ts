@@ -7,7 +7,7 @@ import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { AppDispatch } from "@/lib/store";
 import { api } from "@/lib/api";
-import { setNotifications, addNotification, markNotificationAsRead, markAllNotificationsAsRead } from "@/features/notifications/notificationsSlice";
+import { addNotification, markNotificationAsRead, markAllNotificationsAsRead } from "@/features/notifications/notificationsSlice";
 
 interface NotificationPayload {
   id: string;
@@ -274,9 +274,13 @@ export function useRealtimeBoard(projectId: string) {
   };
 }
 
-// Hook for organization real-time events
-export function useRealtimeOrganization(organizationId: string) {
-  const { on, off, isConnected, emit } = useSocket();
+// Hook for organization real-time events.
+// organizationId imzada bilerek duruyor: cagiran taraf hangi organizasyonu
+// dinledigini belirtiyor ve sunucu odalari kullanici bazinda kuruldugu icin
+// simdilik ayrica bir join gerekmiyor. Oda bazli filtre eklenirse burasi
+// tekrar kullanilacak.
+export function useRealtimeOrganization(_organizationId: string) {
+  const { on, off, isConnected } = useSocket();
   const unsubscribeRef = useRef<(() => void)[]>([]);
 
   const cleanup = useCallback(() => {

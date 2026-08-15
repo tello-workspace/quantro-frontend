@@ -4,7 +4,7 @@ import { useDroppable, useDraggable, useDndContext } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { BoardCard, CardConflictInfo } from './BoardCard';
 import { Task } from '../services/boardService';
-import { PlusIcon, GripVerticalIcon, PencilIcon, Trash2Icon, BookmarkIcon, Settings2Icon } from 'lucide-react';
+import { PlusIcon, GripVerticalIcon, Trash2Icon, BookmarkIcon, Settings2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -258,7 +258,9 @@ export const BoardColumn: React.FC<BoardColumnProps> = ({
           >
             <GripVerticalIcon className="h-4 w-4" />
           </span>
-          {isRenaming ? (
+          {/* Swimlane modunda serit basligi zaten kolon adini yaziyor;
+              hideHeader ile burada tekrar etmesi engellenir. */}
+          {hideHeader ? null : isRenaming ? (
             <Input
               ref={renameRef}
               value={renameInput}

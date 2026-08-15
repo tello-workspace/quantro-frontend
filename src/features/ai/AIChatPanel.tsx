@@ -69,7 +69,7 @@ const AITypingContent: React.FC<{ content: string; isTyping: boolean }> = ({ con
             try {
               const chartData = JSON.parse(String(children));
               return <InteractiveChart data={chartData} />;
-            } catch (err) {
+            } catch {
               return (
                 <code className={className} {...props}>
                   {children}
@@ -531,7 +531,6 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ projectId, projectName
       // degistiriyor ve model bir sonraki parcada mevcut kolonlari/kartlari
       // gormeli. Ayrica paralel gonderim saglayicinin dakikalik token
       // limitini aninda doldurur (bkz. Groq 6000 TPM).
-      let islenen = 0;
       for (let i = 0; i < parcalar.length; i++) {
         const parcaBilgisi =
           parcalar.length > 1 ? ` (Parça ${i + 1}/${parcalar.length})` : '';
@@ -558,7 +557,6 @@ ${parcalar[i]}`;
           messages: [{ role: 'user' as const, content: talimat }],
         }).unwrap();
 
-        islenen++;
         const replyId = `import-reply-${Date.now()}-${i}`;
         setMessages((prev) => [
           ...prev,
@@ -777,7 +775,7 @@ ${parcalar[i]}`;
                         try {
                           const chartData = JSON.parse(String(children));
                           return <InteractiveChart data={chartData} />;
-                        } catch (err) {
+                        } catch {
                           return (
                             <code className={className} {...props}>
                               {children}
