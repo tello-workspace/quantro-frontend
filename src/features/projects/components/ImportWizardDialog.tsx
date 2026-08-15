@@ -118,11 +118,11 @@ export const ImportWizardDialog: React.FC<ImportWizardDialogProps> = ({ projectI
       }}
     >
       <DialogTrigger render={<Button type="button" variant="outline" size="sm" />}>
-        <Upload className="size-3.5" /> Trello / Jira'dan içe aktar
+        <Upload className="size-3.5" /> Trello / Jira&apos;dan içe aktar
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Trello / Jira'dan içe aktar</DialogTitle>
+          <DialogTitle>Trello / Jira&apos;dan içe aktar</DialogTitle>
           <DialogDescription>
             Trello pano dışa aktarımı (.json) veya Jira issue dışa aktarımı (.csv) yükle, eşlemeyi gözden geçir, onayla.
           </DialogDescription>
@@ -194,7 +194,7 @@ export const ImportWizardDialog: React.FC<ImportWizardDialogProps> = ({ projectI
                           }));
                         }}
                       >
-                        <option value="__new__">Yeni sütun oluştur: "{kolon.name}"</option>
+                        <option value="__new__">Yeni sütun oluştur: &quot;{kolon.name}&quot;</option>
                         {preview.existingColumns.map((ek) => (
                           <option key={ek.id} value={ek.id}>
                             → {ek.name}
