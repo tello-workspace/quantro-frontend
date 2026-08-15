@@ -129,7 +129,16 @@ export default function MailPage() {
         </Tabs>
       </div>
 
-      <MailDetailDialog mailId={openMailId} onClose={() => setOpenMailId(null)} />
+      {me && (
+        <MailDetailDialog
+          mailId={openMailId}
+          onClose={() => setOpenMailId(null)}
+          orgId={orgId}
+          currentUserId={me.id}
+          members={members}
+          projects={projects}
+        />
+      )}
 
       {editingDraftId && me && (
         <ComposeMailDialog

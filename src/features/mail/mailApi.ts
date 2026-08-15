@@ -7,6 +7,8 @@ export type RecipientGroup =
   | { type: 'ADMINS' }
   | { type: 'PROJECT'; projectId: string };
 
+export type MailReplyMode = 'REPLY' | 'REPLY_ALL' | 'FORWARD';
+
 export interface MailListItem {
   id: string;
   subject: string;
@@ -14,9 +16,21 @@ export interface MailListItem {
   isDraft: boolean;
   createdAt: string;
   sentAt: string | null;
+  parentMailId: string | null;
+  threadId: string | null;
   sender: { id: string; name: string };
   _count: { attachments: number };
   read?: boolean;
+}
+
+// Konusmadaki diger mesajlar - yalnizca kullanicinin gorme hakki olanlar.
+export interface MailThreadItem {
+  id: string;
+  subject: string;
+  body: string;
+  sentAt: string | null;
+  sender: { id: string; name: string };
+  _count: { attachments: number };
 }
 
 export interface MailAttachment {
@@ -34,6 +48,7 @@ export interface MailDetail extends MailListItem {
   attachments: MailAttachment[];
   recipients: { userId: string; read: boolean; user: { id: string; name: string } }[];
   isRecipient: boolean;
+  thread: MailThreadItem[];
 }
 
 interface ApiEnvelope<T> {
@@ -91,6 +106,32 @@ export const mailApi = api.injectEndpoints({
         { type: 'Mail', id: `${orgId}-unread` },
       ],
     }),
+    replyMail: builder.mutation<
+      MailListItem,
+      {
+        mailId: string;
+        orgId: string;
+        mode: MailReplyMode;
+        body: string;
+        recipientUserIds?: string[];
+        recipientGroups?: RecipientGroup[];
+        isDraft?: boolean;
+      }
+    >({
+      query: ({ mailId, orgId: _orgId, ...body }) => ({
+        url: `/mail/${mailId}/reply`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: ApiEnvelope<MailListItem>) => response.data,
+      invalidatesTags: (_result, _error, { mailId, orgId }) => [
+        { type: 'Mail', id: mailId },
+        { type: 'Mail', id: `${orgId}-sent` },
+        { type: 'Mail', id: `${orgId}-drafts` },
+        { type: 'Mail', id: `${orgId}-inbox` },
+        { type: 'Mail', id: `${orgId}-unread` },
+      ],
+    }),
     deleteMail: builder.mutation<{ deleted: 'draft' | 'inbox' }, { mailId: string; orgId: string }>({
       query: ({ mailId }) => ({
         url: `/mail/${mailId}`,
@@ -127,6 +168,7 @@ export const {
   useGetMailByIdQuery,
   useComposeMailMutation,
   useUpdateDraftMutation,
+  useReplyMailMutation,
   useDeleteMailMutation,
   useUploadMailAttachmentMutation,
   useDeleteMailAttachmentMutation,

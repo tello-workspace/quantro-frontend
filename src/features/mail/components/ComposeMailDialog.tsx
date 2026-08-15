@@ -17,10 +17,12 @@ import {
 import {
   useComposeMailMutation,
   useUpdateDraftMutation,
+  useReplyMailMutation,
   useGetMailByIdQuery,
   useUploadMailAttachmentMutation,
   useDeleteMailAttachmentMutation,
   type RecipientGroup,
+  type MailReplyMode,
 } from '@/features/mail/mailApi';
 
 interface MemberOption {
@@ -32,12 +34,30 @@ interface ProjectOption {
   name: string;
 }
 
+// Yanitlama/iletme baglami. Verildiginde dialog "yanit" kipine gecer:
+// konu ve alinti govde SUNUCUDA uretilir (Yn:/İlt: oneki + ">" alintisi),
+// bu yuzden konu alani gosterilmez. REPLY/REPLY_ALL'da alicilar da kaynak
+// mesajdan turedigi icin alici secimi gizlenir; yalnizca FORWARD'da acilir.
+export interface MailReplyContext {
+  mailId: string;
+  mode: MailReplyMode;
+  // Kime gidecegini kullaniciya gostermek icin - yalnizca bilgilendirme.
+  recipientPreview: string;
+}
+
+const REPLY_TITLES: Record<MailReplyMode, string> = {
+  REPLY: 'Yanıtla',
+  REPLY_ALL: 'Tümünü yanıtla',
+  FORWARD: 'İlet',
+};
+
 interface ComposeMailDialogProps {
   orgId: string;
   currentUserId: string;
   members: MemberOption[];
   projects: ProjectOption[];
   draftId?: string;
+  replyTo?: MailReplyContext;
   triggerLabel?: string;
   triggerVariant?: 'default' | 'outline' | 'ghost';
   onSent?: () => void;
@@ -54,15 +74,19 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
   members,
   projects,
   draftId,
+  replyTo,
   triggerLabel,
   triggerVariant = 'default',
   onSent,
 }) => {
-  // draftId verilmisse dialog DISARIDAN kontrol edilir: gorunur bir tetikleyici
-  // yok, bu bilesen sadece ebeveyn onu render ettigi surece "acik" sayilir
-  // (bkz. MailPage'deki editingDraftId). Kapanma niyeti onSent ile disariya
-  // bildirilir, ebeveyn onu unmount ederek gercekten kapatir.
-  const isControlled = draftId !== undefined;
+  // draftId veya replyTo verilmisse dialog DISARIDAN kontrol edilir: gorunur
+  // bir tetikleyici yok, bu bilesen sadece ebeveyn onu render ettigi surece
+  // "acik" sayilir (bkz. MailPage'deki editingDraftId, MailDetailDialog'daki
+  // replyTo). Kapanma niyeti onSent ile disariya bildirilir, ebeveyn onu
+  // unmount ederek gercekten kapatir.
+  const isControlled = draftId !== undefined || replyTo !== undefined;
+  const isReply = replyTo !== undefined;
+  const isForward = replyTo?.mode === 'FORWARD';
   const [internalOpen, setInternalOpen] = useState(false);
   const open = isControlled ? true : internalOpen;
   const setOpen = (v: boolean) => {
@@ -83,6 +107,7 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
   const { data: draft } = useGetMailByIdQuery(activeMailId ?? '', { skip: !activeMailId || !open });
   const [composeMail, { isLoading: composing }] = useComposeMailMutation();
   const [updateDraft, { isLoading: updating }] = useUpdateDraftMutation();
+  const [replyMail, { isLoading: replying }] = useReplyMailMutation();
   const [uploadAttachment, { isLoading: uploading }] = useUploadMailAttachmentMutation();
   const [deleteAttachment] = useDeleteMailAttachmentMutation();
 
@@ -113,19 +138,61 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
   };
 
   const handleSave = async (send: boolean) => {
-    if (!subject.trim() || !body.trim()) {
-      toast.error('Konu ve mesaj gerekli');
+    // Yanit kipinde konu sunucuda uretiliyor, kullanicidan yalnizca govde
+    // isteniyor - bu yuzden konu zorunlulugu burada gecerli degil.
+    if (!body.trim() || (!isReply && !subject.trim())) {
+      toast.error(isReply ? 'Mesaj gerekli' : 'Konu ve mesaj gerekli');
       return;
     }
+
+    // Yanit/iletme ilk kaydinda ozel uca gidiyor: zincir baglantisini
+    // (parentMailId/threadId) ve alici turetmesini sunucu kuruyor. Taslak
+    // olarak kaydedildiyse artik siradan bir taslaktir; sonraki kayitlar
+    // asagidaki updateDraft dalindan gecer ve zincir korunur.
+    if (isReply && !activeMailId) {
+      try {
+        const sonuc = await replyMail({
+          mailId: replyTo.mailId,
+          orgId,
+          mode: replyTo.mode,
+          body,
+          recipientUserIds: isForward ? selectedUserIds : [],
+          recipientGroups: isForward ? buildGroups() : [],
+          isDraft: !send,
+        }).unwrap();
+
+        if (send) {
+          toast.success('Gönderildi');
+          setOpen(false);
+          onSent?.();
+        } else {
+          setActiveMailId(sonuc.id);
+          setSubject(sonuc.subject);
+          toast.success('Taslak kaydedildi');
+        }
+      } catch (err: any) {
+        toast.error(err?.data?.error?.message || 'İşlem başarısız');
+      }
+      return;
+    }
+
     try {
       if (activeMailId) {
+        // REPLY/REPLY_ALL taslaginda alici alanlari BILEREK gonderilmiyor:
+        // backend recipientUserIds'i gorunce mevcut alicilari silip yeniden
+        // yaziyor. Alicilar kaynak mesajdan turetilmisti ve bu formda
+        // secili degiller - gondermek onlari sifirlardi.
+        const aliciAlanlari =
+          isReply && !isForward
+            ? {}
+            : { recipientUserIds: selectedUserIds, recipientGroups: buildGroups() };
+
         await updateDraft({
           mailId: activeMailId,
           orgId,
           subject: subject.trim(),
           body,
-          recipientUserIds: selectedUserIds,
-          recipientGroups: buildGroups(),
+          ...aliciAlanlari,
           send,
         }).unwrap();
       } else {
@@ -176,12 +243,24 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
       )}
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{activeMailId ? 'Taslağı düzenle' : 'Yeni mesaj'}</DialogTitle>
-          <DialogDescription>Yalnızca bu organizasyonun üyeleri arasında gider.</DialogDescription>
+          <DialogTitle>
+            {isReply ? REPLY_TITLES[replyTo.mode] : activeMailId ? 'Taslağı düzenle' : 'Yeni mesaj'}
+          </DialogTitle>
+          <DialogDescription>
+            {isReply && !isForward
+              ? `Alıcılar: ${replyTo.recipientPreview}`
+              : 'Yalnızca bu organizasyonun üyeleri arasında gider.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
-          <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Konu" maxLength={200} />
+          {/* Yanit kipinde konu sunucuda uretiliyor (Yn:/İlt: oneki), bu yuzden
+              alan gosterilmez; taslak kaydedildikten sonra salt-okunur gorunur. */}
+          {isReply ? (
+            subject && <p className="text-sm font-medium text-muted-foreground">{subject}</p>
+          ) : (
+            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Konu" maxLength={200} />
+          )}
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -190,6 +269,9 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
           />
 
+          {/* REPLY/REPLY_ALL'da alicilar kaynak mesajdan turetiliyor - secim
+              yok. FORWARD yeni bir kitleye acmak demek, o yuzden acik. */}
+          {(!isReply || isForward) && (
           <div>
             <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Gruplara gönder</p>
             <div className="flex flex-wrap gap-2">
@@ -227,7 +309,9 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
               ))}
             </div>
           </div>
+          )}
 
+          {(!isReply || isForward) && (
           <div>
             <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Kişilere gönder</p>
             <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border border-border p-2">
@@ -252,6 +336,7 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
                 ))}
             </div>
           </div>
+          )}
 
           {activeMailId && (
             <div>
@@ -278,10 +363,10 @@ export const ComposeMailDialog: React.FC<ComposeMailDialogProps> = ({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => handleSave(false)} disabled={composing || updating}>
+          <Button type="button" variant="outline" onClick={() => handleSave(false)} disabled={composing || updating || replying}>
             Taslak kaydet
           </Button>
-          <Button type="button" onClick={() => handleSave(true)} disabled={composing || updating}>
+          <Button type="button" onClick={() => handleSave(true)} disabled={composing || updating || replying}>
             Gönder
           </Button>
         </DialogFooter>
