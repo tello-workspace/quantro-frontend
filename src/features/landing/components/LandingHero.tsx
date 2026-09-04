@@ -5,6 +5,7 @@ import { ArrowRight, Plug, ShieldCheck, Wrench } from 'lucide-react';
 import { QuantroMark } from '@/components/ui/quantro-logo';
 import AnnouncementBar from './AnnouncementBar';
 import HeroKeycap from './HeroKeycap';
+import LandingFooter from './LandingFooter';
 
 // Pazarlama yuzeyine ozgu teknik yazi tipi. next/font "kullanildigi bilesene
 // kapsanir" diyor - yani bu dosya yalnizca / rotasinda render edildigi icin
@@ -48,11 +49,6 @@ const KANITLAR = [
   { Icon: Wrench, label: '14 araç' },
   { Icon: ShieldCheck, label: 'Çakışma koruması' },
 ];
-
-// Referanstaki musteri logosu seridinin karsiligi. Quantro'nun gosterebilecegi
-// bir musteri logosu yok; uydurmak yerine GERCEK entegrasyon hikayesini
-// yaziyoruz - MCP sunucusunun README'sinde belirtilen desteklenen istemciler.
-const ISTEMCILER = ['Claude Desktop', 'Claude Code', 'MCP destekleyen her istemci'];
 
 export default function LandingHero() {
   return (
@@ -134,7 +130,10 @@ export default function LandingHero() {
       </header>
 
       {/* ---------- Hero govdesi ---------- */}
-      <section className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-5 pt-14 pb-16 text-center sm:px-8 sm:pt-16 sm:pb-20 lg:pt-20">
+      {/* Dikey bosluk bilerek dar: flex-1 + justify-center zaten ortaliyor,
+          buyuk padding ustune footer gelince sayfa viewport'u ~150px asip
+          hukuki linkleri katlamanin altinda birakiyordu. */}
+      <section className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-5 py-10 text-center sm:px-8 sm:py-12">
         {/* Kanit seridi: referansta yildizli puanlar vardi. Quantro'nun
             dogrulanabilir bir puani olmadigi icin yerine olcülebilir
             yetenekler konuldu - uydurma sosyal kanit yok. */}
@@ -191,21 +190,7 @@ export default function LandingHero() {
         </div>
       </section>
 
-      {/* ---------- Alt serit: desteklenen istemciler ---------- */}
-      <div className="relative z-10 border-t border-white/8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-5 py-8 sm:px-8 sm:py-9">
-          <p className={`${MONO} text-[10.5px] tracking-[0.2em] text-white/40 uppercase`}>
-            Şunlarla çalışır
-          </p>
-          <ul className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 sm:gap-x-10">
-            {ISTEMCILER.map((istemci) => (
-              <li key={istemci} className="text-sm font-medium text-white/55 sm:text-[15px]">
-                {istemci}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      <LandingFooter />
     </div>
   );
 }

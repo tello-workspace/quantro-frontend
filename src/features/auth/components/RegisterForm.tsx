@@ -21,7 +21,32 @@ export default function RegisterForm() {
 
   const [registerUser, { isLoading }] = useRegisterMutation();
 
+  // KVKK onaylari. Ikisi de BILEREK ayri kutu ve ikisi de varsayilan olarak
+  // BOS: acik riza, kullanicinin olumlu bir eylemiyle verilmis olmali -
+  // onceden isaretli bir kutu ya da kosullarla tek kutuda birlestirilmis bir
+  // onay bu sarti karsilamaz.
+  const [kosullarKabul, setKosullarKabul] = useState(false);
+  const [acikRiza, setAcikRiza] = useState(false);
+
+  // Onay kontrolu hem formda hem Google akisinda cagriliyor: yalnizca formda
+  // olsaydi "Google ile kaydol" dugmesi onaylari tamamen atlatirdi ve o yolla
+  // kayit olan kullanici hicbir zaman aydinlatma metnini gormezdi.
+  const onaylariDogrula = () => {
+    if (!kosullarKabul) {
+      setErrorMsg('Devam etmek için Kullanım Koşulları ve Aydınlatma Metni’ni onaylamalısın.');
+      return false;
+    }
+    if (!acikRiza) {
+      setErrorMsg('Devam etmek için yurt dışına veri aktarımına ilişkin açık rıza gerekiyor.');
+      return false;
+    }
+    return true;
+  };
+
   const handleGoogleRegister = async () => {
+    setErrorMsg('');
+    if (!onaylariDogrula()) return;
+
     if (!supabase) {
       toast.error('Google girişi için Supabase ayarları eksik.');
       return;
@@ -54,6 +79,8 @@ export default function RegisterForm() {
       setErrorMsg('Şifreler birbiriyle uyuşmuyor.');
       return;
     }
+
+    if (!onaylariDogrula()) return;
 
     try {
       await registerUser({ name, email, password }).unwrap();
@@ -199,6 +226,69 @@ export default function RegisterForm() {
             placeholder="••••••••"
             className={authInputClass}
           />
+        </div>
+
+        {/* Metin baglantilari YENI SEKMEDE aciliyor: ayni sekmede acilsalardi
+            kullanici metni okumak icin tikladiginda doldurdugu form silinirdi
+            ve geri dondugunde her seyi bastan yazmasi gerekirdi. */}
+        <div className="mb-6 space-y-3.5">
+          <label
+            htmlFor="reg-kosullar"
+            className="flex cursor-pointer items-start gap-3 text-[13px] leading-relaxed text-muted-foreground"
+          >
+            <input
+              id="reg-kosullar"
+              type="checkbox"
+              checked={kosullarKabul}
+              onChange={(e) => setKosullarKabul(e.target.checked)}
+              className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary"
+            />
+            <span>
+              <Link
+                href="/kullanim-kosullari"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline underline-offset-2 hover:no-underline"
+              >
+                Kullanım Koşulları
+              </Link>
+              ’nı ve{' '}
+              <Link
+                href="/kvkk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline underline-offset-2 hover:no-underline"
+              >
+                KVKK Aydınlatma Metni
+              </Link>
+              ’ni okudum, kabul ediyorum.
+            </span>
+          </label>
+
+          <label
+            htmlFor="reg-acik-riza"
+            className="flex cursor-pointer items-start gap-3 text-[13px] leading-relaxed text-muted-foreground"
+          >
+            <input
+              id="reg-acik-riza"
+              type="checkbox"
+              checked={acikRiza}
+              onChange={(e) => setAcikRiza(e.target.checked)}
+              className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary"
+            />
+            <span>
+              Hesabımın ve pano içeriğimin, hizmetin çalışabilmesi için{' '}
+              <Link
+                href="/kvkk#aktarim"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline underline-offset-2 hover:no-underline"
+              >
+                yurt dışındaki sağlayıcılara aktarılmasına
+              </Link>{' '}
+              açık rıza veriyorum. Bu rızayı daha sonra geri çekebilirim.
+            </span>
+          </label>
         </div>
 
         <button

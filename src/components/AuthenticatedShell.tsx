@@ -20,6 +20,13 @@ const PUBLIC_ROUTES = [
   '/reset-password',
   '/verify-email',
   '/auth/callback',
+  // Hukuki metinler giris GEREKTIRMEDEN okunabilmeli. Buraya eklenmezlerse
+  // shell ziyaretciyi /login'e yonlendirir; kayit formundaki onay kutusunun
+  // linkleri de dahil, metinlere kayit olmadan ulasmak imkansiz olurdu -
+  // KVKK aydinlatma yukumlulugu tam olarak bunun tersini gerektiriyor.
+  '/kvkk',
+  '/cerez-politikasi',
+  '/kullanim-kosullari',
 ];
 
 function isPublicRoute(pathname: string | null) {
