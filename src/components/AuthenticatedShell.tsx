@@ -128,7 +128,7 @@ export default function AuthenticatedShell({
   // isim yok, organizasyon yok, butonlar disabled ve hicbir hata mesaji yok.
   // Sayfa yenilemek ayni tokeni tekrar denedigi icin durumu degistirmiyordu;
   // tek cikis yolu elle cikis yapmakti.
-  const { data: me, isLoading, isError, refetch } = useGetMeQuery(undefined, {
+  const { data: me, isLoading, isFetching, isError, refetch } = useGetMeQuery(undefined, {
     skip: publicRoute || !token,
   });
 
@@ -148,7 +148,15 @@ export default function AuthenticatedShell({
     return null;
   }
 
-  if (isLoading) {
+  // `isLoading` YALNIZCA ilk yuklemede true. Bir kez hata alindiktan sonra
+  // "Tekrar dene" ile yapilan refetch sirasinda isLoading false kaliyor
+  // (RTK Query hook'u onceki sonucu gordugu icin artik "ilk yukleme" saymiyor)
+  // ve istek pending oldugu icin isError de false oluyordu. Yani o anda ne
+  // yukleme ne hata ekrani vardi: kod en alttaki return'e dusup asagidaki
+  // yorumun tam da engellemeye calistigi KIMLIKSIZ arayuzu (me === undefined)
+  // aciyordu. isFetching devam eden her istegi kapsadigi icin, elimizde
+  // kullanici verisi olmadigi surece bekleme ekraninda kaliyoruz.
+  if ((isLoading || isFetching) && !me) {
     return <Yukleniyor />;
   }
 

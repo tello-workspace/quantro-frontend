@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useRegisterMutation } from '../authApi';
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabaseClient';
@@ -11,12 +10,14 @@ import { GoogleIcon } from './GoogleIcon';
 import { authInputClass, authLabelClass } from './LoginForm';
 
 export default function RegisterForm() {
-  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  // Basarili yanit artik otomatik yonlendirme yerine bir bilgi ekrani gosteriyor;
+  // sebebi asagida handleSubmit'teki notta.
+  const [basariMsg, setBasariMsg] = useState('');
 
   const [registerUser, { isLoading }] = useRegisterMutation();
 
@@ -26,10 +27,23 @@ export default function RegisterForm() {
       return;
     }
 
-    await supabase.auth.signInWithOAuth({
+    // Bkz. LoginForm'daki ayni not: eski Supabase oturumu temizlenmezse,
+    // OAuth iptal edildiginde /auth/callback o oturumu okuyup yanlis hesaba
+    // giris yapiyordu.
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Callback tarafindaki hata kontrolu ikinci savunma hatti.
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
+
+    if (error) {
+      toast.error(`Google ile kayıt başlatılamadı: ${error.message}`);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,15 +58,59 @@ export default function RegisterForm() {
     try {
       await registerUser({ name, email, password }).unwrap();
 
-      // Artık doğrulama gerekmiyor - doğrudan login sayfasına yönlendir
-      toast.success('Kayıt başarılı! Giriş yapabilirsiniz.');
-      setTimeout(() => router.push('/login'), 1500);
+      // Backend, hesap numaralandirmasini onlemek icin e-posta ZATEN kayitliysa da
+      // ayni basarili yaniti donuyor (auth.service.ts register) - yani bu yanit
+      // "hesap olusturuldu" anlamina gelmiyor. Eskiden burada kosulsuz "Kayit
+      // basarili! Giris yapabilirsiniz." denip /login'e yonlendiriliyordu; sifresini
+      // unuttugunu fark etmeyen kullanici yeni sifresiyle giris deneyip hiz sinirina
+      // takiliyor ve hicbir yerde "sifreni sifirla" ipucu goremiyordu. Mesaji
+      // notrlestirip her iki yolu da acik biraktik; numaralandirma korumasi bozulmuyor
+      // cunku metin adresin kayitli olup olmadigini yine soylemiyor.
+      setBasariMsg(
+        'İşlem alındı. Bu adres yeniyse hesabın oluşturuldu ve giriş yapabilirsin. ' +
+          'Adres daha önce kayıt olduysa mevcut şifrenle giriş yap ya da şifreni sıfırla.'
+      );
+      toast.success('İşlem alındı.');
       return;
     } catch (err: any) {
       const errData = err?.data?.error;
       setErrorMsg(typeof errData === 'string' ? errData : errData?.message || 'Kayıt sırasında bir hata oluştu.');
     }
   };
+
+  // Formu gizleyip iki secenegi de kalici olarak gosteriyoruz: onceki 1.5 saniyelik
+  // otomatik yonlendirmede kullanicinin "sifreni sifirla" yolunu okumasina firsat yoktu.
+  if (basariMsg) {
+    return (
+      <div className="w-full">
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold tracking-[-0.02em] text-foreground">Kaydın alındı</h1>
+        </div>
+
+        <div
+          role="status"
+          className="mb-6 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground"
+        >
+          {basariMsg}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Link
+            href="/login"
+            className="w-full rounded-xl bg-primary px-4 py-3 text-center text-sm font-semibold text-primary-foreground shadow-[0_10px_30px_-8px_var(--color-primary)] transition-opacity hover:opacity-90"
+          >
+            Giriş yap
+          </Link>
+          <Link
+            href="/forgot-password"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-center text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Şifremi sıfırla
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
