@@ -127,6 +127,21 @@
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
+/* Landing hero'daki 3B tusun sakin sallanmasi. Sadece transform animasyonu -
+   layout'a dokunmadigi icin compositor'da calisir, reflow tetiklemez. */
+@keyframes hero-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-7deg); }
+  50% { transform: translate3d(0, -0.9rem, 0) rotate(-4deg); }
+}
+@utility animate-hero-float {
+  animation: hero-float 7s ease-in-out infinite;
+  /* Hareket duyarliligi olan kullanicida duruyor - tus yerinde egik kaliyor,
+     tasarim bozulmuyor, sadece hareket kesiliyor. */
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    transform: rotate(-7deg);
+  }
+}
 @utility animate-spin-slow {
   animation: spin-slow 6s linear infinite;
 }
