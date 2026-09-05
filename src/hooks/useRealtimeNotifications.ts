@@ -46,6 +46,17 @@ export function useRealtimeNotifications() {
       // RTK Query cache'ini tazele (NotificationBell güncellensin)
       dispatch(api.util.invalidateTags(['Notification']));
 
+      // Dashboard'daki "Bana Atananlar" listesini de tazele: bu etiketi
+      // gecersiz kilan tek bir mutasyon bile yok (kart islemleri boardService
+      // uzerinden plain fetch ile gidiyor), dolayisiyla kullaniciya "sana kart
+      // atandi" toast'i cikiyor ama /dashboard acikken liste hic degismiyordu.
+      // Yalnizca listeyi gercekten degistiren tiplerde tazeliyoruz - her
+      // bildirimde tazelemek bosuna istek olurdu.
+      const ATANAN_LISTESINI_DEGISTIREN = ['ASSIGNED', 'AUTOMATION', 'BLOCKER_RESOLVED'];
+      if (ATANAN_LISTESINI_DEGISTIREN.includes(notification.type)) {
+        dispatch(api.util.invalidateTags(['MyAssignedCards']));
+      }
+
       // Show toast based on notification type
       const getToastOptions = (type: string) => {
         switch (type) {

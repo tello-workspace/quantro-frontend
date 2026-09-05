@@ -29,6 +29,16 @@ export const dashboardApi = api.injectEndpoints({
       query: () => '/me/assigned-cards',
       transformResponse: (response: ApiEnvelope<AssignedCard[]>) => response.data,
       providesTags: ['MyAssignedCards'],
+      // 'MyAssignedCards' etiketini gecersiz kilan hicbir mutasyon yok: kart
+      // atama/tasima/silme islemleri boardService (plain fetch) uzerinden
+      // gidiyor, RTK bunlari hic gormuyor. Ustune varsayilan 60 sn'lik
+      // keepUnusedDataFor penceresi de devrede oldugu icin kullanici panoda
+      // karti Done'a tasiyip geri donunce liste hala eski kartlari
+      // gosteriyordu - tek cikis sert sayfa yenilemesiydi. 0 vererek sayfadan
+      // ayrilir ayrilmaz cache'i dusuruyoruz, dashboard'a her donuste taze
+      // veri cekiliyor. Sayfa ACIKKEN gelen atamalar icin ayrica
+      // useRealtimeNotifications bu etiketi gecersiz kiliyor.
+      keepUnusedDataFor: 0,
     }),
   }),
 });

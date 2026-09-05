@@ -72,6 +72,26 @@ export const mailApi = api.injectEndpoints({
       query: (mailId) => `/mail/${mailId}`,
       transformResponse: (response: ApiEnvelope<MailDetail>) => response.data,
       providesTags: (_result, _error, mailId) => [{ type: 'Mail', id: mailId }],
+      // GET /mail/:id yan etkili bir uc: backend (mail.service.ts getMail)
+      // aliciyi okundu isaretliyor. Bu sorgu yalnizca kendi id'sini sagladigi
+      // icin gelen kutusu listesi ve okunmamis rozeti bayat kaliyordu - mesaj
+      // acildiktan sonra satir hala kalin, roze hala eski sayida gorunuyordu.
+      // Okundu yazan tek durum "kullanici alici" oldugu icin sadece o durumda
+      // ilgili iki cache girdisini tazeliyoruz.
+      async onQueryStarted(_mailId, { dispatch, queryFulfilled }) {
+        try {
+          const { data: mail } = await queryFulfilled;
+          if (!mail.isRecipient) return;
+          dispatch(
+            mailApi.util.invalidateTags([
+              { type: 'Mail', id: `${mail.organizationId}-inbox` },
+              { type: 'Mail', id: `${mail.organizationId}-unread` },
+            ]),
+          );
+        } catch {
+          // Mesaj acilamadiysa okundu da yazilmamistir; cache'e dokunma
+        }
+      },
     }),
     composeMail: builder.mutation<
       MailListItem,
