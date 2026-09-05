@@ -53,10 +53,28 @@ export default function LoginForm() {
       return;
     }
 
-    await supabase.auth.signInWithOAuth({
+    // Onceki kullanicinin localStorage'da kalmis Supabase oturumunu, YENI
+    // akisa baslamadan once temizle. supabase-js, OAuth donusu hatali/iptal
+    // olursa eski oturumu silmiyor; o durumda /auth/callback eski oturumu
+    // okuyup yanlis hesaba giris yapabiliyordu (bkz. callback sayfasindaki
+    // ayni konudaki not). Burada temizlemek acigi kaynaginda kapatiyor.
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Temizlik basarisiz olsa bile giris denemesini engelleme - callback
+      // tarafindaki hata kontrolu ikinci savunma hatti olarak duruyor.
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
+
+    // Yonlendirme baslatilamazsa (saglayici kapali, ag hatasi) buton eskiden
+    // hicbir sey yapmiyor gibi gorunuyordu - kullanici tekrar tekrar basiyordu.
+    if (error) {
+      toast.error(`Google ile giriş başlatılamadı: ${error.message}`);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

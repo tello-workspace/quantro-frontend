@@ -24,6 +24,40 @@ export default function AuthCallbackPage() {
         setErrorMsg(t('oauthMissingSupabase'));
         return;
       }
+
+      // GUVENLIK: Google'dan hata/iptal ile donuldugunde bunu ONCE kontrol et.
+      //
+      // supabase-js, OAuth donusu basarisiz oldugunda localStorage'daki ESKI
+      // oturumu bilerek SILMIYOR ("Don't remove existing session on URL login
+      // failure"). getSession() de dogrudan storage'dan okudugu icin, hata
+      // parametrelerini gormezden gelirsek onceki kullanicinin hala gecerli
+      // oturumunu okuyup backend'den ONUN adina JWT aliyorduk.
+      //
+      // Somut sonuc: ortak bilgisayarda A cikis yapmadan sekmeyi kapatir, B
+      // "Google ile devam et" deyip izin ekraninda Iptal'e basar -> B, A'nin
+      // hesabina girmis olur. Bu yuzden hata parametresi varsa kalan oturumu
+      // temizleyip duruyoruz.
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const queryParams = new URLSearchParams(window.location.search);
+      const oauthError =
+        hashParams.get('error') ??
+        queryParams.get('error') ??
+        hashParams.get('error_code') ??
+        queryParams.get('error_code');
+
+      if (oauthError) {
+        // Yarim kalan/eski oturum geride kalmasin - sonraki denemede yine
+        // ayni karisikligi uretirdi.
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          // Cikis basarisiz olsa da akisi durduruyoruz; asagida token
+          // gonderilmiyor.
+        }
+        setErrorMsg(t('oauthFailed'));
+        return;
+      }
+
       const { data, error } = await supabase.auth.getSession();
       const accessToken = data.session?.access_token;
 
