@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2 } from 'lucide-react';
+import { useConfirm } from '@/hooks/useConfirm';
 import {
   useGetProjectTemplatesQuery,
   useSaveProjectAsTemplateMutation,
@@ -17,6 +18,7 @@ interface SaveAsTemplateSectionProps {
 }
 
 export const SaveAsTemplateSection: React.FC<SaveAsTemplateSectionProps> = ({ orgId, projectId }) => {
+  const confirm = useConfirm();
   const { data: templates } = useGetProjectTemplatesQuery({ orgId });
   const [saveAsTemplate, { isLoading: saving }] = useSaveProjectAsTemplateMutation();
   const [deleteTemplate] = useDeleteProjectTemplateMutation();
@@ -30,6 +32,25 @@ export const SaveAsTemplateSection: React.FC<SaveAsTemplateSectionProps> = ({ or
       setName('');
     } catch (err: any) {
       toast.error(err?.data?.error?.message || 'Şablon oluşturulamadı');
+    }
+  };
+
+  // Silme geri alinamaz; onay sorulmadigi icin yanlis bir tiklama sablonu
+  // aninda yok ediyordu. Ayrica unwrap() olmadigindan RTK Query reddi yutuyor,
+  // basarisiz silmede hicbir mesaj cikmiyor, kullanici tekrar tekrar tikliyordu.
+  const handleDelete = async (templateId: string, templateName: string) => {
+    const onaylandi = await confirm({
+      title: 'Şablonu sil',
+      description: `"${templateName}" şablonu kalıcı olarak silinecek. Emin misin?`,
+      confirmText: 'Sil',
+      variant: 'destructive',
+    });
+    if (!onaylandi) return;
+    try {
+      await deleteTemplate({ orgId, templateId }).unwrap();
+      toast.success('Şablon silindi');
+    } catch (err: any) {
+      toast.error(err?.data?.error?.message || 'Şablon silinemedi');
     }
   };
 
@@ -60,7 +81,7 @@ export const SaveAsTemplateSection: React.FC<SaveAsTemplateSectionProps> = ({ or
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => deleteTemplate({ orgId, templateId: tpl.id })}
+                  onClick={() => handleDelete(tpl.id, tpl.name)}
                   title="Şablonu sil"
                 >
                   <Trash2 className="size-3.5" />

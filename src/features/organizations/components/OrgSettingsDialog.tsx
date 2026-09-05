@@ -251,6 +251,11 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
             {members.map(m => {
               const userBadges = getMemberBadges(m.userId);
               const isOwner = m.userId === org?.ownerId;
+              // Buradaki isOwner satirdaki kisinin KURUCU olup olmadigina bakar, giris yapan
+              // kullaniciya degil. O yuzden kendi satirini ayrica isaretliyoruz: aksi halde
+              // kurucu olmayan bir admin kendi rolunu MEMBER/GUEST yapip ya da X'e basip
+              // kendini organizasyondan cikarip yetkisini geri alamaz hale geliyordu.
+              const isSelf = !!me && m.userId === me.id;
               const isNameEmail = m.user.name.includes('@');
               const displayName = isNameEmail 
                 ? m.user.name.split('@')[0].charAt(0).toUpperCase() + m.user.name.split('@')[0].slice(1) 
@@ -265,7 +270,8 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-foreground tracking-tight">{displayName}</p>
                       {isOwner && <Badge variant="secondary" className="text-[10px] px-2 py-0 h-4 bg-muted hover:bg-muted text-muted-foreground font-semibold">Kurucu</Badge>}
-                      {isAdmin && !isOwner ? (
+                      {/* Kendi satirinda rol salt-okunur Badge olarak gosterilir; kimse kendi yetkisini dusuremesin. */}
+                      {isAdmin && !isOwner && !isSelf ? (
                         <select
                           value={m.role}
                           onChange={(e) => handleRoleChange(m.userId, e.target.value as 'ADMIN' | 'MEMBER' | 'GUEST')}
@@ -359,7 +365,8 @@ export const OrgSettingsDialog: React.FC<OrgSettingsDialogProps> = ({ orgId, isA
                     </div>
                   </div>
 
-                  {isAdmin && !isOwner && (
+                  {/* Cikarma butonu kendi satirinda gizlenir: "uyeyi cikar" akisi kendini atmak icin degil. */}
+                  {isAdmin && !isOwner && !isSelf && (
                     <button
                       onClick={() => handleRemoveMember(m.userId, m.user.name)}
                       className="shrink-0 size-8 flex items-center justify-center rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all ml-2 cursor-pointer"
