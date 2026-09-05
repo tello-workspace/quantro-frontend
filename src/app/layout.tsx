@@ -7,7 +7,7 @@ import { Toaster } from 'sonner'
 import './globals.css'
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import AuthenticatedShell from '@/components/AuthenticatedShell';
 
 // Plus Jakarta Sans: SaaS/pano arayuzleri icin onerilen, Geist'e gore
@@ -41,11 +41,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const cookieStore = await cookies();
   const sidebarCookie = cookieStore.get('sidebar_state')?.value;
   const defaultSidebarOpen = sidebarCookie === 'true';
+  // src/proxy.ts tarafindan istek basina uretilip CSP header'ina yazilan
+  // nonce - inline tema script'inin CSP altinda calisabilmesi icin gerekli.
+  const nonce = (await headers()).get('x-nonce');
 
   return (
     <html lang="tr" suppressHydrationWarning={true} className={cn("font-sans", jakarta.variable)}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce ?? undefined} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased">
         <StoreProvider>

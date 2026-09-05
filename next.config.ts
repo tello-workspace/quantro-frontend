@@ -16,26 +16,12 @@ const nextConfig: NextConfig = {
           // token/query verisi sizmasin). strict-origin-when-cross-origin,
           // HTTPS olmayan baglantida hicbir sey gondermez.
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // Temel CSP. not: 'unsafe-inline' stili, shadcn/ui'nin CSS-in-JS
-          // yaklasimi nedeniyle gerekiyor. script-src 'unsafe-eval' icermez;
-          // Next.js dev modu gerektirir ama prod derlemesi bu olmadan calisir.
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              // kendi script'lerimiz + inline (tema script'i, style tagleri)
-              "script-src 'self' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
-              // gorseller: kendi + supabase (avatar/cover)
-              "img-src 'self' data: blob: https://*.supabase.co",
-              // API + websocket (socket.io): backend Render hostu + Sentry hata raporlama
-              "connect-src 'self' https://quantro-backend-1.onrender.com https://*.supabase.co wss://quantro-backend-1.onrender.com ws://localhost:4000 http://localhost:4000 https://*.ingest.de.sentry.io",
-              "font-src 'self' data:",
-              "frame-ancestors 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-            ].join("; "),
-          },
+          // Content-Security-Policy burada YOK: nonce-tabanli CSP artik
+          // src/proxy.ts icinde, istek basina uretiliyor (bkz. o dosyadaki
+          // yorum). Ayni header'i burada sabit degerle de donmek, tarayicida
+          // iki CSP birden uygulanmasina (kesisim) yol acar ve script-src
+          // icin 'unsafe-inline' burada kalirsa nonce korumasini etkisiz
+          // birakir.
         ],
       },
     ];
