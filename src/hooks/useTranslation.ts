@@ -658,6 +658,11 @@ const translations = {
     forgotPasswordTitle: "Şifreni mi unuttun?",
     forgotPasswordDesc: "E-posta adresini gir, sana şifre sıfırlama bağlantısı gönderelim.",
     forgotPasswordSentMsg: "Bu email adresi kayıtlıysa, birazdan gelen kutunda bir şifre sıfırlama bağlantısı bulacaksın.",
+    // Istek gercekten basarisiz oldugunda (429 / ag kopuklugu / 5xx) onay
+    // ekrani yerine bu metinler gosterilir; yoksa kullanici hic gonderilmemis
+    // bir e-postayi bekliyor.
+    forgotPasswordRateLimited: "Çok fazla deneme yaptın. Lütfen bir süre sonra tekrar dene.",
+    forgotPasswordError: "İstek gönderilemedi. Bağlantını kontrol edip tekrar dene.",
     emailLabel: "E-posta adresi",
     sendResetLink: "Sıfırlama bağlantısı gönder",
     sending: "Gönderiliyor...",
@@ -1338,6 +1343,8 @@ const translations = {
     forgotPasswordTitle: "Forgot your password?",
     forgotPasswordDesc: "Enter your email and we'll send you a password reset link.",
     forgotPasswordSentMsg: "If this email is registered, you'll find a password reset link in your inbox shortly.",
+    forgotPasswordRateLimited: "Too many attempts. Please try again in a little while.",
+    forgotPasswordError: "Couldn't send the request. Check your connection and try again.",
     emailLabel: "Email address",
     sendResetLink: "Send reset link",
     sending: "Sending...",

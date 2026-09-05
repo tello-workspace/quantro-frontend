@@ -39,8 +39,12 @@ export default function MailPage() {
     try {
       await deleteMail({ mailId, orgId }).unwrap();
       toast.success(folder === 'drafts' ? 'Taslak silindi' : 'Silindi');
-    } catch {
-      toast.error('Silinemedi');
+    } catch (err) {
+      // Sabit "Silinemedi" metni kullaniciyi kor birakiyordu; backend'in neden
+      // reddettigini (or. yetki/klasor hatasi) gormeden ayni dugmeye tekrar
+      // tekrar basiliyordu. Sunucunun mesaji varsa onu goster.
+      const mesaj = (err as { data?: { error?: { message?: string } } })?.data?.error?.message;
+      toast.error(mesaj || 'Silinemedi');
     }
   };
 
@@ -112,16 +116,23 @@ export default function MailPage() {
                   <span className="shrink-0 text-xs text-muted-foreground">
                     {new Date(mail.sentAt ?? mail.createdAt).toLocaleDateString()}
                   </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="shrink-0 text-destructive hover:text-destructive"
-                    onClick={(e) => handleDelete(mail.id, e)}
-                    title="Sil"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  {/* Gonderilenlerde sil yok: backend deleteMail gonderilmis bir
+                      mesaji yalnizca KENDI gelen kutundan kaldiriyor, gonderen ise
+                      alici listesinde olmadigi icin cagri her zaman hata donuyordu.
+                      Calismayan dugmeyi hic gostermemek, kullaniciyi bos yere
+                      denemeye zorlamaktan iyi. */}
+                  {folder !== 'sent' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 text-destructive hover:text-destructive"
+                      onClick={(e) => handleDelete(mail.id, e)}
+                      title="Sil"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
                 </button>
               ))}
             </div>

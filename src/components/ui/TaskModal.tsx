@@ -104,7 +104,13 @@ function kartOzeti(task: Task): string {
     title: task.title?.trim() ?? '',
     description: task.description?.trim() ?? '',
     priority: task.priority ?? null,
+    // Kart tipi ve baslangic tarihi de formda duzenlenebiliyor ama ozette
+    // yoktu: yalnizca bu iki alandan birini degistiren kullanicida Kaydet
+    // butonu "degisiklik yok" diye pasif kaliyor ve degisiklik hicbir
+    // sekilde kaydedilemiyordu. startDate de dueDate gibi gune indiriliyor.
+    type: task.type ?? null,
     dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+    startDate: task.startDate ? task.startDate.split('T')[0] : '',
     assigneeIds: [...(task.assignees ?? []).map((a) => a.id)].sort(),
     // Efor tahmini ve zaman takibi tahmini de yalnizca kaydette gidiyor;
     // burada olmazsa sadece bunlari degistiren kullanici kaydedemez.
@@ -1284,6 +1290,28 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const gonderilebilir =
     taskId === 'new' ? !!task?.title.trim() : degisiklikVar;
 
+  // Kapanis yollarinin (Escape, dis alana tiklama, X, Iptal) hepsi dogrudan
+  // onClose'a gidiyordu: modal ici duzenlemeler yalnizca yerel state'te
+  // durdugu icin kaydedilmemis her sey uyarisiz ve geri donusu olmadan yok
+  // oluyordu. Degisiklik varken once onay soruyoruz; kullanici onaylamazsa
+  // dialog kontrollu oldugu icin (open={isOpen}) acik kalmaya devam eder.
+  const kapatmayiDene = async () => {
+    if (degisiklikVar) {
+      const ok = await confirm({
+        title: lang === 'en' ? 'Unsaved changes' : 'Kaydedilmemiş değişiklikler',
+        description:
+          lang === 'en'
+            ? 'Your changes on this card have not been saved yet. Close anyway?'
+            : 'Bu karttaki değişiklikler henüz kaydedilmedi. Yine de kapatılsın mı?',
+        confirmText: lang === 'en' ? 'Close without saving' : 'Kaydetmeden kapat',
+        cancelText: lang === 'en' ? 'Keep editing' : 'Düzenlemeye devam et',
+        variant: 'destructive',
+      });
+      if (!ok) return;
+    }
+    onClose();
+  };
+
   const handleSave = async () => {
     if (!task) return;
     // Dugme zaten pasif; buton disi bir yol (enter, test, eski render)
@@ -1621,7 +1649,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const aciklamaOnizlemede = (descPreview || onizlemeModu) && aciklamaVar;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
+    <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) void kapatmayiDene(); }}>
       <DialogContent
         onPointerDownCapture={duzenlemeyeGec}
         onKeyDownCapture={duzenlemeyeGec}
@@ -2602,7 +2630,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   <BookmarkIcon className="h-3.5 w-3.5 mr-1" /> {t('saveTemplateBtn')}
                 </Button>
               )}
-              <Button type="button" variant="outline" onClick={onClose} disabled={isFilling || isRequesting}>
+              <Button type="button" variant="outline" onClick={() => void kapatmayiDene()} disabled={isFilling || isRequesting}>
                 {t('cancel')}
               </Button>
               <Button

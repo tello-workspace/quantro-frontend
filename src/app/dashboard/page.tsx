@@ -3,6 +3,7 @@
 import { useGetMyAssignedCardsQuery } from '@/features/dashboard/dashboardApi';
 import { useGetWatchedCardsQuery, useUnwatchCardMutation } from '@/features/watchers/watchApi';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { AlertTriangle, Eye, EyeOff, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -50,6 +51,25 @@ function Yukleniyor() {
   );
 }
 
+// Sorgu patlayinca `data` undefined kalip varsayilan `= []` devreye giriyordu;
+// isLoading da false oldugu icin ekranda "sana atanmis kart yok" yaziyordu.
+// Yani 503/ag kopmasi, kullaniciya "bugun isin yok" diye gosteriliyordu ve
+// hatayi anlamasinin ya da tekrar denemesinin hicbir yolu yoktu.
+// Bicim projects/page.tsx'teki hata kutusuyla ayni; ustune AuthenticatedShell'in
+// "Tekrar dene" dugmesi eklendi - sert sayfa yenilemesi tek cikis olmasin.
+function Hata({ tekrarDene }: { tekrarDene: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
+      <p className="text-sm font-medium text-destructive">{t('genericError')}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t('networkRefreshDesc')}</p>
+      <Button className="mt-3" size="sm" variant="outline" onClick={tekrarDene}>
+        {t('retry')}
+      </Button>
+    </div>
+  );
+}
+
 // Projeler arasi tek bir yerde "uzerimde ne var" sorusuna cevap: her proje
 // ayri acilmadan tum organizasyonlardaki atanmis kartlar tek listede,
 // teslim tarihine gore siralanmis halde.
@@ -60,8 +80,15 @@ function Yukleniyor() {
 // ama abone oldugunu gorebilecegin hicbir yer yoktu.
 export default function DashboardPage() {
   const { t } = useTranslation();
-  const { data: cards = [], isLoading } = useGetMyAssignedCardsQuery();
-  const { data: watched = [], isLoading: izlenenYukleniyor } = useGetWatchedCardsQuery();
+  // isError/refetch de okunuyor: iki bolum AYRI sorgu oldugu icin hata
+  // durumlari da ayri ayri gosteriliyor, biri patlayinca digeri gizlenmiyor.
+  const { data: cards = [], isLoading, isError, refetch } = useGetMyAssignedCardsQuery();
+  const {
+    data: watched = [],
+    isLoading: izlenenYukleniyor,
+    isError: izlenenHata,
+    refetch: izlenenTekrarDene,
+  } = useGetWatchedCardsQuery();
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6">
@@ -73,6 +100,12 @@ export default function DashboardPage() {
 
         {isLoading ? (
           <Yukleniyor />
+        ) : isError && cards.length === 0 ? (
+          // Hata dali bos-durum dalindan ONCE geliyor; sirasi degisirse hata
+          // yine "kart yok" gibi gorunur. Elde onceki basarili cekimden kalan
+          // kartlar varsa onlari yikmiyoruz - gecici hata calisan listeyi
+          // goturmemeli (AuthenticatedShell'deki `isError && !me` mantigi).
+          <Hata tekrarDene={() => refetch()} />
         ) : cards.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('dashboardNoCards')}</p>
         ) : (
@@ -126,6 +159,10 @@ export default function DashboardPage() {
 
         {izlenenYukleniyor ? (
           <Yukleniyor />
+        ) : izlenenHata && watched.length === 0 ? (
+          // Ayni kusur burada da vardi: /watched-cards patlayinca kullanici
+          // "hicbir karti izlemiyorsun" gorup aboneliklerinin dustugunu saniyordu.
+          <Hata tekrarDene={() => izlenenTekrarDene()} />
         ) : watched.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('dashboardNoWatched')}</p>
         ) : (

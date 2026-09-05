@@ -89,8 +89,22 @@ export default function ProfilePage() {
   const [aiModel, setAiModel] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
 
+  // Formun sunucudan HANGI kullanici icin doldurulmus oldugunu tutar.
+  //
+  // Effect'in bagimliligi `me` nesnesi ve govdesi 11 local state'i sunucu
+  // degeriyle eziyor. Bu sayfadaki avatar yukleme/hazir avatar/avatar silme ve
+  // GitHub senkronu mutasyonlarinin hepsi 'Me' etiketini invalidate ettigi icin
+  // getMe yeniden cekiliyor, RTK Query yeni bir nesne referansi donduruyor ve
+  // effect tekrar calisiyordu: kullanicinin heniz Kaydet'e basmadan yazdigi
+  // title/bio/experience/... alanlari sessizce eski haline donuyordu. Bayrak
+  // sayesinde form yalnizca ilk dolumda (ya da oturum baska bir kullaniciya
+  // gecerse) sunucu degerleriyle esitleniyor.
+  const formDoldurulanKullaniciRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!me) return;
+    if (formDoldurulanKullaniciRef.current === me.id) return;
+    formDoldurulanKullaniciRef.current = me.id;
     setTitle(me.title ?? '');
     setBio(me.bio ?? '');
     setExperience(me.experience ?? '');

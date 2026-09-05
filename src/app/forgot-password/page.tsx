@@ -10,18 +10,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { LayoutGrid, Loader2, MailCheck } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 
+// fetchBaseQuery hatasinin okudugumuz alanlari: HTTP durumu ve backend'in
+// { success:false, error:{ code, message } } zarfi.
+interface ApiError {
+  status?: number | string;
+  data?: { error?: { code?: string; message?: string } };
+}
+
 export default function ForgotPasswordPage() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Backend her zaman ayni basarili yaniti dondurur (kullanici enumeration
-    // riskini onlemek icin) - burada catch'e dusmesi zaten beklenmiyor.
-    await forgotPassword({ email }).unwrap().catch(() => {});
-    setSent(true);
+    setErrorMsg('');
+    // Backend kullanici enumeration'ini onlemek icin gecerli/gecersiz email
+    // farketmeksizin ayni basarili yaniti doner - ama bu "hic hata donmez"
+    // demek degil: uc checkRateLimit'ten geciyor ve pencere dolunca 429
+    // donuyor, ayrica ag kopuklugu/5xx de mumkun. Eskiden tum hatalar
+    // yutulup kosulsuz onay ekrani aciliyordu; kullanici hic gonderilmemis
+    // bir e-postayi bekliyordu. Artik yalnizca gercekten basarili yanitta
+    // onay ekranina geciyoruz, aksi halde hatayi gosterip tekrar denemesine
+    // izin veriyoruz. Enumeration korumasi zaten backend tarafinda.
+    try {
+      await forgotPassword({ email }).unwrap();
+      setSent(true);
+    } catch (err) {
+      const apiError = err as ApiError;
+      // 429 yanitindaki sunucu mesaji "X dakika sonra tekrar deneyin" gibi
+      // somut bir sure tasiyor; varsa onu goster, yoksa ceviriye dus.
+      setErrorMsg(
+        apiError?.data?.error?.message ||
+          (apiError?.status === 429 ? t('forgotPasswordRateLimited') : t('forgotPasswordError')),
+      );
+    }
   };
 
   return (
@@ -47,6 +72,17 @@ export default function ForgotPasswordPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* role="alert" ile ekran okuyucu da sahte basari yerine
+                    gercek sonucu duyurur. */}
+                {errorMsg && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
+                  >
+                    {errorMsg}
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label htmlFor="forgot-email">{t('emailLabel')}</Label>
                   <Input

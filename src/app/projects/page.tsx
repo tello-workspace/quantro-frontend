@@ -6,7 +6,7 @@ import {
   type OrgRole,
 } from '@/features/organizations/organizationsApi';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,9 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteMsg, setInviteMsg] = useState('');
+  // Davet mesaji hata mi degil mi ayrimi: metin tek basina basari ile ayni
+  // gri tonda basildigi icin admin 409 gibi hatalari basari saniyordu.
+  const [inviteHatali, setInviteHatali] = useState(false);
   const [addMember, { isLoading: isInviting }] = useAddMemberMutation();
   const [showOrgSettings, setShowOrgSettings] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -113,15 +116,24 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
     router.replace(`/projects?orgId=${orgId}`, { scroll: false });
   };
 
+  // ?showRequests=true yalnizca bir kez tuketilir. Effect'in bagimlisi olan
+  // `orgs` her invalidate'te (orn. talep onaylandiginda) yeni referansla
+  // geldigi icin effect tekrar kosuyor ve kullanicinin kapattigi talep
+  // diyalogu kendiliginden yeniden aciliyordu.
+  const talepParamiTuketildi = useRef(false);
+
   useEffect(() => {
     const queryOrgId = searchParams.get('orgId');
     if (queryOrgId && orgs.some((o) => o.id === queryOrgId)) {
       setActiveOrgId(queryOrgId);
     }
-    if (searchParams.get('showRequests') === 'true') {
+    if (!talepParamiTuketildi.current && searchParams.get('showRequests') === 'true') {
+      talepParamiTuketildi.current = true;
       setShowRequests(true);
+      // Param URL'de kalirsa geri/ileri gezintide de diyalog yeniden aciliyor
+      router.replace(queryOrgId ? `/projects?orgId=${queryOrgId}` : '/projects', { scroll: false });
     }
-  }, [searchParams, orgs]);
+  }, [searchParams, orgs, router]);
 
   const isAdmin = activeOrg.role === 'ADMIN';
   // Bekleyen talep sayaci: admin icin is listesi, uye icin kendi takibi
@@ -133,6 +145,7 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteMsg('');
+    setInviteHatali(false);
     try {
       await addMember({ orgId: activeOrg.id, email: inviteEmail }).unwrap();
       toast.success(t('inviteSuccess'));
@@ -141,7 +154,12 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
       setTimeout(() => setShowInvite(false), 1200);
     } catch (err: any) {
       const errData = err?.data?.error;
-      setInviteMsg(typeof errData === 'string' ? errData : errData?.message || t('inviteError'));
+      const hataMesaji = typeof errData === 'string' ? errData : errData?.message || t('inviteError');
+      // Hata daha once sadece formun altina basari mesajiyla ayni tonda
+      // yaziliyordu; "zaten bekleyen davet var" gibi 409'lar gozden kaciyordu.
+      toast.error(hataMesaji);
+      setInviteMsg(hataMesaji);
+      setInviteHatali(true);
     }
   };
 
@@ -242,7 +260,11 @@ function OrgTabs({ orgs }: { orgs: { id: string; name: string; projectCount: num
               onChange={(e) => setInviteEmail(e.target.value)}
               required
             />
-            {inviteMsg && <p className="mt-1 text-xs text-muted-foreground">{inviteMsg}</p>}
+            {inviteMsg && (
+              <p className={`mt-1 text-xs ${inviteHatali ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {inviteMsg}
+              </p>
+            )}
           </div>
           <Button type="submit" disabled={isInviting} size="sm">
             {isInviting ? '...' : t('inviteBtn')}
