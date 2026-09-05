@@ -13,6 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { useGetMyOrganizationsQuery, useGetOrganizationByIdQuery } from '@/features/organizations/organizationsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
@@ -46,6 +47,28 @@ export function AppSidebar() {
   const { data: unreadMailCount = 0 } = useGetUnreadMailCountQuery({ orgId: activeOrgId ?? '' }, { skip: !activeOrgId });
   useRealtimeMail();
   const [orgSelectOpen, setOrgSelectOpen] = useState(false);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  // Mobilde kenar cubugu Sheet olarak aciliyor ve bir baglantiya basildiginda
+  // acik kaliyordu: panel + karartma katmani gidilen sayfayi tamamen ortuyor,
+  // kullanici baglantinin calismadigini saniyordu. Rota/query degisimini
+  // izleyerek kapatmak, komut paleti veya bildirimden gelen gezinmeleri de
+  // kapsar.
+  const searchParamsKey = searchParams?.toString() ?? '';
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [pathname, searchParamsKey, isMobile, setOpenMobile]);
+
+  // Ayni adrese tekrar dokunuldugunda (or. zaten acik olan proje) URL
+  // degismedigi icin yukaridaki effect tetiklenmez; menudeki her baglanti
+  // bunu ayrica cagirarak paneli kapatir.
+  const kenarCubugunuKapat = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   // activeOrgId ilk mount'ta undefined olabilir (orgs henuz yuklenmemis).
   // Doldugunda projeleri zorla cekelim - ilk login aninda projeler gelsin.
@@ -86,7 +109,10 @@ export function AppSidebar() {
                     <Link
                       key={o.id}
                       href={`/projects?orgId=${o.id}`}
-                      onClick={() => setOrgSelectOpen(false)}
+                      onClick={() => {
+                        setOrgSelectOpen(false);
+                        kenarCubugunuKapat();
+                      }}
                       className={cn(
                         'flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted',
                         o.id === activeOrgId ? 'font-medium text-foreground' : 'text-muted-foreground',
@@ -113,7 +139,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
-                      <Link href={href}>
+                      <Link href={href} onClick={kenarCubugunuKapat}>
                         <item.icon />
                         <span>{item.label}</span>
                         {item.href === '/mail' && unreadMailCount > 0 && (
@@ -149,7 +175,7 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={project.id}>
                       <SidebarMenuButton asChild isActive={isActive && !isOnManagePage} tooltip={project.name}>
-                        <Link href={`/projects/${project.id}?orgId=${activeOrgId}`}>
+                        <Link href={`/projects/${project.id}?orgId=${activeOrgId}`} onClick={kenarCubugunuKapat}>
                           <FolderKanban />
                           <span>{project.name}</span>
                         </Link>
@@ -164,7 +190,7 @@ export function AppSidebar() {
                             tooltip="Otomasyonlar"
                             className="ml-3"
                           >
-                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=automations`}>
+                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=automations`} onClick={kenarCubugunuKapat}>
                               <Zap />
                               <span>Otomasyonlar</span>
                             </Link>
@@ -175,7 +201,7 @@ export function AppSidebar() {
                             tooltip="Ek Alanlar"
                             className="ml-3"
                           >
-                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=fields`}>
+                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=fields`} onClick={kenarCubugunuKapat}>
                               <ListPlus />
                               <span>Ek Alanlar</span>
                             </Link>
@@ -186,7 +212,7 @@ export function AppSidebar() {
                             tooltip="Triage"
                             className="ml-3"
                           >
-                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=triage`}>
+                            <Link href={`/projects/${project.id}/manage?orgId=${activeOrgId}&tab=triage`} onClick={kenarCubugunuKapat}>
                               <Inbox />
                               <span>Triage</span>
                             </Link>

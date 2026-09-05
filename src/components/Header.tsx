@@ -64,6 +64,12 @@ export default function Header(){
     const queryOrgId = searchParams?.get('orgId');
     const activeOrgId = queryOrgId || orgs?.[0]?.id;
 
+    // Basliktan cikan baglantilar orgId'yi tasimazsa app-sidebar `orgs[0]`
+    // fallback'ine dusuyor ve kullanici farkinda olmadan BASKA organizasyona
+    // geciyordu (B org'unda calisirken profile tiklayinca A'ya donmek gibi).
+    // Aktif org'u query'de tasiyarak secim korunuyor.
+    const orgSuffix = activeOrgId ? `?orgId=${activeOrgId}` : '';
+
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -71,7 +77,14 @@ export default function Header(){
         localStorage.removeItem('token');
         disconnectSocket();
         if (supabase) {
-          await supabase.auth.signOut();
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // signOut ag istegi; hata firlatirsa asagidaki adimlar (resetApiState,
+            // toast, /login yonlendirmesi) hic calismiyordu. Token zaten silindi,
+            // bu yuzden cikisi engellemesin - api.ts ve AuthenticatedShell'deki
+            // desenin aynisi.
+          }
         }
         window.dispatchEvent(new Event('auth:changed'));
         dispatch(api.util.resetApiState());
@@ -140,7 +153,7 @@ export default function Header(){
                 <Menu className="size-5" />
               </button>
               <Link
-                href="/dashboard"
+                href={`/dashboard${orgSuffix}`}
                 title={t('goHome')}
                 aria-label={t('goHome')}
                 className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:text-primary"
@@ -233,7 +246,7 @@ export default function Header(){
 
             <div className="flex items-center gap-1 shrink-0">
               <Link
-                href="/dashboard"
+                href={`/dashboard${orgSuffix}`}
                 title="Bana Atananlar"
                 className="flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
@@ -243,7 +256,7 @@ export default function Header(){
               <NotificationBell />
               {me && (
                 <Link
-                  href="/profile"
+                  href={`/profile${orgSuffix}`}
                   title={t('myProfile')}
                   className="ml-1 flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted"
                 >

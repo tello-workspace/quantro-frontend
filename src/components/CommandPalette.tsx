@@ -52,9 +52,12 @@ export const CommandPalette: React.FC<Props> = ({ open, onOpenChange, orgId, pro
 
   const komutlar: Komut[] = useMemo(() => {
     const temel: Komut[] = [
+      // orgSuffix yalnizca 'boards'ta vardi; digerlerine gidince orgId dusuyor ve
+      // kenar cubugu `orgs[0]` fallback'ine kayarak aktif organizasyonu sessizce
+      // degistiriyordu. Tum komutlar aktif org'u tasiyor.
       { id: 'boards', label: t('myBoards'), icon: LayoutGrid, href: `/projects${orgSuffix}` },
-      { id: 'assigned', label: t('assignedToMe'), icon: ListChecks, href: '/dashboard' },
-      { id: 'profile', label: t('myProfile'), icon: UserCircle, href: '/profile' },
+      { id: 'assigned', label: t('assignedToMe'), icon: ListChecks, href: `/dashboard${orgSuffix}` },
+      { id: 'profile', label: t('myProfile'), icon: UserCircle, href: `/profile${orgSuffix}` },
     ];
 
     if (!projectId) return temel;
