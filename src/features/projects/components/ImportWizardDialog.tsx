@@ -48,6 +48,10 @@ export const ImportWizardDialog: React.FC<ImportWizardDialogProps> = ({ projectI
   const [columnMapping, setColumnMapping] = useState<Record<string, ColumnMappingEntry>>({});
   const [userMapping, setUserMapping] = useState<Record<string, string | null>>({});
   const [result, setResult] = useState<{ createdColumns: number; createdCards: number; createdLabels: number; skippedCards: number } | null>(null);
+  // Aktarım yarıda hata alırsa sütun/kartların bir kısmı panoda kalmış olabilir; aynı eşlemeyle
+  // körlemesine tekrar denemek mükerrer sütun/kart üretir. Bu bayrak "Onayla"yı kilitleyip
+  // kullanıcıyı önce yeniden önizlemeye (panonun güncel hâline) zorlar.
+  const [kismiAktarimSuphesi, setKismiAktarimSuphesi] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [previewImport, { isLoading: previewing }] = usePreviewImportMutation();
@@ -60,6 +64,7 @@ export const ImportWizardDialog: React.FC<ImportWizardDialogProps> = ({ projectI
     setColumnMapping({});
     setUserMapping({});
     setResult(null);
+    setKismiAktarimSuphesi(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -93,6 +98,9 @@ export const ImportWizardDialog: React.FC<ImportWizardDialogProps> = ({ projectI
       }
       setUserMapping(kullaniciMapping);
 
+      // Taze önizleme, panoda kalmış olabilecek sütunları "mevcut sütun" olarak geri getirir;
+      // artık mükerrer üretim riski kalktığı için kilidi kaldırıyoruz.
+      setKismiAktarimSuphesi(false);
       setStep('mapping');
     } catch (err: any) {
       toast.error(err?.data?.error?.message || 'Dosya okunamadı — geçerli bir Trello JSON / Jira CSV dışa aktarımı mı?');
@@ -105,6 +113,9 @@ export const ImportWizardDialog: React.FC<ImportWizardDialogProps> = ({ projectI
       setResult(sonuc);
       setStep('done');
     } catch (err: any) {
+      // Backend applyImport tek transaction değil: hata anında sütunlar/kartlar kısmen yazılmış
+      // olabilir. Butonu yeniden aktif bırakmak yerine kilitleyip yeniden önizlemeye yönlendiriyoruz.
+      setKismiAktarimSuphesi(true);
       toast.error(err?.data?.error?.message || 'İçe aktarma uygulanamadı');
     }
   };
@@ -165,6 +176,12 @@ export const ImportWizardDialog: React.FC<ImportWizardDialogProps> = ({ projectI
 
         {step === 'mapping' && preview && (
           <div className="space-y-5">
+            {kismiAktarimSuphesi && (
+              <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                Aktarım yarıda kesildi — bir kısım sütun/kart panoya yazılmış olabilir. Panoyu kontrol et,
+                sonra &quot;Yeniden önizle&quot; ile eşlemeyi tazeleyip devam et. Aynı eşlemeyle tekrar denemek mükerrer kayıt oluşturur.
+              </p>
+            )}
             <p className="text-sm text-muted-foreground">{preview.totalCards} kart bulundu.</p>
 
             <div>
@@ -269,9 +286,17 @@ export const ImportWizardDialog: React.FC<ImportWizardDialogProps> = ({ projectI
               <Button type="button" variant="outline" onClick={() => setStep('upload')}>
                 Geri
               </Button>
-              <Button type="button" onClick={handleApply} disabled={applying}>
-                {applying ? 'Uygulanıyor…' : 'Onayla ve içe aktar'}
-              </Button>
+              {/* Kısmi aktarım şüphesi varken doğrudan tekrar denemeyi kapatıyoruz; tek çıkış yolu
+                  önizlemeyi tazelemek, böylece oluşmuş sütunlar "mevcut" olarak eşlenebilir. */}
+              {kismiAktarimSuphesi ? (
+                <Button type="button" onClick={handlePreview} disabled={previewing}>
+                  {previewing ? 'Okunuyor…' : 'Yeniden önizle'}
+                </Button>
+              ) : (
+                <Button type="button" onClick={handleApply} disabled={applying}>
+                  {applying ? 'Uygulanıyor…' : 'Onayla ve içe aktar'}
+                </Button>
+              )}
             </>
           )}
           {step === 'done' && (

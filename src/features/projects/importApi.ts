@@ -54,6 +54,19 @@ export const importApi = api.injectEndpoints({
         body,
       }),
       transformResponse: (response: ApiEnvelope<ApplyImportResult>) => response.data,
+      // İçe aktarma tek istekte yeni sütun + kart + etiket yaratıyor ama hiçbir
+      // etiketi geçersiz kılmıyordu: kullanıcı "Kapat"a bastıktan sonra etiket
+      // listesi (Otomasyonlar sekmesi) ve proje kartındaki sütun sayısı eski
+      // kalıyor, ancak tam sayfa yenilemeyle güncelleniyordu.
+      // - 'Project': getProjects (_count.columns) tazelensin.
+      // - { Project, projectId }: getProjectById tazelensin.
+      // - { Card, labels-<projectId> }: getLabels'in sağladığı etiket bu biçimde,
+      //   düz 'Card' ile eşleşmiyor; id'siz yazılırsa etiket listesi yenilenmez.
+      invalidatesTags: (_result, _error, { projectId }) => [
+        'Project',
+        { type: 'Project', id: projectId },
+        { type: 'Card', id: `labels-${projectId}` },
+      ],
     }),
   }),
 });
