@@ -1,5 +1,7 @@
 // src/features/board/services/boardService.ts
 
+import type { GithubCardLink } from '@/features/projects/githubApi';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
 export function getAuthHeaders(): Record<string, string> {
@@ -106,6 +108,11 @@ export interface Task {
   /** Zaman takibi - estimate'ten AYRI eksen, gercek dakika (kaba puanlama degil) */
   estimateMinutes?: number | null;
   spentMinutes?: number;
+  /**
+   * Bagli GitHub dal/PR kayitlari. Yalnizca kart DETAYINDA (/cards/:id) gelir -
+   * pano yuklemesinde her kart icin cekmek gereksiz sorgu olurdu.
+   */
+  githubLinks?: GithubCardLink[];
 }
 
 // Backend /cards/:id (GET, PATCH) assignees/labels'i nested CardAssignee[]/
@@ -134,6 +141,7 @@ export interface RawCard {
   estimate?: number | null;
   estimateMinutes?: number | null;
   spentMinutes?: number;
+  githubLinks?: GithubCardLink[];
 }
 
 export function normalizeCard(raw: RawCard): Task {
@@ -163,6 +171,7 @@ export function normalizeCard(raw: RawCard): Task {
     parent: raw.parent,
     subtasks: raw.subtasks?.map((s) => ({ id: s.id, title: s.title, done: s.column?.isDone ?? false })),
     customFieldValues: raw.customFieldValues,
+    githubLinks: raw.githubLinks,
   };
 }
 

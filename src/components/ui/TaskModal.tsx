@@ -5,7 +5,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PriorityIcon } from '@/features/board/components/PriorityIcon';
 import { CardTypeIcon } from '@/features/board/components/CardTypeIcon';
-import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CalendarDaysIcon, TrashIcon, TagIcon, LinkIcon, SparklesIcon, PaperClipIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon, EyeIcon, ClipboardIcon } from '@heroicons/react/24/outline';
+import { branchAdiUret, type GithubCardLink } from '@/features/projects/githubApi';
 import { EyeIcon as EyeIconSolid } from '@heroicons/react/24/solid';
 import { useGetWatchStatusQuery, useWatchCardMutation, useUnwatchCardMutation } from '@/features/watchers/watchApi';
 import { useSaveCardAsTemplateMutation } from '@/features/templates/templateApi';
@@ -1049,6 +1050,82 @@ const CardKeyBadge: React.FC<{ cardKey: string }> = ({ cardKey }) => {
   );
 };
 
+/**
+ * GitHub bolumu: dal adini uretip kopyalatir ve bagli branch/PR'lari listeler.
+ *
+ * "Dal adini kopyala" butonu, entegrasyonun calismasinin on kosulunu tek
+ * tiklamaya indiriyor: kart anahtarinin dal adinda GECMESI gerekiyor, elle
+ * yazilirsa yanlis yazilma ihtimali var ve o durumda hicbir sey olmuyor -
+ * ustelik kullanici NEDEN olmadigini anlamiyor.
+ */
+const GithubLinksBlock: React.FC<{ cardKey: string; title: string; links: GithubCardLink[] }> = ({
+  cardKey,
+  title,
+  links,
+}) => {
+  const { t } = useTranslation();
+  const branchAdi = branchAdiUret(cardKey, title);
+
+  return (
+    <div className="min-w-0">
+      <label className="block text-sm font-medium text-muted-foreground mb-1.5">{t('githubLabel')}</label>
+
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(branchAdi);
+            toast.success(t('githubBranchCopied'));
+          } catch {
+            toast.error(t('githubBranchCopyFailed'));
+          }
+        }}
+        className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        title={t('githubBranchCopy')}
+      >
+        <ClipboardIcon className="size-3 shrink-0" />
+        <span className="truncate">{branchAdi}</span>
+      </button>
+
+      {links.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {links.map((l) => (
+            <a
+              key={l.id}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs transition-colors hover:bg-accent"
+            >
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                {l.kind === 'PULL_REQUEST' ? `#${l.reference}` : l.reference}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{l.title ?? ''}</span>
+              {l.state && (
+                <span
+                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                    l.state === 'merged'
+                      ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
+                      : l.state === 'open'
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {l.state === 'merged'
+                    ? t('githubStateMerged')
+                    : l.state === 'open'
+                      ? t('githubStateOpen')
+                      : t('githubStateClosed')}
+                </span>
+              )}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const TaskModal: React.FC<TaskModalProps> = ({
   taskId,
   isOpen,
@@ -1856,6 +1933,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {taskId !== 'new' && projectKey && task.number != null && (
+                <GithubLinksBlock
+                  cardKey={`${projectKey}-${task.number}`}
+                  title={task.title}
+                  links={task.githubLinks ?? []}
+                />
+              )}
 
               <div className="min-w-0">
                 <label className="block text-sm font-medium text-muted-foreground mb-1.5">

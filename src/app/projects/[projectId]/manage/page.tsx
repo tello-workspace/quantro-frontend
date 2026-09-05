@@ -12,6 +12,7 @@ import { useGetProjectByIdQuery } from '@/features/projects/projectsApi';
 import { ProjectAccessSection } from '@/features/projects/components/ProjectAccessSection';
 import { SaveAsTemplateSection } from '@/features/projects/components/SaveAsTemplateSection';
 import { WebhooksSection } from '@/features/projects/components/WebhooksSection';
+import { GithubLinkSection } from '@/features/projects/components/GithubLinkSection';
 import { ImportWizardDialog } from '@/features/projects/components/ImportWizardDialog';
 import { useGetLabelsQuery } from '@/features/labels/labelsApi';
 import { useGetChangeRequestsQuery } from '@/features/requests/requestsApi';
@@ -234,6 +235,19 @@ export default function ProjectManagePage() {
                 description="Kart olayları için Slack/Discord veya kendi sunucuna imzalı bildirim gönder."
               >
                 <WebhooksSection projectId={projectId} />
+              </SectionShell>
+              {/* GitHub, Webhook'larla ayni ailede (dis sistem entegrasyonu) ve
+                  bu sekmede duruyor. Ayri bir sekme acilmadi: dort sekme dar
+                  ekranda zaten yan yana sigmiyor (bkz. TAB_GRID notu), besincisi
+                  bari daha da kalabaliklastirirdi. */}
+              <SectionShell
+                title="GitHub"
+                description="Depoyu bu projeye bağla: dal adında, commit mesajında veya PR başlığında geçen kart anahtarı (QNT-42) kartı kendiliğinden taşısın."
+              >
+                <GithubLinkSection
+                  projectId={projectId}
+                  columns={columns.map((c) => ({ id: c.id, title: c.title }))}
+                />
               </SectionShell>
               <SectionShell
                 title="İçe Aktar"
