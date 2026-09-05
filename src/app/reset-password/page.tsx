@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useResetPasswordMutation } from '@/features/auth/authApi';
@@ -27,7 +27,19 @@ function ResetPasswordForm() {
   const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  // Ham sifirlama token'i adres cubugunda durdugu surece Sentry olaylarina
+  // (request.url, breadcrumb, transaction adi), referrer basligina ve tarayici
+  // gecmisine oldugu gibi kopyalaniyor; token'i ilk render'da state'e alip
+  // asagidaki effect ile URL'den siliyoruz ki disariya sizacak kopyasi kalmasin.
+  const [token] = useState(() => searchParams.get('token') ?? '');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('token')) return;
+    url.searchParams.delete('token');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
