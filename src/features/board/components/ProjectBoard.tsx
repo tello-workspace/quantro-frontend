@@ -356,7 +356,10 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
   }, [boardData, groupBy, members]);
 
   const matchesFilters = (task: Task): boolean => {
-    if (search.trim() && !task.title.toLowerCase().includes(search.trim().toLowerCase())) {
+    // (task.title ?? '') ikinci savunma: eksik alanli bir socket yayini yine de
+    // basligi dusurursa filtre TypeError firlatip TUM panoyu bos ekrana
+    // cevirmesin - filtre disi kalmasi yeter.
+    if (search.trim() && !(task.title ?? '').toLowerCase().includes(search.trim().toLowerCase())) {
       return false;
     }
     if (selectedPriorities.size > 0 && (!task.priority || !selectedPriorities.has(task.priority))) {
@@ -511,7 +514,17 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         const existing = prev?.tasks[payload.id];
         if (!prev || !existing) return prev;
 
-        const targetColumnId = payload.columnId ?? existing.columnId;
+        // Yayin govdesi HER ZAMAN tam kart degil: zaman kaydi, toplu etiketleme
+        // ve arsivle/geri-yukle yollari card:updated'i yalnizca {id, projectId}
+        // (arsivde {id, isArchived, projectId}) ile gonderiyor. Alanlari
+        // kosulsuz yazmak o yollarda basligi/aciklamayi/tarihleri undefined'a
+        // dusuruyordu: kart panoda basliksiz goruntulenip, arama kutusu doluyken
+        // matchesFilters title uzerinde TypeError firlatarak tum panoyu bos
+        // ekrana cevirdi. Bu yuzden yalnizca payload'da GERCEKTEN bulunan
+        // alanlar uygulanir; olmayan alan mevcut degerini korur (null gelmesi
+        // ise gercek bir temizleme demektir, o aynen uygulanir).
+        const kismi = payload as Partial<typeof payload>;
+        const targetColumnId = kismi.columnId ?? existing.columnId;
         const needsMove =
           !!prev.columns[targetColumnId] &&
           !prev.columns[targetColumnId].taskIds.includes(payload.id);
@@ -522,12 +535,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             ...prev.tasks,
             [payload.id]: {
               ...existing,
-              title: payload.title,
-              description: payload.description ?? undefined,
-              dueDate: payload.dueDate ?? undefined,
-              startDate: payload.startDate ?? undefined,
+              title: kismi.title ?? existing.title,
+              description: 'description' in kismi ? kismi.description ?? undefined : existing.description,
+              dueDate: 'dueDate' in kismi ? kismi.dueDate ?? undefined : existing.dueDate,
+              startDate: 'startDate' in kismi ? kismi.startDate ?? undefined : existing.startDate,
               columnId: targetColumnId,
-              assignees: mergeAssignees(payload.assignees, existing.assignees),
+              assignees: mergeAssignees(kismi.assignees, existing.assignees),
             },
           },
           columns: needsMove ? placeCard(prev.columns, payload.id, targetColumnId) : prev.columns,
@@ -570,7 +583,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       // Diger kullanicilar da RTK cache'lerini (roadmap/insight) guncellesin.
       // Board state'i yukarida socket ile guncelleniyor ama timeline gibi RTK
       // tabanli gorunumler bu olmadan bayat karta takili kalirdi.
-      dispatch(api.util.invalidateTags(['Card', 'Insight']));
+      dispatch(api.util.invalidateTags(['Card', 'Insight', 'MyAssignedCards']));
     });
 
     const unsubscribeColumnCreated = realtimeBoard.onColumnCreated((payload) => {
@@ -1162,10 +1175,22 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           },
         };
       });
+      // Atama degistiyse "bana atanan kartlar" listesi (dashboard) bayat
+      // kaliyordu: bu yol boardService'in plain fetch'i uzerinden gittigi
+      // icin RTK Query degisikligi hic gormuyor.
+      if (atamaDegisti) {
+        dispatch(api.util.invalidateTags(['MyAssignedCards']));
+      }
     } catch (error) {
       console.error("Görev güncellenirken hata:", error);
-      // Sessizce yutmak yerine sebebi kullaniciya soyle
-      toast.error(error instanceof Error ? error.message : 'Görev güncellenemedi.');
+      // Hata YENIDEN FIRLATILIYOR, burada yutulmuyor. Eskiden yutuluyordu:
+      // TaskModal'daki `await onUpdateTask(task)` her zaman basariyla
+      // cozuluyor, modal kapaniyor ve kullanicinin yazdigi baslik/aciklama
+      // ekranla birlikte gidiyordu - geri donup bastan yazmasi gerekiyordu.
+      // Kullaniciya mesaji TEK yerden, modalin kendi catch'i gosteriyor
+      // (iki toast birden cikmasin diye buradaki toast kaldirildi); bu
+      // fonksiyonun tek cagirani zaten o modal.
+      throw error;
     }
   };
 
@@ -1177,17 +1202,41 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
     const previousTask = boardData?.tasks[taskId];
     if (!previousTask) return;
 
+    // Cok gunlu kartlarda ARALIK korunuyor: eskiden startDate de dogrudan
+    // newDueDate'e yaziliyordu, boylece 1-10 Ocak'a yayilmis bir kart hafta
+    // gorunumunde bir gun kaydirilmak istendiginde 10 gunluk planlama verisi
+    // uyarisiz siliniyor, kart tek gunluk bir cubuga cokuyordu. Artik kart bir
+    // butun olarak dueDate'in kaydigi gun sayisi kadar oteleniyor.
+    // Tarihler "YYYY-MM-DD" anahtari uzerinden hesaplaniyor (saat/timezone
+    // kaymasina girmemek icin - CalendarView de ayni deseni kullaniyor).
+    const gunAnahtari = (tarih?: string | null) => (tarih ? tarih.slice(0, 10) : null);
+    const eskiDue = gunAnahtari(previousTask.dueDate);
+    const eskiStart = gunAnahtari(previousTask.startDate);
+    const yeniDue = gunAnahtari(newDueDate) ?? newDueDate;
+    let yeniStartDate: string | undefined;
+    if (eskiStart) {
+      // Eski dueDate yoksa kaydirilacak bir aralik da yok: eski davranis.
+      yeniStartDate = eskiDue
+        ? new Date(
+            Date.parse(`${eskiStart}T00:00:00Z`) +
+              (Date.parse(`${yeniDue}T00:00:00Z`) - Date.parse(`${eskiDue}T00:00:00Z`)),
+          )
+            .toISOString()
+            .slice(0, 10)
+        : newDueDate;
+    }
+
     const previousBoardData = boardData;
     setBoardData((prev) => {
       if (!prev || !prev.tasks[taskId]) return prev;
       return {
         ...prev,
-        tasks: { ...prev.tasks, [taskId]: { ...prev.tasks[taskId], dueDate: newDueDate, startDate: previousTask.startDate ? newDueDate : undefined } },
+        tasks: { ...prev.tasks, [taskId]: { ...prev.tasks[taskId], dueDate: newDueDate, startDate: yeniStartDate } },
       };
     });
 
     try {
-      await boardService.updateTask(projectId, { ...previousTask, dueDate: newDueDate, startDate: previousTask.startDate ? newDueDate : undefined });
+      await boardService.updateTask(projectId, { ...previousTask, dueDate: newDueDate, startDate: yeniStartDate });
     } catch (error) {
       console.error("Kart tarihi güncellenirken hata:", error);
       toast.error(error instanceof Error ? error.message : 'Tarih güncellenemedi.');
@@ -1230,7 +1279,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         // gorunumler kart silinince bayat kalmasin. BoardService plain fetch
         // kullandigi icin RTK bu silmeyi bilmiyor - bu olmadan timeline'da
         // silinen kart gorunmeye devam ediyordu.
-        dispatch(api.util.invalidateTags(['Card', 'Insight']));
+        dispatch(api.util.invalidateTags(['Card', 'Insight', 'MyAssignedCards']));
       } catch (error) {
         console.error("Görev silinirken hata:", error);
         toast.error(t('taskDeleteError'));
@@ -1606,7 +1655,14 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
       } else {
         toast.success('Kart kopyalandı.');
       }
-      boardService.getBoardData(projectId).then((data) => setBoardData(data));
+      // getBoardData ag hatasinda exception degil null donuyor; null'i dogrudan
+      // state'e yazmak islem BASARILI olmasina ragmen tum panoyu "Pano
+      // yuklenemedi" ekranina dusuruyordu. Tazeleme basarisizsa mevcut pano
+      // korunur, kullaniciya yalnizca tazelemenin gecmedigi soylenir.
+      boardService.getBoardData(projectId).then((data) => {
+        if (data) setBoardData(data);
+        else toast.error('Pano tazelenemedi.');
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Kart kopyalanamadı.');
     }
@@ -1724,7 +1780,7 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           action: 'delete',
         });
         refetchLabels();
-        dispatch(api.util.invalidateTags(['Card', 'Insight']));
+        dispatch(api.util.invalidateTags(['Card', 'Insight', 'MyAssignedCards']));
         if (sonuc.basarisiz.length > 0) {
           toast.error(`${sonuc.basarisiz.length} kart silinemedi: ${sonuc.basarisiz[0].sebep}`);
           geriGetir(new Set(sonuc.basarisiz.map((b) => b.cardId)));
@@ -2026,13 +2082,20 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
           currentFilters={{
             search: search || undefined,
             priorities: selectedPriorities.size > 0 ? [...selectedPriorities] : undefined,
+            // types de kaydediliyor: kart tipi filtresi gercek bir filtre
+            // (matchesFilters) oldugu halde goruntume hic yazilmiyordu.
+            types: selectedTypes.size > 0 ? [...selectedTypes] : undefined,
             assigneeIds: selectedAssigneeIds.size > 0 ? [...selectedAssigneeIds] : undefined,
             labelIds: selectedLabelIds.size > 0 ? [...selectedLabelIds] : undefined,
           }}
           hasActiveFilters={hasActiveFilters}
           onApply={(filters) => {
+            // Her filtre KOSULSUZ set ediliyor (bos kume dahil): setSelectedTypes
+            // hic cagrilmadigi icin ekranda acik kalan tip filtresi goruntumun
+            // uzerine biniyor ve kayitli goruntum hic kart gostermiyordu.
             setSearch(filters.search ?? '');
             setSelectedPriorities(new Set(filters.priorities ?? []));
+            setSelectedTypes(new Set(filters.types ?? []));
             setSelectedAssigneeIds(new Set(filters.assigneeIds ?? []));
             setSelectedLabelIds(new Set(filters.labelIds ?? []));
           }}
@@ -2240,7 +2303,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
             orgId={orgId}
             currentProjectId={projectId}
             onMoved={() => {
-              boardService.getBoardData(projectId).then((data) => setBoardData(data));
+              // null yazilirsa tasima basarili oldugu halde pano komple
+              // "yuklenemedi" ekranina duserdi (bkz. handleDuplicateCard).
+              boardService.getBoardData(projectId).then((data) => {
+                if (data) setBoardData(data);
+                else toast.error('Pano tazelenemedi.');
+              });
             }}
           />
         )}
@@ -2348,7 +2416,12 @@ export const ProjectBoard: React.FC<ProjectBoardProps> = ({ projectId, orgId, pr
         onClose={() => setIsArchiveModalOpen(false)}
         projectId={projectId}
         onRestored={() => {
-          boardService.getBoardData(projectId).then((data) => setBoardData(data));
+          // null yazilirsa geri yukleme basarili oldugu halde pano komple
+          // "yuklenemedi" ekranina duserdi (bkz. handleDuplicateCard).
+          boardService.getBoardData(projectId).then((data) => {
+            if (data) setBoardData(data);
+            else toast.error('Pano tazelenemedi.');
+          });
         }}
       />
 

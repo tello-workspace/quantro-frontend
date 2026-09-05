@@ -82,6 +82,13 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   projectKey,
 }) => {
   const { t, lang } = useTranslation();
+  // Suruklemeyi secim modunda TAMAMEN kapatmak (disabled: selectionActive)
+  // ProjectBoard'daki "coklu tasima" dalini erisilemez kiliyordu: bir kart
+  // secilir secilmez hicbir kart suruklenemiyordu, dolayisiyla "secilen
+  // kartlari birlikte tasi" akisi kullaniciya hic ulasmiyordu. Kapatmayi
+  // yalnizca SECILI OLMAYAN kartlara indiriyoruz - onlarda secim modundaki
+  // tiklama zaten karti acmak yerine secimi degistiriyor; secili kart ise
+  // suruklenebilir kalip secimin tamamini tasiyor.
   const {
     attributes,
     listeners,
@@ -89,7 +96,17 @@ export const BoardCard: React.FC<BoardCardProps> = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id, disabled: selectionActive });
+  } = useSortable({ id: task.id, disabled: selectionActive && !selected });
+
+  // Kolon zemini pointerdown'i dinleyip marquee (surukle-ciz secim) baslatiyor
+  // ve secim modunda kart uzerinden de basliyor. Secili karti tutup secimi
+  // topluca tasimak isteyen kullanicinin hareketi boylece marquee'ye gidiyor,
+  // pointer birakilinca secim dikdortgenle degistirilip kayboluyordu. Sadece
+  // bu durumda olayi kolona birakmiyoruz; Shift hala marquee demek.
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (selectionActive && selected && !e.shiftKey) e.stopPropagation();
+    (listeners?.onPointerDown as ((event: React.PointerEvent<HTMLDivElement>) => void) | undefined)?.(e);
+  };
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -115,6 +132,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       style={style}
       {...attributes}
       {...listeners}
+      onPointerDown={handlePointerDown}
       onClick={selectionActive && onToggleSelect ? onToggleSelect : onClick}
       onContextMenu={onContextMenu}
       title={

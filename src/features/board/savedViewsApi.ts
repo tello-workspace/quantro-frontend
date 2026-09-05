@@ -1,9 +1,14 @@
 import { api } from '@/lib/api';
-import type { Priority } from './services/boardService';
+import type { CardType, Priority } from './services/boardService';
 
 export interface SavedViewFilters {
   search?: string;
   priorities?: Priority[];
+  // types eksikti: kart tipi panoda gercek bir filtre (matchesFilters) oldugu
+  // halde goruntume yazilmiyordu, kullanici "BUG + Acil" kaydedip geri
+  // yukledigi zaman kaydettiginden farkli bir sonuc goruyordu. Backend semasi
+  // passthrough oldugu icin bu alan ek bir degisiklik olmadan saklaniyor.
+  types?: CardType[];
   assigneeIds?: string[];
   labelIds?: string[];
 }
