@@ -9,10 +9,9 @@ import {
   socketPayloadToMessage,
   useGetChatMessagesQuery,
   useSendChatMessageMutation,
-  type ChatMessageSocketPayload,
 } from '@/features/chat/chatApi';
 import { useGetMeQuery } from '@/features/auth/meApi';
-import { getSocket } from '@/lib/socket';
+import { useSocket, type ChatMessagePayload, type ChatTypingPayload, type JoinAck } from '@/lib/socket';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -55,8 +54,13 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const { data: me } = useGetMeQuery();
-  const { data: messages = [], isLoading } = useGetChatMessagesQuery(orgId, { skip: !orgId });
+  const { data: messages = [], isLoading, refetch } = useGetChatMessagesQuery(orgId, { skip: !orgId });
   const [sendChatMessage, { isLoading: isSending }] = useSendChatMessageMutation();
+  // Panel artik provider'in yonettigi TEK sokete baglaniyor; getSocket() ikinci
+  // bir bagimsiz baglanti aciyordu ve o baglanti auth:changed/storage ile
+  // kapanmadigi icin baska sekmede cikis yapildiktan sonra da sohbet
+  // olaylarini almaya devam ediyordu.
+  const { isConnected, on, off, emit } = useSocket();
 
   const [input, setInput] = useState('');
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
@@ -64,21 +68,47 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastTypingSentAt = useRef(0);
   const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const bagliOlmustu = useRef(false);
+  const kopmaGoruldu = useRef(false);
 
   // Yeni mesaj geldikce en alta kaydir
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  // Liste yalnizca ilk REST cekimi ve canli chat:message ile doluyordu; soket
+  // kopukken yayinlanan mesajlar icin hicbir telafi yoktu ve panel kapatilip
+  // acilsa bile (keepUnusedDataFor) eksik liste gorunuyordu. Kopmayi gordukten
+  // sonraki yeniden baglantida listeyi REST'ten tazeleyerek araya giren
+  // mesajlari geri dolduruyoruz.
+  useEffect(() => {
+    if (!isConnected) {
+      // Ilk baglanti kurulmadan once de isConnected false gelir; sadece daha
+      // once bagliyken kopmayi gercek kesinti sayiyoruz.
+      if (bagliOlmustu.current) kopmaGoruldu.current = true;
+      return;
+    }
+    if (kopmaGoruldu.current) {
+      kopmaGoruldu.current = false;
+      if (orgId) refetch();
+    }
+    bagliOlmustu.current = true;
+  }, [isConnected, orgId, refetch]);
+
   // Realtime: yeni mesaj + "yaziyor..." dinleyicileri
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
+    // Davet sonrasi baglanan soketler org odasinda olmayabilir.
+    // Ack: red edilirse sohbette hicbir canli mesaj gelmez ve bu, "kimse
+    // yazmiyor" ile ayirt edilemez - sunucunun reddini acikca yaziyoruz.
+    // isConnected bagimliligi sayesinde her yeniden baglantida tekrar
+    // katiliyoruz; oda uyeligi baglanti ile birlikte kayboluyor.
+    emit('join:org', orgId, (sonuc: JoinAck) => {
+      if (sonuc && !sonuc.ok) {
+        console.warn(`[socket] org sohbet odasina katilim reddedildi (${sonuc.reason ?? 'bilinmiyor'}): ${orgId}`);
+      }
+    });
 
-    // Davet sonrasi baglanan soketler org odasinda olmayabilir
-    socket.emit('join:org', orgId);
-
-    const handleMessage = (payload: ChatMessageSocketPayload) => {
+    const handleMessage = (payload: ChatMessagePayload) => {
       if (payload.organizationId !== orgId) return;
 
       // Socket yuku REST cevabiyla ayni sekle getirilmeli
@@ -97,51 +127,48 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
       });
     };
 
-    const handleTyping = (data: {
-      organizationId: string;
-      userId: string;
-      userName: string;
-      isTyping: boolean;
-    }) => {
+    const handleTyping = (data: ChatTypingPayload) => {
       if (data.organizationId !== orgId) return;
-      if (data.userId === me?.id) return;
+      // Kimlik alanlarini sunucu dolduruyor; istemcinin gonderdigi sade
+      // yukla karistirmamak icin bos gelen yayinlari yok sayiyoruz.
+      const userId = data.userId;
+      if (!userId || userId === me?.id) return;
 
-      clearTimeout(typingTimers.current[data.userId]);
+      clearTimeout(typingTimers.current[userId]);
 
       if (!data.isTyping) {
         setTypingUsers((prev) => {
           const next = { ...prev };
-          delete next[data.userId];
+          delete next[userId];
           return next;
         });
         return;
       }
 
-      setTypingUsers((prev) => ({ ...prev, [data.userId]: data.userName }));
+      setTypingUsers((prev) => ({ ...prev, [userId]: data.userName ?? 'Bilinmeyen kullanıcı' }));
       // Karsi taraf "durdum" event'ini gonderemeden kapanirsa diye guvenlik
-      typingTimers.current[data.userId] = setTimeout(() => {
+      typingTimers.current[userId] = setTimeout(() => {
         setTypingUsers((prev) => {
           const next = { ...prev };
-          delete next[data.userId];
+          delete next[userId];
           return next;
         });
       }, TYPING_TIMEOUT_MS);
     };
 
-    socket.on('chat:message', handleMessage);
-    socket.on('chat:typing', handleTyping);
+    on('chat:message', handleMessage);
+    on('chat:typing', handleTyping);
 
     const timers = typingTimers.current;
     return () => {
-      socket.off('chat:message', handleMessage);
-      socket.off('chat:typing', handleTyping);
+      off('chat:message', handleMessage);
+      off('chat:typing', handleTyping);
       Object.values(timers).forEach(clearTimeout);
     };
-  }, [orgId, dispatch, me?.id]);
+  }, [orgId, dispatch, me?.id, isConnected, on, off, emit]);
 
   const emitTyping = (isTyping: boolean) => {
-    const socket = getSocket();
-    socket?.emit('chat:typing', { organizationId: orgId, isTyping });
+    emit('chat:typing', { organizationId: orgId, isTyping });
   };
 
   const handleInputChange = (value: string) => {
@@ -257,7 +284,11 @@ export const OrgChatPanel: React.FC<OrgChatPanelProps> = ({ orgId, orgName, onCl
         <div ref={bottomRef} />
       </div>
 
-      <div className="h-5 px-4 text-xs italic text-muted-foreground">{typingText}</div>
+      {/* Kesinti sirasinda kullanici hicbir uyari gormuyordu: canli mesaj
+          akisinin durmasi "kimse yazmiyor" ile ayni goruntuyu veriyordu. */}
+      <div className="h-5 px-4 text-xs italic text-muted-foreground">
+        {isConnected ? typingText : 'Yeniden bağlanılıyor…'}
+      </div>
 
       <form onSubmit={handleSend} className="flex gap-2 border-t border-border px-4 py-3">
         <Input

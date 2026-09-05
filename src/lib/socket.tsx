@@ -164,6 +164,35 @@ export interface ConflictResolvedPayload {
   filePath: string;
   cardIds: [string, string];
 }
+// Organizasyon sohbeti. Bu olaylar SocketEventMap'te tanimli olmadigi icin
+// OrgChatPanel provider'i atlayip modul seviyesindeki globalSocket'i acmak
+// zorunda kaliyordu; o soket auth:changed/storage yolunda kapanmadigindan
+// baska sekmede cikis yapildiktan sonra bile sohbet trafigini almaya devam
+// ediyordu. Tipleri buraya tasiyarak panel tek sokete baglanabiliyor.
+export interface ChatMessagePayload {
+  id: string;
+  organizationId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface ChatTypingPayload {
+  organizationId: string;
+  // Sunucudan gelen yayinda dolu; istemci gonderirken yalnizca
+  // organizationId + isTyping yollar, kimligi sunucu ekler.
+  userId?: string;
+  userName?: string;
+  isTyping: boolean;
+}
+
+/** join:org / join:project / join:card icin sunucunun dondugu onay. */
+export interface JoinAck {
+  ok: boolean;
+  reason?: "FORBIDDEN" | "INVALID";
+}
+
 type SocketEventMap = {
   // Auth
   authenticate: (token: string) => void;
@@ -229,10 +258,17 @@ type SocketEventMap = {
 
   // Sirket ici mailbox
   "mail:new": (data: { mailId: string; subject: string; senderName: string }) => void;
-  // Custom room events
-  "join:project": (projectId: string) => void;
+
+  // Organizasyon sohbeti
+  "chat:message": (message: ChatMessagePayload) => void;
+  "chat:typing": (data: ChatTypingPayload) => void;
+
+  // Custom room events. join:* ISTEGE BAGLI bir ack callback'i alir; sunucu
+  // katilimin kabul mu red mi edildigini oradan bildirir.
+  "join:org": (organizationId: string, ack?: (sonuc: JoinAck) => void) => void;
+  "join:project": (projectId: string, ack?: (sonuc: JoinAck) => void) => void;
   "leave:project": (projectId: string) => void;
-  "join:card": (cardId: string) => void;
+  "join:card": (cardId: string, ack?: (sonuc: JoinAck) => void) => void;
   "leave:card": (cardId: string) => void;
 };
 
@@ -409,6 +445,19 @@ export function SocketProvider({ children }: SocketProviderProps) {
     connect();
   }, [connect, disconnect]);
 
+  // on/off, socket.io nesnesine BAGLANTI DURUMUNDAN BAGIMSIZ olarak yazar.
+  //
+  // Eskiden ikisi de "socket?.connected" kosuluna baglıydi. socket.io istemcisi
+  // disconnect sirasinda kullanici callback'lerini TEMIZLEMEZ - ayni Socket
+  // ornegi yeniden baglandiginda ayni _callbacks listesiyle devam eder. Bu
+  // yuzden kopukken yapilan off() cagrisi dinleyiciyi sokemiyordu; sadece
+  // listenersRef haritasindan siliyordu. syncSocketListeners ise yalnizca
+  // HARITADAKI handler'lari yeniden bagladigi icin haritadan cikmis eski
+  // handler'a hic dokunmuyor, o da sonsuza dek sokete asili kaliyordu.
+  //
+  // Somut sonuc: wifi 10 sn kopup geri gelince useRealtimeNotifications
+  // effect'i yeni bir closure kaydediyor, eskisi de duruyordu - her atama
+  // bildirimi iki kez toast'laniyor, her kopmada bir kopya daha ekleniyordu.
   const on = useCallback(<K extends EventName>(event: K, callback: EventCallback<K>) => {
     const cb = callback as (...args: never[]) => void;
     if (!listenersRef.current.has(event as string)) {
@@ -417,7 +466,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
     listenersRef.current.get(event as string)!.add(cb);
 
     const socket = socketRef.current;
-    if (socket?.connected) {
+    if (socket) {
+      // off+on: ayni handler iki kez kaydedilmesin (idempotent).
       (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
       (socket.on as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
     }
@@ -427,27 +477,41 @@ export function SocketProvider({ children }: SocketProviderProps) {
     const cb = callback as (...args: never[]) => void;
     listenersRef.current.get(event as string)?.delete(cb);
 
-    const socket = socketRef.current;
-    if (socket?.connected) {
-      (socket.off as (event: string, cb: (...args: never[]) => void) => void)(event, cb);
-    }
+    // Kopuk soketten de sokulebilir; "connected" kosulu tam olarak sizintiyi
+    // uretiyordu.
+    (socketRef.current?.off as ((event: string, cb: (...args: never[]) => void) => void) | undefined)?.(event, cb);
   }, []);
 
   const emit = useCallback(<K extends EventName>(event: K, ...args: Parameters<EventCallback<K>>) => {
     socketRef.current?.emit(event, ...args);
   }, []);
 
-  const joinProject = useCallback((projectId: string) => {
-    socketRef.current?.emit("join:project", projectId);
+  // Sunucu join:* icin ack donuyor. Ack olmadan reddedilen bir katilim
+  // istemcide TAMAMEN sessizdi: kullanici "canli guncelleme gelmiyor" ile
+  // "bu odaya girmeme izin verilmedi" arasindaki farki goremiyordu (ikisi de
+  // ayni sekilde, hicbir olay gelmemesi olarak yasaniyor). Artik red
+  // konsola acikca yaziliyor.
+  const katilimiBildir = useCallback((oda: string, id: string, sonuc?: { ok: boolean; reason?: string }) => {
+    if (sonuc && !sonuc.ok) {
+      console.warn(`[socket] ${oda} odasina katilim reddedildi (${sonuc.reason ?? "bilinmiyor"}): ${id}`);
+    }
   }, []);
+
+  const joinProject = useCallback((projectId: string) => {
+    socketRef.current?.emit("join:project", projectId, (sonuc: { ok: boolean; reason?: string }) =>
+      katilimiBildir("project", projectId, sonuc),
+    );
+  }, [katilimiBildir]);
 
   const leaveProject = useCallback((projectId: string) => {
     socketRef.current?.emit("leave:project", projectId);
   }, []);
 
   const joinCard = useCallback((cardId: string) => {
-    socketRef.current?.emit("join:card", cardId);
-  }, []);
+    socketRef.current?.emit("join:card", cardId, (sonuc: { ok: boolean; reason?: string }) =>
+      katilimiBildir("card", cardId, sonuc),
+    );
+  }, [katilimiBildir]);
 
   const leaveCard = useCallback((cardId: string) => {
     socketRef.current?.emit("leave:card", cardId);
